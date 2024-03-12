@@ -444,11 +444,11 @@ public:
 
 		Reset();
 	}
-	ToggleButton mute_button_b{ Rectangle<int>{ map_size - tile_size, tile_size },
-			3101,
-			3102,
-			3103
-	};
+	//ToggleButton mute_button_b{ Rectangle<int>{ map_size - tile_size, tile_size },
+	//		3101,
+	//		3102,
+	//		3103
+	//};
 	bool paused = false;
 	bool releasing_enemies = false;
 	bool release_done = false;
@@ -880,12 +880,12 @@ public:
 		//if (overlap::PointRectangle(mouse_pos, bg) && node_grid.IsObstacle(mouse_tile))
 		//	mouse_box.Draw(color::GOLD, 3);
 
-		mute_button_b.SetOnActivate([&]() {
-			sound::Get(Hash("click"))->Play(3, 0);
-			music::Toggle();
-		});
+		//mute_button_b.SetOnActivate([&]() {
+		//	sound::Get(Hash("click"))->Play(3, 0);
+		//	music::Toggle();
+		//});
 
-		mute_button_b.Draw();
+		//mute_button_b.Draw();
 
 		// Destroy enemies which run out of lifetime.
 		manager.ForEachEntityWith<LifetimeComponent>([](

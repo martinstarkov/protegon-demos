@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 
-SUBDIRLIST(SUBDIRS ${CMAKE_CURRENT_SOURCE_DIR})
-FOREACH(subdir ${SUBDIRS})
-    add_subdirectory(${subdir})
-ENDFOREACH()
+project(protegon-demos)
+
+add_subdirectory(../protegon binary_dir)
+
+add_subdirectory(paint)
+add_subdirectory(gmtk_jam_2023)
