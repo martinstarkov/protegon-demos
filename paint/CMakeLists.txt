@@ -4,4 +4,4 @@ project(paint)
 
 add_executable(paint src/application.cpp)
 
-target_link_libraries(paint PRIVATE protegon)
+add_protegon_to(paint)
