@@ -201,10 +201,10 @@ public:
 	// damage, health, speed
 	static std::array<std::tuple<std::string, int, int, float>, 4> values;
 	json j;
-	int current_level{ 0 };
-	int levels{ 0 };
-	int current_wave{ 0 };
-	int current_max_waves{ 0 };
+    std::size_t current_level{ 0 };
+	std::size_t levels{ 0 };
+    std::size_t current_wave{ 0 };
+    std::size_t current_max_waves{ 0 };
 	bool music_muted{ false };
 	static int money;
 
@@ -416,7 +416,7 @@ public:
         
 		levels = j["levels"].size();
 		// Create turrets for the current wave.
-		current_max_waves = j["levels"][current_level]["waves"].size();
+        current_max_waves = j["levels"][current_level]["waves"].size();
 
 		// Load textures.
 		texture::Load(500,  "resources/tile/wall.png");
