@@ -3,6 +3,7 @@
 using namespace ptgn;
 
 class Sandbox : public Engine {
+/*
 	Button button0{ Rectangle<int>{ { 5, 5 }, { 50, 50 } },
 		Texture{ "resources/ui/idle.png" },
 		Texture{ "resources/ui/hover.png" },
@@ -29,12 +30,16 @@ class Sandbox : public Engine {
 			 PrintLine("Toggling!");
 	    }
 	};
+	*/
 	void Create() final {
+	/*
 		button2.SetOnActivate([]() {
 			PrintLine("Hi!");
 		});
+*/
 	}
 	void Update(float dt) final {
+	/*
 		button0.Draw();
 		button1.GetRectangle().Draw(color::BLACK, 10);
 		button1.Draw();
@@ -44,6 +49,7 @@ class Sandbox : public Engine {
 			button3.SetToggleStatus(!button3.GetToggleStatus());
 			button3.Activate();
 		}
+*/
 	}
 };
 
