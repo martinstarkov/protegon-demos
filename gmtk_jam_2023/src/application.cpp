@@ -199,22 +199,27 @@ public:
 	ecs::Entity end;
 	std::deque<V2_int> waypoints;
 	// damage, health, speed
-	static std::array<std::tuple<std::string, int, int, float>, 4> values;
+	std::array<std::tuple<std::string, int, int, float>, 4> values{
+		std::tuple<std::string, int, int, float>{ "Normie", 10, 150, 3.0f },
+		std::tuple<std::string, int, int, float>{ "Wizard", 20, 120, 3.5f },
+		std::tuple<std::string, int, int, float>{ "Elf", 40, 80, 4.5f },
+		std::tuple<std::string, int, int, float>{ "Fairy", 60, 40, 5.0f }
+	};
 	json j;
     std::size_t current_level{ 0 };
 	std::size_t levels{ 0 };
     std::size_t current_wave{ 0 };
     std::size_t current_max_waves{ 0 };
 	bool music_muted{ false };
-	static int money;
+	int money{ 0 };
 
 	Text sell_hint{ Hash("2"), "Click unit to refund", color::BLACK };
 	Text buy_hint{ Hash("2"), "Press 'b' between waves to buy units", color::BLACK };
 	Text info_hint{ Hash("2"), "Press 'i' to see instructions", color::BLACK };
 	
-	static int max_queue_size;
-	static std::deque<Enemy> enemy_queue;
-	static std::array<int, 4> prices;
+	int max_queue_size{ 8 };
+	std::deque<Enemy> enemy_queue;
+	std::array<int, 4> prices{ 50, 100, 150, 200 };
 	milliseconds enemy_release_delay{ 500 };
 	Timer enemy_release_timer;
 
@@ -442,13 +447,20 @@ public:
 		sound::Load(Hash("pulse_attack"), "resources/sound/pulse_attack.wav");
 		sound::Load(Hash("laser_buzz"), "resources/sound/laser_buzz.wav");
 
+		mute_button_b = TexturedToggleButton{ Rectangle<int>{ map_size - tile_size, tile_size },
+			3101,
+			3102,
+			3103
+		};
+
+		mute_button_b.SetOnActivate([&]() {
+			sound::Get(Hash("click"))->Play(3, 0);
+			music::Toggle();
+		});
+
 		Reset();
 	}
-	//ToggleButton mute_button_b{ Rectangle<int>{ map_size - tile_size, tile_size },
-	//		3101,
-	//		3102,
-	//		3103
-	//};
+	TexturedToggleButton mute_button_b;
 	bool paused = false;
 	bool releasing_enemies = false;
 	bool release_done = false;
@@ -880,12 +892,7 @@ public:
 		//if (overlap::PointRectangle(mouse_pos, bg) && node_grid.IsObstacle(mouse_tile))
 		//	mouse_box.Draw(color::GOLD, 3);
 
-		//mute_button_b.SetOnActivate([&]() {
-		//	sound::Get(Hash("click"))->Play(3, 0);
-		//	music::Toggle();
-		//});
-
-		//mute_button_b.Draw();
+		mute_button_b.Draw();
 
 		// Destroy enemies which run out of lifetime.
 		manager.ForEachEntityWith<LifetimeComponent>([](
@@ -1008,6 +1015,8 @@ public:
 	int direction = 0;
 	Text sell_hint{ Hash("2"), "Click unit to refund", color::WHITE };
 	void Update(float dt) final {
+		GameScene& game_scene = *scene::Get<GameScene>(Hash("game"));
+
 		auto mouse_pos = input::GetMousePosition();
 		Rectangle<int> bg{ {}, window::GetLogicalSize() };
 		texture::Get(2)->Draw(bg);
@@ -1035,15 +1044,15 @@ public:
 				index = 1;
 				// Buy item if player has money and spaces in queue.
 				if (input::MouseDown(Mouse::LEFT) && 
-					GameScene::prices[i] <= GameScene::money && 
-					GameScene::enemy_queue.size() < GameScene::max_queue_size) {
+					game_scene.prices[i] <= game_scene.money && 
+					game_scene.enemy_queue.size() < game_scene.max_queue_size) {
 					sound::Get(Hash("click"))->Play(3, 0);
-					GameScene::enemy_queue.push_back(static_cast<Enemy>(i));
-					GameScene::money -= GameScene::prices[i];
+					game_scene.enemy_queue.push_back(static_cast<Enemy>(i));
+					game_scene.money -= game_scene.prices[i];
 				}
 			}
 			buy.Draw(first_button, { { 0, 32 * index }, { 64, 32 } });
-			std::string price = "Price: " + std::to_string(GameScene::prices[i]);
+			std::string price = "Price: " + std::to_string(game_scene.prices[i]);
 			Text price_text{ Hash("2"), price.c_str(), color::GOLD };
 			price_text.Draw(first_button.Offset({ 0, -unit_frame_size.y - 48 }));
 		}
@@ -1078,7 +1087,7 @@ public:
 			enemies.Draw(unit, source_rect);
 		}
 
-		std::string money_str = "Money: " + std::to_string(GameScene::money);
+		std::string money_str = "Money: " + std::to_string(game_scene.money);
 		Text money_text{ Hash("2"), money_str.c_str(), color::GOLD };
 		V2_int money_text_size{ 130, 25 };
 		Rectangle<float> money_text_box{ { (float)window::GetLogicalSize().x / 2.0f - (float)money_text_size.x / 2.0f, 0.0f }, money_text_size };
@@ -1089,16 +1098,16 @@ public:
 		money_text.Draw(money_text_box);
 
 		V2_float queue_frame_size{ 28, 32 };
-		const Rectangle<float> queue_frame{ { grid_size.x * tile_size.x / 2 - queue_frame_size.x * GameScene::max_queue_size / 2, grid_size.y * tile_size.y - queue_frame_size.y }, queue_frame_size };
+		const Rectangle<float> queue_frame{ { grid_size.x * tile_size.x / 2 - queue_frame_size.x * game_scene.max_queue_size / 2, grid_size.y * tile_size.y - queue_frame_size.y }, queue_frame_size };
 
 		// Draw queue.
-		for (int i = 0; i < GameScene::max_queue_size; i++) {
+		for (int i = 0; i < game_scene.max_queue_size; i++) {
 			Rectangle<float> frame = queue_frame.Offset({ queue_frame.size.x * i, 0 });
 			texture::Get(3000)->Draw(frame);
 		}
 
 		// Draw hover.
-		for (int i = 0; i < GameScene::max_queue_size; i++) {
+		for (int i = 0; i < game_scene.max_queue_size; i++) {
 			Rectangle<float> frame = queue_frame.Offset({ queue_frame.size.x * i, 0 });
 			if (overlap::PointRectangle(mouse_pos, frame)) {
 				frame.Draw(color::GOLD, 3);
@@ -1106,14 +1115,14 @@ public:
 			}
 		}
 
-		for (int i = 0; i < GameScene::max_queue_size; i++) {
+		for (int i = 0; i < game_scene.max_queue_size; i++) {
 			Rectangle<float> frame = queue_frame.Offset({ queue_frame.size.x * i, 0 });
 			if (overlap::PointRectangle(mouse_pos, frame) &&
 				input::MouseDown(Mouse::LEFT) &&
-				i < GameScene::enemy_queue.size()) {
+				i < game_scene.enemy_queue.size()) {
 				sound::Get(Hash("click"))->Play(3, 0);
-				GameScene::money += GameScene::prices[static_cast<int>(GameScene::enemy_queue[i])];
-				GameScene::enemy_queue.erase(GameScene::enemy_queue.begin() + i);
+				game_scene.money += game_scene.prices[static_cast<int>(game_scene.enemy_queue[i])];
+				game_scene.enemy_queue.erase(game_scene.enemy_queue.begin() + i);
 				break;
 			}
 		}
@@ -1126,21 +1135,21 @@ public:
 		V2_float stat_offsets{ stat_offsets_frac * window::GetLogicalSize() };
 
 		int stat_count = 4;
-		for (int i = 0; i < GameScene::values.size(); ++i) {
+		for (int i = 0; i < game_scene.values.size(); ++i) {
 			for (int j = 0; j < stat_count; j++) {
 				Color stat_color = color::BLACK;
 				std::string label = "";
 				if (j == 0) { // names
-					label = "Name: " + std::get<0>(GameScene::values[i]);
+					label = "Name: " + std::get<0>(game_scene.values[i]);
 					stat_color = color::GOLD;
 				} else if (j == 1) { // damage
-					label = "Damage: " + std::to_string(std::get<1>(GameScene::values[i]));
+					label = "Damage: " + std::to_string(std::get<1>(game_scene.values[i]));
 					stat_color = color::RED;
 				} else if (j == 2) { // health
-					label = "Health: " + std::to_string(std::get<2>(GameScene::values[i]));
+					label = "Health: " + std::to_string(std::get<2>(game_scene.values[i]));
 					stat_color = color::GREEN;
 				} else if (j == 3) { // speed
-					std::string speed_str = std::to_string(std::get<3>(GameScene::values[i]));
+					std::string speed_str = std::to_string(std::get<3>(game_scene.values[i]));
 					speed_str.erase(speed_str.find_last_not_of('0') + 1, std::string::npos);
 					speed_str.erase(speed_str.find_last_not_of('.') + 1, std::string::npos);
 					label = "Speed: " + speed_str;
@@ -1157,19 +1166,19 @@ public:
 		}
 
 		// Draw border around queue frame.
-		Rectangle<float> queue_frame_border = queue_frame.Offset({ -4, -4 }, { queue_frame.size.x * (GameScene::max_queue_size - 1) + 8, 8 });
+		Rectangle<float> queue_frame_border = queue_frame.Offset({ -4, -4 }, { queue_frame.size.x * (game_scene.max_queue_size - 1) + 8, 8 });
 		queue_frame_border.Draw(color::DARK_BROWN, 6);
 		queue_frame_border.Draw(color::BLACK, 3);
 
 		// Draw UI displaying enemies in queue.
 		int facing_direction = 7; // characters point to the bottom left.
-		for (int i = 0; i < GameScene::enemy_queue.size(); i++) {
-			Enemy type = GameScene::enemy_queue[i];
+		for (int i = 0; i < game_scene.enemy_queue.size(); i++) {
+			Enemy type = game_scene.enemy_queue[i];
 			Rectangle<float> source_rect{V2_float{ static_cast<float>(facing_direction), static_cast<float>(type) } *tile_size, tile_size };
 			texture::Get(2000)->Draw(queue_frame.Offset({ queue_frame.size.x * i, 0 }), source_rect);
 		}
 		// Draw arrow over first enemy in queue.
-		if (GameScene::enemy_queue.size() > 0) {
+		if (game_scene.enemy_queue.size() > 0) {
 			V2_float arrow_size{ 15, 21 };
 			Rectangle<float> arrow = queue_frame.Offset({ 0.0f, -arrow_size.y });
 			texture::Get(3001)->Draw(arrow);
@@ -1280,12 +1289,15 @@ public:
 	}
 };
 
-class GMTKJam2023 : public Engine {
-	void Create() final {
+class GMTKJam2023 : public Scene {
+public:
+	GMTKJam2023() {
 		// Setup window configuration.
+		window::SetTitle("Tower Offense");
+		window::SetSize({ 1080, 720 }, true);
 		window::SetColor(color::BLACK);
-		window::Maximize();
 		window::SetResizeable(true);
+		window::Maximize();
 		window::SetLogicalSize({ 960, 480 });
 
 		texture::Load(2, "resources/background/menu.png");
@@ -1299,26 +1311,9 @@ class GMTKJam2023 : public Engine {
 		scene::Load<BuyScreen>(Hash("buy_menu"));
 		scene::SetActive(Hash("menu"));
 	}
-
-	void Update(float dt) final {
-		scene::Update(dt);
-	}
 };
-
-std::array<std::tuple<std::string, int, int, float>, 4> GameScene::values{
-	std::tuple<std::string, int, int, float>{ "Normie", 10, 150, 3.0f },
-	std::tuple<std::string, int, int, float>{ "Wizard", 20, 120, 3.5f },
-	std::tuple<std::string, int, int, float>{ "Elf", 40, 80, 4.5f },
-	std::tuple<std::string, int, int, float>{ "Fairy", 60, 40, 5.0f }
-};
-
-int GameScene::money = 0;
-int GameScene::max_queue_size = 8;
-std::array<int, 4> GameScene::prices{ 50, 100, 150, 200 };
-std::deque<Enemy> GameScene::enemy_queue;
 
 int main(int c, char** v) {
-	GMTKJam2023 game;
-	game.Construct("GMTK Jam 2023", { 1080, 720 });
+	ptgn::game::Start<GMTKJam2023>();
 	return 0;
 }
