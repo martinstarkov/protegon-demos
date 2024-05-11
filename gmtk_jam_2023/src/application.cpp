@@ -455,10 +455,11 @@ public:
 		Reset();
 	}
 	TexturedToggleButton mute_button_b{ Rectangle<int>{ map_size - tile_size, tile_size },
-		3101,
-		3102,
-		3103
+		{ 3101, 3103 },
+		{ 3102, 3102 },
+		{ 3102, 3102 }
 	};
+	SolidButton start_wave_button{ Rectangle<int>{ { 0, map_size.y - 50 }, { 100, 50 } }, color::DARK_GREY, color::BLACK, color::BLACK };
 	bool paused = false;
 	bool releasing_enemies = false;
 	bool release_done = false;
@@ -545,24 +546,23 @@ public:
 
 		V2_float queue_frame_size{ 28, 32 };
 		const Rectangle<float> queue_frame{ { map_size.x / 2 - queue_frame_size.x * max_queue_size / 2, map_size.y - queue_frame_size.y }, queue_frame_size };
-		const Rectangle<int> start_wave{ { 0, map_size.y - 50 }, { 100, 50 } };
 
-		Color start_color = color::DARK_GREY;
+		auto release_enemies = [&]() {
+			if (!releasing_enemies && !release_done && enemy_queue.size() > 0) {
+				releasing_enemies = true;
+				sound::Get(Hash("click"))->Play(3, 0);
+			}
+		};
 
-		bool hovering_start = overlap::PointRectangle(mouse_pos, start_wave);
-
-		if (hovering_start)
-			start_color = color::BLACK;
-
-		start_wave.DrawSolid(start_color);
+		start_wave_button.SetOnActivate(release_enemies);
+		start_wave_button.Draw();
 
 		Text start_text{ Hash("2"), "Start", color::GOLD };
-		start_text.Draw(start_wave);
+		start_text.Draw(start_wave_button.GetRectangle());
 
 		// Hitting space triggers the emptying of the queue.
-		if ((input::KeyDown(Key::SPACE) || (hovering_start && input::MouseDown(Mouse::LEFT))) && !releasing_enemies && !release_done && enemy_queue.size() > 0) {
-			releasing_enemies = true;
-			sound::Get(Hash("click"))->Play(3, 0);
+		if (input::KeyDown(Key::SPACE)) {
+			release_enemies();
 		}
 
 		if (releasing_enemies) {
@@ -1189,49 +1189,54 @@ public:
 class StartScreen : public Scene {
 public:
 	//Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
-	Texture button{ "resources/ui/play.png" };
-	Texture button_hover{ "resources/ui/play_hover.png" };
+	
+	TexturedButton play{ {}, Hash("play"), Hash("play_hover"), Hash("play_hover") };
+	Color play_text_color{ color::WHITE };
 
 	StartScreen() {
+		texture::Load(Hash("play"), "resources/ui/play.png");
+		texture::Load(Hash("play_hover"), "resources/ui/play_hover.png");
 		music::Mute();
 	}
 	void Update(float dt) final {
 		music::Mute();
-		Rectangle<float> bg{ {}, window::GetLogicalSize() };
+		V2_int window_size{ window::GetLogicalSize() };
+		Rectangle<float> bg{ {}, window_size };
 		texture::Get(2)->Draw(bg);
 
-		auto mouse = input::GetMousePosition();
-		V2_int s{ 960, 480 };
+		V2_int play_texture_size = play.GetCurrentTexture().GetSize();
 
-		V2_int play_size{ 463, 204 };
-		V2_int play_pos{ window::GetLogicalSize().x / 2 - play_size.x / 2 - 10, 
-			             window::GetLogicalSize().y / 2 - play_size.y / 2 - 18 };
+		play.SetRectangle({ window_size / 2 - play_texture_size / 2, play_texture_size });
 
 		V2_int play_text_size{ 220, 80 };
-		V2_int play_text_pos{ window::GetLogicalSize().x / 2 - play_text_size.x / 2,
-			                  window::GetLogicalSize().y / 2 - play_text_size.y / 2 };
+		V2_int play_text_pos = window_size / 2 - play_text_size / 2;
+		play_text_pos.y += 20;
 		
 		Color text_color = color::WHITE;
 
-		bool hover = overlap::PointRectangle(mouse, Rectangle<int>{ { window::GetLogicalSize().x / 2 - (int)(716 / 2 / window::GetScale().x), window::GetLogicalSize().y / 2 - (int)(274 / 2 / window::GetScale().y) }, { (int)(716 / window::GetScale().x), (int)(274 / window::GetScale().y) } });
-		
-        if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
+		auto play_press = [&]() {
 			sound::Get(Hash("click"))->Play(3, 0);
 			scene::Load<GameScene>(Hash("game"));
 			scene::SetActive(Hash("game"));
+		};
+
+		play.SetOnActivate(play_press);
+		play.SetOnHover([&]() {
+			play_text_color = color::GOLD;
+		}, [&]() {
+			play_text_color = color::WHITE;
+		});
+
+        if (input::KeyDown(Key::SPACE)) {
+			play_press();
 		}
 
-		if (hover) {
-			text_color = color::GOLD;
-			button_hover.Draw({ play_pos, play_size });
-		} else {
-			button.Draw({ play_pos, play_size });
-		}
+		play.Draw();
 
 		Text t3{ Hash("2"), "Tower Offense", color::DARK_GREEN };
 		t3.Draw({ play_text_pos - V2_int{ 250, 160 }, { play_text_size.x + 500, play_text_size.y } });
 
-		Text t{ Hash("2"), "Play", text_color };
+		Text t{ Hash("2"), "Play", play_text_color };
 		t.Draw({ play_text_pos, play_text_size });
 	}
 };
