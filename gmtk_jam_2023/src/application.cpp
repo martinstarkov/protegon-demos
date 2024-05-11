@@ -447,12 +447,6 @@ public:
 		sound::Load(Hash("pulse_attack"), "resources/sound/pulse_attack.wav");
 		sound::Load(Hash("laser_buzz"), "resources/sound/laser_buzz.wav");
 
-		mute_button_b = TexturedToggleButton{ Rectangle<int>{ map_size - tile_size, tile_size },
-			3101,
-			3102,
-			3103
-		};
-
 		mute_button_b.SetOnActivate([&]() {
 			sound::Get(Hash("click"))->Play(3, 0);
 			music::Toggle();
@@ -460,7 +454,11 @@ public:
 
 		Reset();
 	}
-	TexturedToggleButton mute_button_b;
+	TexturedToggleButton mute_button_b{ Rectangle<int>{ map_size - tile_size, tile_size },
+		3101,
+		3102,
+		3103
+	};
 	bool paused = false;
 	bool releasing_enemies = false;
 	bool release_done = false;
