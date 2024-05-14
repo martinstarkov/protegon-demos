@@ -8,6 +8,8 @@ class GameScene;
 const inline V2_int grid_size{ 27, 16 };
 const inline V2_int tile_size{ 16, 16 };
 
+struct OxygenComponent {};
+
 struct TextureComponent {
 	TextureComponent(std::size_t key) : key{ key } {}
 	std::size_t key{ 0 };
@@ -140,6 +142,103 @@ struct PathingComponent {
 	std::unordered_map<V2_int, int> path_visits;
 };
 
+
+
+struct VelocityComponent {
+	VelocityComponent(const V2_float& vel) : vel{ vel } {}
+	V2_float vel;
+};
+
+struct LifetimeComponent {
+	LifetimeComponent(milliseconds time) : time{ time } {}
+	Timer timer;
+	milliseconds time{ 0 };
+};
+
+struct ParticleManager {
+public:
+	ParticleManager() = delete;
+	ParticleManager(std::size_t max_particle_count, std::size_t texture_key, milliseconds particle_lifetime, milliseconds spawn_rate) :
+		max_particle_count{ max_particle_count }, texture_key{ texture_key }, particle_lifetime{ particle_lifetime }, spawn_rate{ spawn_rate } {}
+	void Start() {
+		spawn_timer.Start();
+	}
+	void Stop() {
+		spawn_timer.Stop();
+	}
+	void GenerateParticle() {
+		if (manager.Size() >= max_particle_count) return;
+		auto entity = manager.CreateEntity();
+		assert(texture::Has(texture_key));
+		Texture& texture = *texture::Get(texture_key);
+		entity.Add<Rectangle<float>>(Rectangle<float>{ source, texture.GetSize() });
+
+		assert(x_min_speed < x_max_speed);
+		assert(y_min_speed < y_max_speed);
+
+		RNG<float> rng_speed_x{ x_min_speed, x_max_speed };
+		RNG<float> rng_speed_y{ y_min_speed, y_max_speed };
+
+		entity.Add<VelocityComponent>(V2_float{ rng_speed_x(), rng_speed_y() });
+		entity.Add<OffsetComponent>(V2_int{ -texture.GetSize() / 2 });
+		auto& lifetime = entity.Add<LifetimeComponent>(particle_lifetime);
+		lifetime.timer.Start();
+		manager.Refresh();
+	}
+	void Update() {
+		manager.ForEachEntityWith<Rectangle<float>, VelocityComponent, LifetimeComponent>([&](
+			ecs::Entity e, Rectangle<float>& rect, VelocityComponent& velocity, LifetimeComponent& life) {
+			rect.pos += velocity.vel;
+			velocity.vel *= 0.99f;
+			milliseconds elapsed = life.timer.Elapsed();
+			if (elapsed > life.time) {
+				e.Destroy();
+			}
+		});
+		if (spawn_timer.Elapsed() > spawn_rate) {
+			GenerateParticle();
+			spawn_timer.Reset();
+			spawn_timer.Start();
+		}
+		manager.Refresh();
+	}
+	// TODO: Add const ForEachEntityWith to ecs library.
+	void Draw() {
+		manager.ForEachEntityWith<Rectangle<float>, LifetimeComponent, OffsetComponent>([&](
+			ecs::Entity e, const Rectangle<float>& rect, const LifetimeComponent& life, const OffsetComponent& offset) {
+			float elapsed = life.timer.ElapsedPercentage(life.time);
+			std::uint8_t alpha = (1.0f - elapsed) * 255;
+			assert(texture::Has(texture_key));
+			Texture& t = *texture::Get(texture_key);
+			t.SetAlpha(alpha);
+			t.Draw(rect.Offset(offset.offset));
+		});
+		// Draw debug point to identify source of particles.
+		/*Circle<float> c{ source, 2 };
+		c.DrawSolid(color::RED);*/
+	}
+	void SetSource(const V2_int& new_source) {
+		source = new_source;
+	}
+private:
+	std::size_t max_particle_count{ 0 };
+	float x_min_speed{ -0.5 };
+	float x_max_speed{ 0.5 };
+	float y_min_speed{ -1 };
+	float y_max_speed{ 0 };
+	V2_int source;
+	milliseconds particle_lifetime;
+	milliseconds spawn_rate;
+	Timer spawn_timer;
+	ecs::Manager manager;
+	std::size_t texture_key;
+};
+
+struct ParticleComponent {
+	ParticleComponent() = default;
+	ParticleManager particle{ 10, Hash("bubble"), milliseconds{ 1000 }, milliseconds{ 500 } };
+};
+
 ecs::Entity CreatePath(ecs::Manager& manager, const Rectangle<float>& rect, const V2_int& coordinate, std::size_t key) {
 
 	auto entity = manager.CreateEntity();
@@ -148,6 +247,7 @@ ecs::Entity CreatePath(ecs::Manager& manager, const Rectangle<float>& rect, cons
 	entity.Add<DrawComponent>();
 	entity.Add<RotationComponent>();
 	entity.Add<FlipComponent>();
+	assert(texture::Has(key));
 	entity.Add<TextureComponent>(key);
 	entity.Add<TextureMapComponent>();
 
@@ -161,6 +261,7 @@ ecs::Entity CreatePath(ecs::Manager& manager, const Rectangle<float>& rect, cons
 ecs::Entity CreateFish(ecs::Manager& manager, const Rectangle<float> rect, const V2_int coordinate, std::size_t key, const std::vector<ecs::Entity>& paths, float speed, V2_int offset) {
 	auto entity = manager.CreateEntity();
 	entity.Add<DrawComponent>();
+	assert(texture::Has(key));
 	entity.Add<TextureComponent>(key);
 	entity.Add<WaypointProgressComponent>();
 	entity.Add<SpeedComponent>(speed);
@@ -171,6 +272,21 @@ ecs::Entity CreateFish(ecs::Manager& manager, const Rectangle<float> rect, const
 	auto& pathing = entity.Add<PathingComponent>(paths);
 	pathing.IncreaseVisitCount(coordinate);
 	entity.Add<Rectangle<float>>(Rectangle<float>{ rect.pos, texture::Get(key)->GetSize() / 2 });
+	manager.Refresh();
+	return entity;
+}
+
+ecs::Entity CreateStructure(ecs::Manager& manager, const Rectangle<float> pos_rect, const V2_int coordinate, std::size_t key) {
+	auto entity = manager.CreateEntity();
+	entity.Add<DrawComponent>();
+	auto& offset = entity.Add<OffsetComponent>(V2_int{ 0, -16 });
+	assert(texture::Has(key));
+	entity.Add<TextureComponent>(key);
+	auto& particle = entity.Add<ParticleComponent>();
+	auto& rect = entity.Add<Rectangle<float>>(Rectangle<float>{ pos_rect.pos, texture::Get(key)->GetSize() });
+	particle.particle.SetSource(rect.Offset(offset.offset).Center());
+	particle.particle.Start();
+	entity.Add<TileComponent>(coordinate);
 	manager.Refresh();
 	return entity;
 }
@@ -217,13 +333,15 @@ public:
 
 		levels = j["levels"].size();*/
 
-		Reset();
-
 		// Load textures.
 		texture::Load(Hash("floor"), "resources/tile/floor.png");
 		texture::Load(Hash("nemo"), "resources/units/nemo.png");
 		texture::Load(Hash("blue_nemo"), "resources/units/blue_nemo.png");
 		texture::Load(Hash("jelly"), "resources/units/jelly.png");
+		texture::Load(Hash("kelp"), "resources/structure/kelp.png");
+		texture::Load(Hash("bubble"), "resources/particle/bubble.png");
+
+		Reset();
 	}
 
 	void Reset() {
@@ -233,12 +351,13 @@ public:
 			Rectangle<float> rect{ position, tile_size };
 			if (color == color::MAGENTA) {
 				paths.push_back(CreatePath(manager, rect, coordinate, Hash("floor")));
-			}
-			if (color == color::BLUE) {
+			} else if (color == color::BLUE) {
 				paths.push_back(CreatePath(manager, rect, coordinate, Hash("floor")));
 				ecs::Entity spawn = CreateSpawn(manager, rect, coordinate);
 				spawn_points.push_back(spawn);
 				paths.push_back(CreatePath(manager, spawn.Get<Rectangle<float>>(), spawn.Get<TileComponent>().coordinate, Hash("floor")));
+			} else if (color == color::DARK_GREEN) {
+				CreateStructure(manager, rect, coordinate, Hash("kelp"));
 			}
 			//else if (color == color::LIGHT_PINK) {
 			//	//CreateWall(rect, coordinate, 500);
@@ -313,8 +432,14 @@ public:
 		});
 	}
 	void Update(float dt) final {
+		V2_int mouse_pos = input::GetMousePosition();
+		V2_int mouse_tile = V2_int{ V2_float{ mouse_pos } / V2_float{ tile_size } };
+		Rectangle<float> mouse_box{ mouse_tile * tile_size, tile_size };
 		
-		
+		if (input::MouseUp(Mouse::LEFT)) {
+			CreateStructure(manager, mouse_box, mouse_tile, Hash("kelp"));
+		}
+
 		// Draw cyan background
 		Rectangle<float> bg{ {}, window::GetLogicalSize() };
 		bg.DrawSolid(color::CYAN);
@@ -348,6 +473,11 @@ public:
 		if (input::KeyDown(Key::J)) {
 			CreateFish(manager, spawn_rect, spawn_coordinate, Hash("jelly"), paths, 1.0f, V2_int{ 4, 4 });
 		}
+
+		manager.ForEachEntityWith<ParticleComponent>([](
+			ecs::Entity e, ParticleComponent& particle) {
+			particle.particle.Update();
+		});
 
 		/*manager.ForEachEntityWith<Rectangle<float>, TextureComponent, DrawComponent>([](
 			ecs::Entity e, Rectangle<float>& rect,
@@ -444,6 +574,13 @@ public:
 			}
 		});
 
+		manager.ForEachEntityWith<ParticleComponent>([](
+			ecs::Entity e, ParticleComponent& particle) {
+			particle.particle.Draw();
+		});
+
+		mouse_box.Draw(color::GOLD, 3);
+
 		manager.Refresh();
 	}
 };
@@ -513,8 +650,8 @@ public:
 		window::SetColor(color::BLACK);
 		window::SetResizeable(true);
 		window::Maximize();
-		window::SetScale({ 3.0f, 3.0f });
-		window::SetLogicalSize({ 1280, 720 });
+		window::SetScale({ 16.0f, 16.0f });
+		window::SetLogicalSize(grid_size * tile_size * window::GetScale());
 
 		font::Load(Hash("04B_30"), "resources/font/04B_30.ttf", 32);
 		font::Load(Hash("retro_gaming"), "resources/font/retro_gaming.ttf", 32);
