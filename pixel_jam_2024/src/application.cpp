@@ -307,11 +307,46 @@ ecs::Entity CreateSpawn(ecs::Manager& manager, Rectangle<float> rect, V2_int coo
 	return entity;
 }
 
+struct UILevelComponent {};
+
+struct UILevelIndicator {
+public:
+	void Create(ecs::Manager& manager) {
+		entity = manager.CreateEntity();
+		std::size_t texture_key = Hash("level_indicator");
+		assert(texture::Has(texture_key));
+		Texture& texture = *texture::Get(texture_key);
+		entity.Add<UILevelComponent>();
+		entity.Add<TextureComponent>(texture_key);
+		entity.Add<Rectangle<float>>(Rectangle<float>{ V2_int{ 25 * tile_size.x, 0 * tile_size.y }, texture.GetSize() });
+		manager.Refresh();
+	}
+	void Draw(ecs::Manager& manager) {
+		manager.ForEachEntityWith<Rectangle<float>, TextureComponent, UILevelComponent>([&](
+			ecs::Entity e, const Rectangle<float>& rect, const TextureComponent& texture, const UILevelComponent& ui_level) {
+			assert(texture::Has(texture.key));
+			Circle<float> circle{ rect.Center(), rect.Half().x - 1 };
+			circle.DrawSolidSliced(color::RED, [&](float y_frac) {
+				return y_frac >= 1.0f - level;
+			});
+			texture::Get(texture.key)->Draw(rect);
+		});
+	}
+	void UpdateLevel(float level_change) {
+		level = std::clamp(level + level_change, 0.0f, 1.0f);
+	}
+private:
+	float level{ 0.0f };
+	ecs::Entity entity;
+};
+
 class GameScene : public Scene {
 public:
 	Surface default_layout{ "resources/maps/default_layout.png" };
 	AStarGrid node_grid{ grid_size };
 	ecs::Manager manager;
+
+	UILevelIndicator oxygen_indicator;
 	
 	json j;
 
@@ -340,6 +375,7 @@ public:
 		texture::Load(Hash("jelly"), "resources/units/jelly.png");
 		texture::Load(Hash("kelp"), "resources/structure/kelp.png");
 		texture::Load(Hash("bubble"), "resources/particle/bubble.png");
+		texture::Load(Hash("level_indicator"), "resources/ui/level_indicator.png");
 
 		Reset();
 	}
@@ -368,6 +404,8 @@ public:
 			//	//end = CreateEnd(rect, coordinate);
 			//}
 		});
+
+		oxygen_indicator.Create(manager);
 
 		manager.ForEachEntityWith<PathComponent, TileComponent, TextureMapComponent, RotationComponent, FlipComponent>([&](
 			ecs::Entity e, PathComponent& path, TileComponent& tile, TextureMapComponent& texture_map, RotationComponent& rotation, FlipComponent& flip) {
@@ -443,6 +481,13 @@ public:
 		// Draw cyan background
 		Rectangle<float> bg{ {}, window::GetLogicalSize() };
 		bg.DrawSolid(color::CYAN);
+
+		if (input::MouseScroll() > 0) {
+			oxygen_indicator.UpdateLevel(+0.01f);
+		}
+		if (input::MouseScroll() < 0) {
+			oxygen_indicator.UpdateLevel(-0.01f);
+		}
 		
 
 		// Draw background tiles
@@ -578,6 +623,8 @@ public:
 			ecs::Entity e, ParticleComponent& particle) {
 			particle.particle.Draw();
 		});
+
+		oxygen_indicator.Draw(manager);
 
 		mouse_box.Draw(color::GOLD, 3);
 
