@@ -550,6 +550,8 @@ public:
 
 	GameScene() {
 
+		window::SetScale({ 16.0f, 16.0f });
+		window::SetLogicalSize(grid_size * tile_size * window::GetScale());
 		/*music::Unmute();
 		music::Load(Hash("in_game"), "resources/music/in_game.wav");
 		music::Get(Hash("in_game"))->Play(-1);*/
@@ -575,12 +577,12 @@ public:
 		texture::Load(Hash("shrimp"), "resources/units/shrimp_right.png");
 		texture::Load(Hash("shrimp_up"), "resources/units/shrimp_up.png");
 		texture::Load(Hash("shrimp_down"), "resources/units/shrimp_down.png");
-		texture::Load(Hash("blue_nemo"), "resources/units/blue_nemo.png");
-		texture::Load(Hash("jelly"), "resources/units/jelly.png");
 		texture::Load(Hash("dory"), "resources/units/dory_right.png");
 		texture::Load(Hash("dory_up"), "resources/units/dory_up.png");
 		texture::Load(Hash("dory_down"), "resources/units/dory_down.png");
-		texture::Load(Hash("goldfish"), "resources/units/goldfish.png");
+		texture::Load(Hash("goldfish"), "resources/units/goldfish_right.png");
+		texture::Load(Hash("goldfish_up"), "resources/units/goldfish_up.png");
+		texture::Load(Hash("goldfish_down"), "resources/units/goldfish_down.png");
 
 		texture::Load(Hash("kelp"), "resources/structure/kelp.png");
 		texture::Load(Hash("driftwood"), "resources/structure/driftwood.png");
@@ -597,6 +599,9 @@ public:
 		texture::Load(Hash("choice_menu"), "resources/ui/choice_menu.png");
 
 		music::Load(Hash("ocean_loop"), "resources/music/ocean_loop.mp3");
+
+		//texture::Load(Hash("blue_nemo"), "resources/units/blue_nemo.png");
+		//texture::Load(Hash("jelly"), "resources/units/jelly.png");
 
 		Reset();
 	}
@@ -793,12 +798,12 @@ public:
 			if (input::KeyDown(Key::S)) {
 				CreateFish(manager, spawn_rect, spawn_coordinate, "sucker", paths, 0.8f);
 			}
-			if (input::KeyDown(Key::B)) {
+			/*if (input::KeyDown(Key::B)) {
 				CreateFish(manager, spawn_rect, spawn_coordinate, "blue_nemo", paths, 1.0f);
-			}
-			if (input::KeyDown(Key::J)) {
+			}*/
+			/*if (input::KeyDown(Key::J)) {
 				CreateFish(manager, spawn_rect, spawn_coordinate, "jelly", paths, 1.0f);
-			}
+			}*/
 			if (input::KeyDown(Key::D)) {
 				CreateFish(manager, spawn_rect, spawn_coordinate, "dory", paths, 2.5f);
 			}
@@ -996,6 +1001,8 @@ public:
 		}
 
 		manager.Refresh();
+
+		Exit();
 	}
 	void TogglePause() {
 		paused = !paused;
@@ -1021,63 +1028,65 @@ public:
 			day_timer.Unpause();
 		}
 	}
+	void Exit();
 };
 
+class StartScreen : public Scene {
+public:
+	//Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
+	
+	TexturedButton play{ {}, Hash("play"), Hash("play"), Hash("play") };
+	Color play_text_color{ color::WHITE };
 
-//class StartScreen : public Scene {
-//public:
-//	//Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
-//	
-//	TexturedButton play{ {}, Hash("play"), Hash("play_hover"), Hash("play_hover") };
-//	Color play_text_color{ color::WHITE };
-//
-//	StartScreen() {
-//		texture::Load(Hash("play"), "resources/ui/play.png");
-//		texture::Load(Hash("play_hover"), "resources/ui/play_hover.png");
-//		music::Mute();
-//	}
-//	void Update(float dt) final {
-//		music::Mute();
-//		V2_int window_size{ window::GetLogicalSize() };
-//		Rectangle<float> bg{ {}, window_size };
-//		texture::Get(2)->Draw(bg);
-//
-//		V2_int play_texture_size = play.GetCurrentTexture().GetSize();
-//
-//		play.SetRectangle({ window_size / 2 - play_texture_size / 2, play_texture_size });
-//
-//		V2_int play_text_size{ 220, 80 };
-//		V2_int play_text_pos = window_size / 2 - play_text_size / 2;
-//		play_text_pos.y += 20;
-//		
-//		Color text_color = color::WHITE;
-//
-//		auto play_press = [&]() {
-//			sound::Get(Hash("click"))->Play(3, 0);
-//			scene::Load<GameScene>(Hash("game"));
-//			scene::SetActive(Hash("game"));
-//		};
-//
-//		play.SetOnActivate(play_press);
-//		play.SetOnHover([&]() {
-//			play_text_color = color::GOLD;
-//		}, [&]() {
-//			play_text_color = color::WHITE;
-//		});
-//
-//        if (input::KeyDown(Key::SPACE)) {
-//			play_press();
-//		}
-//
-//		play.Draw();
-//
-//		Text t3{ Hash("2"), "Tower Offense", color::DARK_GREEN };
-//		t3.Draw({ play_text_pos - V2_int{ 250, 160 }, { play_text_size.x + 500, play_text_size.y } });
-//
-//		Text t{ Hash("2"), "Play", play_text_color };
-//		t.Draw({ play_text_pos, play_text_size });
-//	}
-//};
+	StartScreen() {
+		window::SetScale({ 1.0f, 1.0f });
+		window::SetLogicalSize(window::GetSize());
+
+		texture::Load(Hash("play"), "resources/ui/play.png");
+		texture::Load(Hash("start_background"), "resources/ui/start_background.png");
+	}
+	void Update(float dt) final {
+		V2_int window_size{ window::GetSize() };
+		V2_int texture_size = texture::Get(Hash("start_background"))->GetSize();
+		Rectangle<float> bg{ (window::GetSize() - texture_size) / 2, texture_size };
+		//bg.DrawSolid(color::BLUE);
+		texture::Get(Hash("start_background"))->Draw(bg);
+
+		V2_int play_texture_size = play.GetCurrentTexture().GetSize();
+
+		play.SetRectangle({ window_size / 2 - play_texture_size / 2, play_texture_size });
+
+		V2_int play_text_size{ play_texture_size / 2 };
+		V2_int play_text_pos = window_size / 2 - play_text_size / 2;
+		
+		Color text_color = color::WHITE;
+
+		auto play_press = [&]() {
+			scene::Load<GameScene>(Hash("game"));
+			scene::Unload(Hash("start_menu"));
+			scene::SetActive(Hash("game"));
+		};
+
+		play.SetOnActivate(play_press);
+		play.SetOnHover([&]() {
+			play_text_color = color::BLACK;
+		}, [&]() {
+			play_text_color = color::WHITE;
+		});
+
+        if (input::KeyDown(Key::SPACE)) {
+			play_press();
+		}
+
+		play.Draw();
+
+		//Text t3{ Hash("2"), "Tower Offense", color::DARK_GREEN };
+		//t3.Draw({ play_text_pos - V2_int{ 250, 160 }, { play_text_size.x + 500, play_text_size.y } });
+
+		Text t{ Hash("default_font"), "Play", play_text_color };
+		t.Draw({ play_text_pos, play_text_size });
+	}
+};
 
 class PixelJam2024 : public Scene {
 public:
@@ -1088,16 +1097,22 @@ public:
 		window::SetColor(color::BLACK);
 		window::SetResizeable(true);
 		window::Maximize();
-		window::SetScale({ 16.0f, 16.0f });
-		window::SetLogicalSize(grid_size * tile_size * window::GetScale());
 
 		font::Load(Hash("04B_30"), "resources/font/04B_30.ttf", 32);
 		font::Load(Hash("default_font"), "resources/font/retro_gaming.ttf", 32);
-		//scene::Load<StartScreen>(Hash("menu"));
-		scene::Load<GameScene>(Hash("game"));
-		scene::SetActive(Hash("game"));
+		scene::Load<StartScreen>(Hash("start_menu"));
+		//scene::Load<GameScene>(Hash("game"));
+		scene::SetActive(Hash("start_menu"));
 	}
 };
+
+void GameScene::Exit() {
+	if (input::KeyDown(Key::ESCAPE)) {
+		scene::Load<StartScreen>(Hash("start_menu"));
+		scene::Unload(Hash("game"));
+		scene::SetActive(Hash("start_menu"));
+	}
+}
 
 int main(int c, char** v) {
 	ptgn::game::Start<PixelJam2024>();
