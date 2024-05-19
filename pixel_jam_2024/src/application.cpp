@@ -526,7 +526,16 @@ public:
 	}
 };
 
-
+struct StartingCondition {
+	int x = 0;
+	int y = 1;
+	int z = 2;
+	void Print() const {
+		PrintLine("x: ", x);
+		PrintLine("y: ", y);
+		PrintLine("z: ", z);
+	}
+};
 
 class GameScene : public Scene {
 public:
@@ -548,7 +557,8 @@ public:
 
 	bool paused{ false };
 
-	GameScene() {
+	GameScene(const StartingCondition& starting_conditios) {
+		starting_conditios.Print();
 
 		window::SetScale({ 16.0f, 16.0f });
 		window::SetLogicalSize(grid_size * tile_size * window::GetScale());
@@ -1002,7 +1012,9 @@ public:
 
 		manager.Refresh();
 
-		Exit();
+		if (input::KeyDown(Key::ESCAPE)) {
+			Exit();
+		}
 	}
 	void TogglePause() {
 		paused = !paused;
@@ -1031,6 +1043,98 @@ public:
 	void Exit();
 };
 
+class LevelScene : public Scene {
+public:
+	//Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
+
+	TexturedButton level1{ {}, Hash("level"), Hash("level"), Hash("level") };
+	TexturedButton level2{ {}, Hash("level"), Hash("level"), Hash("level") };
+	TexturedButton level3{ {}, Hash("level"), Hash("level"), Hash("level") };
+
+	TexturedButton back{ {}, Hash("back"), Hash("back"), Hash("back") };
+
+	Color level1_text_color{ color::WHITE };
+	Color level2_text_color{ color::WHITE };
+	Color level3_text_color{ color::WHITE };
+
+	Color back_text_color{ color::WHITE };
+
+	LevelScene() {
+		window::SetScale({ 1.0f, 1.0f });
+		window::SetLogicalSize({ 1689, 1001 });
+
+		texture::Load(Hash("level"), "resources/ui/level.png");
+		texture::Load(Hash("back"), "resources/ui/back.png");
+		texture::Load(Hash("level_background"), "resources/ui/level_background.png");
+	}
+	static void Exit();
+	void Update(float dt) final {
+		V2_int window_size{ window::GetLogicalSize() };
+		V2_int texture_size = texture::Get(Hash("level_background"))->GetSize();
+		Rectangle<float> bg{ (window_size - texture_size) / 2, texture_size };
+		//bg.DrawSolid(color::BLUE);
+		texture::Get(Hash("level_background"))->Draw(bg);
+
+		V2_int level_texture_size = level1.GetCurrentTexture().GetSize();
+		V2_int back_texture_size = back.GetCurrentTexture().GetSize();
+
+		V2_int button_offset{ static_cast<int>(level_texture_size.x * 1.12), 0 };
+		V2_int back_offset{ 0, static_cast<int>(level_texture_size.y * 1.16) };
+
+		level1.SetRectangle({ window_size / 2 - level_texture_size / 2 - button_offset, level_texture_size });
+		level2.SetRectangle({ window_size / 2 - level_texture_size / 2, level_texture_size });
+		level3.SetRectangle({ window_size / 2 - level_texture_size / 2 + button_offset, level_texture_size });
+		back.SetRectangle({ window_size / 2 - back_texture_size / 2 + back_offset, back_texture_size });
+
+		V2_int level_text_size{ level_texture_size.x * 0.8, level_texture_size.y * 0.3 };
+		V2_int back_text_size{ back_texture_size.x * 0.7, back_texture_size.y * 0.7 };
+
+		V2_int level1_text_pos = window_size / 2 - level_text_size / 2 - button_offset;
+		V2_int level2_text_pos = window_size / 2 - level_text_size / 2;
+		V2_int level3_text_pos = window_size / 2 - level_text_size / 2 + button_offset;
+		V2_int back_text_pos = window_size / 2 - back_text_size / 2 + back_offset;
+
+		auto play_press = [&](const StartingCondition& starting_conditions) {
+			scene::Load<GameScene>(Hash("game"), starting_conditions);
+			scene::Unload(Hash("level_select"));
+			scene::SetActive(Hash("game"));
+		};
+
+		level1.SetOnActivate([&]() { play_press({ 1, 1, 1 }); });
+		level2.SetOnActivate([&]() { play_press({ 2, 2, 2 }); });
+		level3.SetOnActivate([&]() { play_press({ 3, 3, 3 }); });
+
+		back.SetOnActivate(&LevelScene::Exit);
+
+		level1.SetOnHover([&]() { level1_text_color = color::BLACK; }, [&]() { level1_text_color = color::WHITE; });
+		level2.SetOnHover([&]() { level2_text_color = color::BLACK; }, [&]() { level2_text_color = color::WHITE; });
+		level3.SetOnHover([&]() { level3_text_color = color::BLACK; }, [&]() { level3_text_color = color::WHITE; });
+
+		back.SetOnHover([&]() { back_text_color = color::BLACK; }, [&]() { back_text_color = color::WHITE; });
+
+		level1.Draw();
+		level2.Draw();
+		level3.Draw();
+		back.Draw();
+
+		//Text t3{ Hash("2"), "Tower Offense", color::DARK_GREEN };
+		//t3.Draw({ play_text_pos - V2_int{ 250, 160 }, { play_text_size.x + 500, play_text_size.y } });
+
+		Text t1{ Hash("default_font"), "Level 1", level1_text_color };
+		Text t2{ Hash("default_font"), "Level 2", level2_text_color };
+		Text t3{ Hash("default_font"), "Level 3", level3_text_color };
+		Text back_text{ Hash("default_font"), "Back", back_text_color };
+		t1.Draw({ level1_text_pos, level_text_size });
+		t2.Draw({ level2_text_pos, level_text_size });
+		t3.Draw({ level3_text_pos, level_text_size });
+		back_text.Draw({ back_text_pos, back_text_size });
+
+		if (input::KeyDown(Key::ESCAPE)) {
+			Exit();
+		}
+	}
+};
+
 class StartScreen : public Scene {
 public:
 	//Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
@@ -1040,15 +1144,15 @@ public:
 
 	StartScreen() {
 		window::SetScale({ 1.0f, 1.0f });
-		window::SetLogicalSize(window::GetSize());
+		window::SetLogicalSize({ 1689, 1001 });
 
 		texture::Load(Hash("play"), "resources/ui/play.png");
 		texture::Load(Hash("start_background"), "resources/ui/start_background.png");
 	}
 	void Update(float dt) final {
-		V2_int window_size{ window::GetSize() };
+		V2_int window_size{ window::GetLogicalSize() };
 		V2_int texture_size = texture::Get(Hash("start_background"))->GetSize();
-		Rectangle<float> bg{ (window::GetSize() - texture_size) / 2, texture_size };
+		Rectangle<float> bg{ (window_size - texture_size) / 2, texture_size };
 		//bg.DrawSolid(color::BLUE);
 		texture::Get(Hash("start_background"))->Draw(bg);
 
@@ -1059,12 +1163,10 @@ public:
 		V2_int play_text_size{ play_texture_size / 2 };
 		V2_int play_text_pos = window_size / 2 - play_text_size / 2;
 		
-		Color text_color = color::WHITE;
-
 		auto play_press = [&]() {
-			scene::Load<GameScene>(Hash("game"));
+			scene::Load<LevelScene>(Hash("level_select"));
 			scene::Unload(Hash("start_menu"));
-			scene::SetActive(Hash("game"));
+			scene::SetActive(Hash("level_select"));
 		};
 
 		play.SetOnActivate(play_press);
@@ -1107,11 +1209,15 @@ public:
 };
 
 void GameScene::Exit() {
-	if (input::KeyDown(Key::ESCAPE)) {
-		scene::Load<StartScreen>(Hash("start_menu"));
-		scene::Unload(Hash("game"));
-		scene::SetActive(Hash("start_menu"));
-	}
+	scene::Load<LevelScene>(Hash("level_select"));
+	scene::Unload(Hash("game"));
+	scene::SetActive(Hash("level_select"));
+}
+
+void LevelScene::Exit() {
+	scene::Load<StartScreen>(Hash("start_menu"));
+	scene::Unload(Hash("level_select"));
+	scene::SetActive(Hash("start_menu"));
 }
 
 int main(int c, char** v) {
