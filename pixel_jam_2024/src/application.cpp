@@ -70,12 +70,6 @@ public:
 	SpawnerComponent() = delete;
 	SpawnerComponent(std::size_t max_spawn_count, milliseconds spawn_rate, std::function<ecs::Entity(V2_int source)> func) :
 		max_spawn_count{ max_spawn_count }, spawn_rate{ spawn_rate }, func{ func } {}
-	void Start() {
-		spawn_timer.Start();
-	}
-	void Stop() {
-		spawn_timer.Stop();
-	}
 	void Update() {
 		/*manager.ForEachEntityWith<Rectangle<float>, VelocityComponent, LifetimeComponent>([&](
 			ecs::Entity e, Rectangle<float>& rect, VelocityComponent& velocity, LifetimeComponent& life) {
@@ -93,12 +87,12 @@ public:
 	void SetSource(const V2_int& new_source) {
 		source = new_source;
 	}
+	Timer spawn_timer;
 private:
 	std::size_t max_spawn_count{ 0 };
 	milliseconds spawn_rate;
 	std::function<ecs::Entity(V2_int source)> func{ nullptr };
 	std::vector<ecs::Entity> entities;
-	Timer spawn_timer;
 	V2_int source;
 };
 
@@ -229,12 +223,6 @@ public:
 	ParticleComponent() = delete;
 	ParticleComponent(std::size_t max_particle_count, const std::vector<std::size_t>& texture_keys, milliseconds particle_lifetime, milliseconds spawn_rate) :
 		max_particle_count{ max_particle_count }, texture_keys{ texture_keys }, particle_lifetime{ particle_lifetime }, spawn_rate{ spawn_rate } {}
-	void Start() {
-		spawn_timer.Start();
-	}
-	void Stop() {
-		spawn_timer.Stop();
-	}
 	void GenerateParticle() {
 		if (manager.Size() >= max_particle_count) return;
 		auto entity = manager.CreateEntity();
@@ -259,6 +247,20 @@ public:
 		auto& lifetime = entity.Add<LifetimeComponent>(particle_lifetime);
 		lifetime.timer.Start();
 		manager.Refresh();
+	}
+	void Pause() {
+		spawn_timer.Pause();
+		manager.ForEachEntityWith<LifetimeComponent>([&](
+			ecs::Entity e, LifetimeComponent& life) {
+			life.timer.Pause();
+		});
+	}
+	void Unpause() {
+		spawn_timer.Unpause();
+		manager.ForEachEntityWith<LifetimeComponent>([&](
+			ecs::Entity e, LifetimeComponent& life) {
+			life.timer.Unpause();
+		});
 	}
 	void Update() {
 		manager.ForEachEntityWith<Rectangle<float>, VelocityComponent, LifetimeComponent>([&](
@@ -302,6 +304,7 @@ public:
 		x_max_speed = max.x;
 		y_max_speed = max.y;
 	}
+	Timer spawn_timer;
 private:
 	std::size_t max_particle_count{ 0 };
 	float x_min_speed{ -0.25 };
@@ -311,7 +314,6 @@ private:
 	V2_int source;
 	milliseconds particle_lifetime;
 	milliseconds spawn_rate;
-	Timer spawn_timer;
 	ecs::Manager manager;
 	std::vector<std::size_t> texture_keys;
 };
@@ -362,7 +364,7 @@ ecs::Entity CreateFish(ecs::Manager& manager, const Rectangle<float> rect, const
 	auto& particle_component = entity.Add<ParticleComponent>(10, std::vector<std::size_t>{ Hash("co_2_1"), Hash("co_2_2"), Hash("co_2_2"), Hash("co_2_2") }, milliseconds{ 500 }, milliseconds{ 2000 });
 	particle_component.SetSpeed({ -0.1f, -0.2f }, { 0.1f, -0.1f });
 	particle_component.SetSource(rect.pos);
-	particle_component.Start();
+	particle_component.spawn_timer.Start();
 	manager.Refresh();
 	return entity;
 }
@@ -391,14 +393,14 @@ ecs::Entity CreateStructure(ecs::Manager& manager, const Rectangle<float> pos_re
 		case Particle::OXYGEN: {
 			auto& particle_component = entity.Add<ParticleComponent>(10, std::vector<std::size_t>{ Hash("o_2_1"), Hash("o_2_2"), Hash("o_2_2"), Hash("o_2_2") }, milliseconds{ 1000 }, milliseconds{ 500 });
 			particle_component.SetSource(rect.pos);
-			particle_component.Start();
+			particle_component.spawn_timer.Start();
 			break;
 		}
 		case Particle::CARBON_DIOXIDE:
 		{
 			auto& particle_component = entity.Add<ParticleComponent>(10, std::vector<std::size_t>{ Hash("co_2_1"), Hash("co_2_2"), Hash("co_2_2"), Hash("co_2_2") }, milliseconds{ 1000 }, milliseconds{ 500 });
 			particle_component.SetSource(rect.pos);
-			particle_component.Start();
+			particle_component.spawn_timer.Start();
 			break;
 		}
 	}
@@ -415,7 +417,7 @@ ecs::Entity CreateStructure(ecs::Manager& manager, const Rectangle<float> pos_re
 				return fish;
 			});
 			spawner.SetSource(source);
-			spawner.Start();
+			spawner.spawn_timer.Start();
 			break;
 		}
 	}
@@ -544,6 +546,8 @@ public:
 	std::vector<ecs::Entity> spawn_points;
 	std::vector<ecs::Entity> paths;
 
+	bool paused{ false };
+
 	GameScene() {
 
 		/*music::Unmute();
@@ -561,6 +565,7 @@ public:
 
 		// Load textures.
 		texture::Load(Hash("floor"), "resources/tile/floor.png");
+
 		texture::Load(Hash("nemo"), "resources/units/nemo_right.png");
 		texture::Load(Hash("nemo_up"), "resources/units/nemo_up.png");
 		texture::Load(Hash("nemo_down"), "resources/units/nemo_down.png");
@@ -576,16 +581,21 @@ public:
 		texture::Load(Hash("dory_up"), "resources/units/dory_up.png");
 		texture::Load(Hash("dory_down"), "resources/units/dory_down.png");
 		texture::Load(Hash("goldfish"), "resources/units/goldfish.png");
+
 		texture::Load(Hash("kelp"), "resources/structure/kelp.png");
 		texture::Load(Hash("driftwood"), "resources/structure/driftwood.png");
 		texture::Load(Hash("anenome"), "resources/structure/anenome.png");
 		texture::Load(Hash("calcium_statue_1"), "resources/structure/calcium_statue_1.png");
 		texture::Load(Hash("coral"), "resources/structure/coral.png");
+
 		texture::Load(Hash("o_2_1"), "resources/particle/o_2_1.png");
 		texture::Load(Hash("o_2_2"), "resources/particle/o_2_2.png");
 		texture::Load(Hash("co_2_1"), "resources/particle/co_2_1.png");
 		texture::Load(Hash("co_2_2"), "resources/particle/co_2_2.png");
+
 		texture::Load(Hash("level_indicator"), "resources/ui/level_indicator.png");
+		texture::Load(Hash("choice_menu"), "resources/ui/choice_menu.png");
+
 		music::Load(Hash("ocean_loop"), "resources/music/ocean_loop.mp3");
 
 		Reset();
@@ -723,35 +733,38 @@ public:
 			mouse_box_color = color::GREEN;
 		}
 
-		if (input::KeyDown(Key::ONE)) {
-			CreateStructure(manager, mouse_box, mouse_tile, Hash("kelp"), Particle::OXYGEN);
-		}
-		if (input::KeyDown(Key::TWO)) {
-			CreateStructure(manager, mouse_box, mouse_tile, Hash("coral"), Particle::CARBON_DIOXIDE);
-		}
-		if (input::KeyDown(Key::THREE)) {
-			CreateStructure(manager, mouse_box, mouse_tile, Hash("calcium_statue_1"), Particle::NONE);
-		}
-		if (input::KeyDown(Key::FOUR)) {
-			CreateStructure(manager, mouse_box, mouse_tile, Hash("driftwood"), Particle::NONE);
-		}
-		if (input::KeyDown(Key::FIVE) && can_place) {
-			CreateStructure(manager, mouse_box, mouse_tile, Hash("anenome"), Particle::CARBON_DIOXIDE, Spawner::NEMO, source, paths);
-		}
+		if (!paused) {
 
-		if (input::MouseScroll() > 0) {
-			oxygen_indicator.UpdateLevel(+0.1f);
+			if (input::KeyDown(Key::ONE)) {
+				CreateStructure(manager, mouse_box, mouse_tile, Hash("kelp"), Particle::OXYGEN);
+			}
+			if (input::KeyDown(Key::TWO)) {
+				CreateStructure(manager, mouse_box, mouse_tile, Hash("coral"), Particle::CARBON_DIOXIDE);
+			}
+			if (input::KeyDown(Key::THREE)) {
+				CreateStructure(manager, mouse_box, mouse_tile, Hash("calcium_statue_1"), Particle::NONE);
+			}
+			if (input::KeyDown(Key::FOUR)) {
+				CreateStructure(manager, mouse_box, mouse_tile, Hash("driftwood"), Particle::NONE);
+			}
+			if (input::KeyDown(Key::FIVE) && can_place) {
+				CreateStructure(manager, mouse_box, mouse_tile, Hash("anenome"), Particle::CARBON_DIOXIDE, Spawner::NEMO, source, paths);
+			}
+
+			if (input::MouseScroll() > 0) {
+				oxygen_indicator.UpdateLevel(+0.1f);
+			}
+			if (input::MouseScroll() < 0) {
+				oxygen_indicator.UpdateLevel(-0.1f);
+			}
+			if (input::KeyPressed(Key::UP)) {
+				acidity_indicator.UpdateLevel(+0.1f);
+			}
+			if (input::KeyPressed(Key::DOWN)) {
+				acidity_indicator.UpdateLevel(-0.1f);
+			}
+
 		}
-		if (input::MouseScroll() < 0) {
-			oxygen_indicator.UpdateLevel(-0.1f);
-		}
-		if (input::KeyPressed(Key::UP)) {
-			acidity_indicator.UpdateLevel(+0.1f);
-		}
-		if (input::KeyPressed(Key::DOWN)) {
-			acidity_indicator.UpdateLevel(-0.1f);
-		}
-		
 
 		// Draw background tiles
 		for (size_t i = 0; i < grid_size.x; i++) {
@@ -770,42 +783,38 @@ public:
 			return { rect, tile.coordinate };
 		};
 
-		auto [spawn_rect, spawn_coordinate] = get_spawn_location();
+		if (!paused) {
 
-		if (input::KeyDown(Key::N)) {
-			CreateFish(manager, spawn_rect, spawn_coordinate, "nemo", paths, 1.0f);
-		}
-		if (input::KeyDown(Key::S)) {
-			CreateFish(manager, spawn_rect, spawn_coordinate, "sucker", paths, 0.8f);
-		}
-		if (input::KeyDown(Key::B)) {
-			CreateFish(manager, spawn_rect, spawn_coordinate, "blue_nemo", paths, 1.0f);
-		}
-		if (input::KeyDown(Key::J)) {
-			CreateFish(manager, spawn_rect, spawn_coordinate, "jelly", paths, 1.0f);
-		}
-		if (input::KeyDown(Key::D)) {
-			CreateFish(manager, spawn_rect, spawn_coordinate, "dory", paths, 2.5f);
-		}
-		if (input::KeyDown(Key::G)) {
-			CreateFish(manager, spawn_rect, spawn_coordinate, "goldfish", paths, 1.5f);
-		}
-		if (input::KeyDown(Key::R)) {
-			CreateFish(manager, spawn_rect, spawn_coordinate, "shrimp", paths, 3.0f);
-		}
+			auto [spawn_rect, spawn_coordinate] = get_spawn_location();
 
-		manager.ForEachEntityWith<ParticleComponent>([](
-			ecs::Entity e, ParticleComponent& particle) {
-			particle.Update();
-		});
+			if (input::KeyDown(Key::N)) {
+				CreateFish(manager, spawn_rect, spawn_coordinate, "nemo", paths, 1.0f);
+			}
+			if (input::KeyDown(Key::S)) {
+				CreateFish(manager, spawn_rect, spawn_coordinate, "sucker", paths, 0.8f);
+			}
+			if (input::KeyDown(Key::B)) {
+				CreateFish(manager, spawn_rect, spawn_coordinate, "blue_nemo", paths, 1.0f);
+			}
+			if (input::KeyDown(Key::J)) {
+				CreateFish(manager, spawn_rect, spawn_coordinate, "jelly", paths, 1.0f);
+			}
+			if (input::KeyDown(Key::D)) {
+				CreateFish(manager, spawn_rect, spawn_coordinate, "dory", paths, 2.5f);
+			}
+			if (input::KeyDown(Key::G)) {
+				CreateFish(manager, spawn_rect, spawn_coordinate, "goldfish", paths, 1.5f);
+			}
+			if (input::KeyDown(Key::R)) {
+				CreateFish(manager, spawn_rect, spawn_coordinate, "shrimp", paths, 3.0f);
+			}
 
-		/*manager.ForEachEntityWith<Rectangle<float>, TextureComponent, DrawComponent>([](
-			ecs::Entity e, Rectangle<float>& rect,
-			TextureComponent& texture, DrawComponent& draw) {
-				rect.pos = Lerp(V2_float{ tile.coordinate * tile_size },
-								V2_float{ (tile.coordinate + direction) * tile_size },
-								waypoint.current);
-		});*/
+			manager.ForEachEntityWith<ParticleComponent>([](
+				ecs::Entity e, ParticleComponent& particle) {
+				particle.Update();
+			});
+
+		}
 
 		auto draw_texture = [&](const ecs::Entity& e, Rectangle<float> rect, std::size_t texture_key) {
 			V2_int og_pos = rect.pos;
@@ -854,71 +863,78 @@ public:
 			});
 		}
 
+		if (!paused) {
 
-		manager.ForEachEntityWith<PathingComponent, TileComponent, PrevTileComponent, Rectangle<float>, WaypointProgressComponent, SpeedComponent>([&](
-			ecs::Entity e, PathingComponent& pathing, TileComponent& tile,
-			PrevTileComponent& prev_tile, Rectangle<float>& rect,
-			WaypointProgressComponent& waypoint, SpeedComponent& speed) {
-			bool set_new_tile = false;
+			manager.ForEachEntityWith<PathingComponent, TileComponent, PrevTileComponent, Rectangle<float>, WaypointProgressComponent, SpeedComponent>([&](
+				ecs::Entity e, PathingComponent& pathing, TileComponent& tile,
+				PrevTileComponent& prev_tile, Rectangle<float>& rect,
+				WaypointProgressComponent& waypoint, SpeedComponent& speed) {
+				bool set_new_tile = false;
 
-			waypoint.progress += dt * speed.speed;
+				waypoint.progress += dt * speed.speed;
 
-			while (waypoint.progress >= 1.0f) {
-				prev_tile.coordinate = tile.coordinate;
-				tile.coordinate = waypoint.target_tile;
-				waypoint.target_tile = pathing.GetTargetTile(prev_tile.coordinate, tile.coordinate);
-				pathing.IncreaseVisitCount(tile.coordinate);
-				waypoint.progress -= 1.0f;
-				if (waypoint.progress < 1.0f) {
+				while (waypoint.progress >= 1.0f) {
+					prev_tile.coordinate = tile.coordinate;
+					tile.coordinate = waypoint.target_tile;
 					waypoint.target_tile = pathing.GetTargetTile(prev_tile.coordinate, tile.coordinate);
-				}
-			}
-
-			rect.pos = Lerp(tile.coordinate * tile_size + tile_size / 2, waypoint.target_tile * tile_size + tile_size / 2, waypoint.progress);
-
-			auto& particle_component = e.Get<ParticleComponent>();
-			particle_component.SetSource(rect.pos);
-		});
-
-		manager.ForEachEntityWith<PathingComponent, TileComponent, Rectangle<float>, TextureComponent, FlipComponent, OffsetComponent, WaypointProgressComponent>([&](
-			ecs::Entity e, PathingComponent& pathing, TileComponent& tile, Rectangle<float>& rect, TextureComponent& texture, FlipComponent& flip, OffsetComponent& offset, WaypointProgressComponent& waypoint) {
-			if (texture.str_key != "") {
-				bool right = waypoint.target_tile.x > tile.coordinate.x;
-				bool up = waypoint.target_tile.y < tile.coordinate.y;
-				bool horizontal = waypoint.target_tile.x != tile.coordinate.x;
-				flip.flip = right || !horizontal ? Flip::NONE : Flip::HORIZONTAL;
-				std::string dir = horizontal ? "" : up ? "_up" : "_down";
-				std::size_t key = Hash((texture.str_key + dir).c_str());
-				if (key != texture.key && texture::Has(key)) {
-					texture.key = key;
-					V2_int texture_size = texture::Get(texture.key)->GetSize();
-					rect.size = texture_size;
-					offset.offset = -texture_size / 2;
-				}
-			}
-		});
-
-		manager.ForEachEntityWith<PathingComponent, TileComponent, PrevTileComponent, WaypointProgressComponent>([&](
-			ecs::Entity e, PathingComponent& pathing, TileComponent& tile, PrevTileComponent& prev_tile, WaypointProgressComponent& waypoint) {
-			if (prev_tile.coordinate != tile.coordinate) {
-				for (auto& spawn : spawn_points) {
-					if (tile.coordinate == spawn.Get<TileComponent>().coordinate &&
-						pathing.GetVisitCount(tile.coordinate) > 0) {
-						e.Destroy();
+					pathing.IncreaseVisitCount(tile.coordinate);
+					waypoint.progress -= 1.0f;
+					if (waypoint.progress < 1.0f) {
+						waypoint.target_tile = pathing.GetTargetTile(prev_tile.coordinate, tile.coordinate);
 					}
 				}
-			}
-		});
+
+				rect.pos = Lerp(tile.coordinate * tile_size + tile_size / 2, waypoint.target_tile * tile_size + tile_size / 2, waypoint.progress);
+
+				auto& particle_component = e.Get<ParticleComponent>();
+				particle_component.SetSource(rect.pos);
+			});
+
+			manager.ForEachEntityWith<PathingComponent, TileComponent, Rectangle<float>, TextureComponent, FlipComponent, OffsetComponent, WaypointProgressComponent>([&](
+				ecs::Entity e, PathingComponent& pathing, TileComponent& tile, Rectangle<float>& rect, TextureComponent& texture, FlipComponent& flip, OffsetComponent& offset, WaypointProgressComponent& waypoint) {
+				if (texture.str_key != "") {
+					bool right = waypoint.target_tile.x > tile.coordinate.x;
+					bool up = waypoint.target_tile.y < tile.coordinate.y;
+					bool horizontal = waypoint.target_tile.x != tile.coordinate.x;
+					flip.flip = right || !horizontal ? Flip::NONE : Flip::HORIZONTAL;
+					std::string dir = horizontal ? "" : up ? "_up" : "_down";
+					std::size_t key = Hash((texture.str_key + dir).c_str());
+					if (key != texture.key && texture::Has(key)) {
+						texture.key = key;
+						V2_int texture_size = texture::Get(texture.key)->GetSize();
+						rect.size = texture_size;
+						offset.offset = -texture_size / 2;
+					}
+				}
+			});
+
+			manager.ForEachEntityWith<PathingComponent, TileComponent, PrevTileComponent, WaypointProgressComponent>([&](
+				ecs::Entity e, PathingComponent& pathing, TileComponent& tile, PrevTileComponent& prev_tile, WaypointProgressComponent& waypoint) {
+				if (prev_tile.coordinate != tile.coordinate) {
+					for (auto& spawn : spawn_points) {
+						if (tile.coordinate == spawn.Get<TileComponent>().coordinate &&
+							pathing.GetVisitCount(tile.coordinate) > 0) {
+							e.Destroy();
+						}
+					}
+				}
+			});
+
+		}
 
 		manager.ForEachEntityWith<ParticleComponent>([](
 			ecs::Entity e, ParticleComponent& particle) {
 			particle.Draw();
 		});
 
-		manager.ForEachEntityWith<SpawnerComponent>([](
-			ecs::Entity e, SpawnerComponent& spawner) {
-			spawner.Update();
-		});
+		if (!paused) {
+
+			manager.ForEachEntityWith<SpawnerComponent>([](
+				ecs::Entity e, SpawnerComponent& spawner) {
+				spawner.Update();
+			});
+
+		}
 
 		seconds day_length{ 10 };
 		// Draw cyan filter on everything
@@ -934,10 +950,14 @@ public:
 
 		std::uint8_t time = night_alpha * day_level;
 
-		if (elapsed >= 1.0f) {
-			flip_day = !flip_day;
-			day_timer.Reset();
-			day_timer.Start();
+		if (!paused) {
+
+			if (elapsed >= 1.0f) {
+				flip_day = !flip_day;
+				day_timer.Reset();
+				day_timer.Start();
+			}
+
 		}
 
 		Rectangle<float> bg{ {}, window::GetLogicalSize() };
@@ -965,9 +985,41 @@ public:
 		salinity_indicator.Draw();
 		day_indicator.Draw();
 
-		mouse_box.Offset(-tile_size / 2).Draw(mouse_box_color, 3);
+		if (!paused) {
+
+			mouse_box.Offset(-tile_size / 2).Draw(mouse_box_color, 3);
+
+		}
+
+		if (input::KeyDown(Key::P)) {
+			TogglePause();
+		}
 
 		manager.Refresh();
+	}
+	void TogglePause() {
+		paused = !paused;
+		if (paused) {
+			manager.ForEachEntityWith<SpawnerComponent>([](
+				ecs::Entity e, SpawnerComponent& spawner) {
+				spawner.spawn_timer.Pause();
+			});
+			manager.ForEachEntityWith<ParticleComponent>([](
+				ecs::Entity e, ParticleComponent& particle) {
+				particle.Pause();
+			});
+			day_timer.Pause();
+		} else {
+			manager.ForEachEntityWith<SpawnerComponent>([](
+				ecs::Entity e, SpawnerComponent& spawner) {
+				spawner.spawn_timer.Unpause();
+			});
+			manager.ForEachEntityWith<ParticleComponent>([](
+				ecs::Entity e, ParticleComponent& particle) {
+				particle.Unpause();
+			});
+			day_timer.Unpause();
+		}
 	}
 };
 
