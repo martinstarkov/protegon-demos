@@ -924,8 +924,8 @@ class ChoiceScreen : public Scene {
       c.SetVisibility(true);
     }
 
-    // V2_int logical_size{ window::GetLogicalSize() };
-    V2_int window_size{window::GetSize()};
+    // V2_int logical_size{ game.window.GetLogicalSize() };
+    V2_int window_size{game.window.GetSize()};
     V2_int texture_size = texture::Get(Hash("choice_menu")).GetSize();
     Rectangle<float> bg{(window_size - texture_size) / 2, texture_size};
 
@@ -1019,7 +1019,7 @@ class GameScene : public Scene {
       : starting_conditions{starting_conditions}, level_{level} {
     assert(level_ < levels.size() &&
            "Could not find level from list of levels");
-    // window::SetLogicalSize(grid_size * tile_size);
+    // game.window.SetLogicalSize(grid_size * tile_size);
     /*music::Unmute();
     music::Load(Hash("in_game"), "resources/music/in_game.wav");
     music::Get(Hash("in_game"))->Play(-1);*/
@@ -1124,7 +1124,7 @@ class GameScene : public Scene {
 
   void Reset() {
     // TODO: Do stuff with starting_conditios.
-    V2_int window_size{window::GetSize()};
+    V2_int window_size{game.window.GetSize()};
 
     // Setup node grid for the map.
     levels[level_].ForEachPixel([&](const V2_int& coordinate,
@@ -1435,9 +1435,9 @@ class GameScene : public Scene {
   IndicatorCondition sum;
 
   void Update(float dt) final {
-    // V2_int window_size{ window::GetLogicalSize() / window_scale };
-    V2_int window_size{window::GetSize()};
-    V2_int mouse_pos = input::GetMousePosition();
+    // V2_int window_size{ game.window.GetLogicalSize() / window_scale };
+    V2_int window_size{game.window.GetSize()};
+    V2_int mouse_pos = game.input.GetMousePosition();
     V2_int mouse_tile = V2_int{V2_float{mouse_pos} / V2_float{tile_size}};
     Rectangle<float> mouse_box{mouse_tile * tile_size + tile_size / 2,
                                tile_size};
@@ -1458,16 +1458,16 @@ class GameScene : public Scene {
     manager.Refresh();
 
     if (!paused) {
-      /*if (input::MouseScroll() > 0) {
+      /*if (game.input.MouseScroll() > 0) {
               oxygen_indicator.UpdateLevel(+0.1f);
       }
-      if (input::MouseScroll() < 0) {
+      if (game.input.MouseScroll() < 0) {
               oxygen_indicator.UpdateLevel(-0.1f);
       }
-      if (input::KeyPressed(Key::UP)) {
+      if (game.input.KeyPressed(Key::UP)) {
               acidity_indicator.UpdateLevel(+0.1f);
       }
-      if (input::KeyPressed(Key::DOWN)) {
+      if (game.input.KeyPressed(Key::DOWN)) {
               acidity_indicator.UpdateLevel(-0.1f);
       }*/
     }
@@ -1481,31 +1481,31 @@ class GameScene : public Scene {
     }
 
     if (!paused) {
-      // if (input::KeyDown(Key::N)) {
+      // if (game.input.KeyDown(Key::N)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "nemo",
       // paths, 1.0f);
       // }
-      // if (input::KeyDown(Key::S)) {
+      // if (game.input.KeyDown(Key::S)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "sucker",
       // paths, 0.8f);
       // }
-      ///*if (input::KeyDown(Key::B)) {
+      ///*if (game.input.KeyDown(Key::B)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "blue_nemo",
       // paths, 1.0f);
       //}*/
-      ///*if (input::KeyDown(Key::J)) {
+      ///*if (game.input.KeyDown(Key::J)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "jelly",
       // paths, 1.0f);
       //}*/
-      // if (input::KeyDown(Key::D)) {
+      // if (game.input.KeyDown(Key::D)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "dory",
       // paths, 2.5f);
       //}
-      // if (input::KeyDown(Key::G)) {
+      // if (game.input.KeyDown(Key::G)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "goldfish",
       // paths, 1.5f);
       //}
-      // if (input::KeyDown(Key::R)) {
+      // if (game.input.KeyDown(Key::R)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "shrimp",
       // paths, 3.0f);
       //}
@@ -1556,7 +1556,7 @@ class GameScene : public Scene {
               draw_texture(e, rect, texture.key);
             });
 
-    // if (input::KeyPressed(Key::N)) {
+    // if (game.input.KeyPressed(Key::N)) {
     //	manager.ForEachEntityWith<PathingComponent, TileComponent>([&](
     //		ecs::Entity e, PathingComponent& pathing, TileComponent& tile) {
     //		std::vector<V2_int> neighbors =
@@ -1660,7 +1660,7 @@ class GameScene : public Scene {
           });
     }
 
-    if (input::KeyPressed(Key::S)) {
+    if (game.input.KeyPressed(Key::S)) {
       day_speed = 10.0f;
     } else {
       day_speed = 1.0f;
@@ -1704,7 +1704,7 @@ class GameScene : public Scene {
       }
     }
 
-    Rectangle<float> bg{{}, window::GetResolution()};
+    Rectangle<float> bg{{}, game.window.GetResolution()};
     bg.DrawSolid({6, 64, 75, time});
     Color acidity_color = color::Yellow;
     Color pollution_color = color::Brown;
@@ -1959,15 +1959,15 @@ class GameScene : public Scene {
       std::uint8_t mouse_box_opacity = 128;
 
       if (removing && permit && over_structure) {
-        if (input::MouseHeld(Mouse::LEFT, milliseconds{10})) {
+        if (game.input.MouseHeld(Mouse::LEFT, milliseconds{10})) {
           delete_structure = mouse_entity;
-        } else if (input::MouseUp(Mouse::RIGHT)) {
+        } else if (game.input.MouseUp(Mouse::RIGHT)) {
           delete_structure = ecs::null;
         }
         mouse_box_color = color::Red;
       } else {
         if (!removing && permit &&
-            input::MouseHeld(Mouse::LEFT, milliseconds{10})) {
+            game.input.MouseHeld(Mouse::LEFT, milliseconds{10})) {
           if (choice_structure != ecs::null) {
             DestroyChoiceEntity();
           }
@@ -1986,7 +1986,7 @@ class GameScene : public Scene {
           if (tile.coordinate == mouse_tile) {
             mouse_box_color = color::Green;
             mouse_box_opacity = 255;
-            if (input::MouseUp(Mouse::RIGHT)) {
+            if (game.input.MouseUp(Mouse::RIGHT)) {
               DestroyChoiceEntity();
             }
           }
@@ -2088,7 +2088,7 @@ class GameScene : public Scene {
       StartChoices();
     }
 
-    if (!choosing && day_timer.IsPaused() && input::KeyDown(Key::ESCAPE)) {
+    if (!choosing && day_timer.IsPaused() && game.input.KeyDown(Key::ESCAPE)) {
       manage_button.SetInteractable(true);
       manage_button.SetVisibility(true);
       if (scene::Has(Hash("choices"))) scene::RemoveActive(Hash("choices"));
@@ -2249,7 +2249,7 @@ class LevelScene : public Scene {
       {Hash("mute_hover"), Hash("mute_hover")}};
 
   LevelScene() {
-    // window::SetLogicalSize({ 1689, 1001 });
+    // game.window.SetLogicalSize({ 1689, 1001 });
 
     texture::Load(Hash("level"), "resources/ui/level.png");
     texture::Load(Hash("back"), "resources/ui/back.png");
@@ -2267,7 +2267,7 @@ class LevelScene : public Scene {
       }
     });
 
-    V2_int window_size{window::GetSize()};
+    V2_int window_size{game.window.GetSize()};
 
     V2_float mute_offset = {12, 12};
     V2_float mute_size{62, 62};
@@ -2280,7 +2280,7 @@ class LevelScene : public Scene {
   }
   static void Exit();
   void Update() final {
-    V2_int window_size{window::GetSize()};
+    V2_int window_size{game.window.GetSize()};
     V2_int texture_size = texture::Get(Hash("level_background")).GetSize();
     Rectangle<float> bg{(window_size - texture_size) / 2, texture_size};
     // bg.DrawSolid(color::Blue);
@@ -2368,7 +2368,7 @@ class LevelScene : public Scene {
     t3.Draw({level3_text_pos, level_text_size});
     back_text.Draw({back_text_pos, back_text_size});
 
-    if (input::KeyDown(Key::ESCAPE)) {
+    if (game.input.KeyDown(Key::ESCAPE)) {
       Exit();
     }
   }
@@ -2388,7 +2388,7 @@ class StartScreen : public Scene {
   Color play_text_color{color::White};
 
   StartScreen() {
-    // window::SetLogicalSize({ 1689, 1001 });
+    // game.window.SetLogicalSize({ 1689, 1001 });
 
     texture::Load(Hash("play"), "resources/ui/play.png");
     texture::Load(Hash("start_background"),
@@ -2404,7 +2404,7 @@ class StartScreen : public Scene {
         sound::Get(Hash("aqualife_theme")).Play(0, -1);
       }
     });
-    V2_int window_size{window::GetSize()};
+    V2_int window_size{game.window.GetSize()};
     if (music::GetVolume() == 0)
       mute_button.SetToggleState(true);
     else
@@ -2416,7 +2416,7 @@ class StartScreen : public Scene {
         Rectangle<float>{window_size - mute_size - mute_offset, mute_size});
   }
   void Update() final {
-    V2_int window_size{window::GetSize()};
+    V2_int window_size{game.window.GetSize()};
     V2_int texture_size = texture::Get(Hash("start_background")).GetSize();
     Rectangle<float> bg{(window_size - texture_size) / 2, texture_size};
     // bg.DrawSolid(color::Blue);
@@ -2461,12 +2461,12 @@ class PixelJam2024 : public Scene {
  public:
   PixelJam2024() {
     // Setup window configuration.
-    window::SetTitle("Aqualife");
-    window::SetSize({1280, 720}, true);
-    window::SetResolution({1280, 720});
-    window::SetColor(color::Black);
-    window::SetResizeable(true);
-    window::Maximize();
+    game.window.SetTitle("Aqualife");
+    game.window.SetSize({1280, 720}, true);
+    game.window.SetResolution({1280, 720});
+    game.window.SetColor(color::Black);
+    game.window.SetResizeable(true);
+    game.window.Maximize();
 
     music::Load(Hash("ocean_loop"), "resources/music/ocean_loop.mp3");
     sound::Load(Hash("aqualife_theme"), "resources/music/aqualife_theme.mp3");

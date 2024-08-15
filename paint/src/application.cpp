@@ -8,8 +8,8 @@ public:
 	Grid<int> inner_grid{ { 40 * 2, 30 * 2 } };
 	Grid<int> grid{ { 40 * 2, 30 * 2 } };
 	Paint() {
-		window::SetTitle("paint: left click to draw; right click to erase; B to flip color");
-		window::SetSize({ 720, 720 });
+		game.window.SetTitle("paint: left click to draw; right click to erase; B to flip color");
+		game.window.SetSize({ 720, 720 });
 		outer_grid.Fill(0);
 	}
 	V2_int tile_size{ 20, 20 };
@@ -24,7 +24,7 @@ public:
 				cells_without[index] = value;
 		});
 		inner_grid = Grid<int>{ outer_grid.GetSize(), cells_without };
-		if (input::KeyDown(Key::B)) toggle = !toggle;
+		if (game.input.KeyDown(Key::B)) toggle = !toggle;
 		if (toggle) {
 			grid = outer_grid;
 		} else {
@@ -32,15 +32,15 @@ public:
 		}
 
 
-		V2_int mouse_pos = input::GetMousePosition();
+		V2_int mouse_pos = game.input.GetMousePosition();
 		V2_int mouse_tile = mouse_pos / tile_size;
 		Rectangle<int> mouse_box{ mouse_tile* tile_size, tile_size };
 
 		if (grid.Has(mouse_tile)) {
-			if (input::MousePressed(Mouse::LEFT)) {
+			if (game.input.MousePressed(Mouse::LEFT)) {
 				outer_grid.Set(mouse_tile, 1);
 			}
-			if (input::MousePressed(Mouse::RIGHT)) {
+			if (game.input.MousePressed(Mouse::RIGHT)) {
 				outer_grid.Set(mouse_tile, 0);
 			}
 		}

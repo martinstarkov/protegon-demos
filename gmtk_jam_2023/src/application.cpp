@@ -412,7 +412,7 @@ public:
 		music::Load(Hash("in_game"), "resources/music/in_game.wav");
 		music::Get(Hash("in_game")).Play(-1);
         
-		window::SetColor(color::Black);
+		game.window.SetColor(color::Black);
         
 		// Load json data.
         std::ifstream f{ "resources/data/level_data.json" };
@@ -470,14 +470,14 @@ public:
 			paused = false;
 		}
 
-		V2_int window_size{ window::GetSize() };
+		V2_int window_size{ game.window.GetSize() };
 
 		if (!paused) {
 		Rectangle<float> bg{ {},window_size };
 		texture::Get(1).Draw(bg);
 
 		// Get mouse position on screen and tile grid.
-		V2_int mouse_pos = input::GetMousePosition();
+		V2_int mouse_pos = game.input.GetMousePosition();
 		Circle<float> mouse_circle{ mouse_pos, 30 };
 		V2_int mouse_tile = V2_int{ V2_float{ mouse_pos } / V2_float{ tile_size } };
 		Rectangle<float> mouse_box{ mouse_tile * tile_size, tile_size };
@@ -485,10 +485,10 @@ public:
 		/*
 		bool new_wave = false;
 
-		if (input::KeyDown(Key::Q)) { // Decrement wave.
+		if (game.input.KeyDown(Key::Q)) { // Decrement wave.
 			current_wave = ModFloor(current_wave - 1, current_max_waves);
 			new_wave = true;
-		} else if (input::KeyDown(Key::E)) { // Increment wave.
+		} else if (game.input.KeyDown(Key::E)) { // Increment wave.
 			current_wave = ModFloor(current_wave + 1, current_max_waves);
 			new_wave = true;
 		}
@@ -564,7 +564,7 @@ public:
 		start_text.Draw(start_wave_button.GetRectangle());
 
 		// Hitting space triggers the emptying of the queue.
-		if (input::KeyDown(Key::SPACE)) {
+		if (game.input.KeyDown(Key::SPACE)) {
 			release_enemies();
 		}
 
@@ -602,7 +602,7 @@ public:
 		}
 
 		// Increase enemy velocity on right click.
-		/*if (input::MouseDown(Mouse::LEFT)) {
+		/*if (game.input.MouseDown(Mouse::LEFT)) {
 			manager.ForEachEntityWith<VelocityComponent, EnemyComponent>([](
 				auto e, VelocityComponent& vel, EnemyComponent& enemy) {
 				vel.velocity = std::min(vel.maximum, vel.velocity + 1.0f);
@@ -610,7 +610,7 @@ public:
 		}*/
 
 		// Decrease enemy velocity on right click.
-		/*if (input::MouseDown(Mouse::RIGHT)) {
+		/*if (game.input.MouseDown(Mouse::RIGHT)) {
 			manager.ForEachEntityWith<VelocityComponent, EnemyComponent>([](
 				auto e, VelocityComponent& vel, EnemyComponent& enemy) {
 				vel.velocity = std::max(0.0f, vel.velocity - 1.0f);
@@ -924,15 +924,15 @@ public:
 
 		manager.Refresh();
 
-		if (input::KeyDown(Key::ESCAPE) && !paused) {
+		if (game.input.KeyDown(Key::ESCAPE) && !paused) {
 			scene::SetActive(Hash("menu"));
 			scene::Unload(Hash("game"));
 		}
-		if (input::KeyDown(Key::I) && !paused) {
+		if (game.input.KeyDown(Key::I) && !paused) {
 			scene::AddActive(Hash("instructions"));
 			paused = true;
 		}
-		if (input::KeyDown(Key::B) && !releasing_enemies && !paused && !release_done) {
+		if (game.input.KeyDown(Key::B) && !releasing_enemies && !paused && !release_done) {
 			scene::AddActive(Hash("buy_menu"));
 			paused = true;
 		}
@@ -953,9 +953,9 @@ public:
 		}
 
 		} else {
-			if (input::KeyDown(Key::ESCAPE) ||
-				input::KeyDown(Key::B) ||
-				input::KeyDown(Key::I)) {
+			if (game.input.KeyDown(Key::ESCAPE) ||
+				game.input.KeyDown(Key::B) ||
+				game.input.KeyDown(Key::I)) {
 				scene::RemoveActive(Hash("instructions"));
 				scene::RemoveActive(Hash("buy_menu"));
 			}
@@ -968,12 +968,12 @@ class InstructionScreen : public Scene {
 public:
 	InstructionScreen() {}
 	void Update(float dt) final {
-		V2_int window_size{ window::GetSize() };
+		V2_int window_size{ game.window.GetSize() };
 		
 		Rectangle<float> bg{ {},window_size };
 		texture::Get(2).Draw(bg);
 
-		auto mouse = input::GetMousePosition();
+		auto mouse = game.input.GetMousePosition();
 		V2_int s{ 960, 480 };
 
 		V2_int play_size{ 463, 204 };
@@ -1018,9 +1018,9 @@ public:
 	Text sell_hint{ Hash("2"), "Click unit to refund", color::White };
 	void Update(float dt) final {
 		GameScene& game_scene = *scene::Get<GameScene>(Hash("game"));
-		V2_int window_size{ window::GetSize() };
+		V2_int window_size{ game.window.GetSize() };
 
-		auto mouse_pos = input::GetMousePosition();
+		auto mouse_pos = game.input.GetMousePosition();
 		Rectangle<int> bg{ {},window_size };
 		texture::Get(2).Draw(bg);
 
@@ -1046,7 +1046,7 @@ public:
 			if (overlap::PointRectangle(mouse_pos, first_button)) {
 				index = 1;
 				// Buy item if player has money and spaces in queue.
-				if (input::MouseDown(Mouse::LEFT) && 
+				if (game.input.MouseDown(Mouse::LEFT) && 
 					game_scene.prices[i] <= game_scene.money && 
 					game_scene.enemy_queue.size() < game_scene.max_queue_size) {
 					sound::Get(Hash("click")).Play(3, 0);
@@ -1065,7 +1065,7 @@ public:
 		const Rectangle<int> exit_button{ {window_size.x - 60 - 4, 30 + 2 }, tile_size };
 		bool hovering_over_exit = overlap::PointRectangle(mouse_pos, exit_button);
 		if (hovering_over_exit) {
-			if (input::MouseDown(Mouse::LEFT)) {
+			if (game.input.MouseDown(Mouse::LEFT)) {
 				sound::Get(Hash("click")).Play(3, 0);
 				scene::RemoveActive(Hash("instructions"));
 				scene::RemoveActive(Hash("buy_menu"));
@@ -1093,7 +1093,7 @@ public:
 		std::string money_str = "Money: " + std::to_string(game_scene.money);
 		Text money_text{ Hash("2"), money_str.c_str(), color::Gold };
 		V2_int money_text_size{ 130, 25 };
-		Rectangle<float> money_text_box{ { (float)window::GetResolution().x / 2.0f - (float)money_text_size.x / 2.0f, 0.0f }, money_text_size };
+		Rectangle<float> money_text_box{ { (float)game.window.GetResolution().x / 2.0f - (float)money_text_size.x / 2.0f, 0.0f }, money_text_size };
 		Rectangle<float> money_text_frame = money_text_box.Offset({ -10, -4 }, { 20, 8 });
 		money_text_frame.DrawSolid(color::Black);
 		money_text_frame.Draw(color::DarkBrown, 6);
@@ -1121,7 +1121,7 @@ public:
 		for (int i = 0; i < game_scene.max_queue_size; i++) {
 			Rectangle<float> frame = queue_frame.Offset({ queue_frame.size.x * i, 0 });
 			if (overlap::PointRectangle(mouse_pos, frame) &&
-				input::MouseDown(Mouse::LEFT) &&
+				game.input.MouseDown(Mouse::LEFT) &&
 				i < game_scene.enemy_queue.size()) {
 				sound::Get(Hash("click")).Play(3, 0);
 				game_scene.money += game_scene.prices[static_cast<int>(game_scene.enemy_queue[i])];
@@ -1205,7 +1205,7 @@ public:
 	}
 	void Update(float dt) final {
 		music::Mute();
-		V2_int window_size{ window::GetSize() };
+		V2_int window_size{ game.window.GetSize() };
 		Rectangle<float> bg{ {}, window_size };
 		texture::Get(2).Draw(bg);
 
@@ -1232,7 +1232,7 @@ public:
 			play_text_color = color::White;
 		});
 
-        if (input::KeyDown(Key::SPACE)) {
+        if (game.input.KeyDown(Key::SPACE)) {
 			play_press();
 		}
 
@@ -1258,11 +1258,11 @@ public:
 	}
 	void Update(float dt) final {
 		music::Mute();
-		V2_int window_size{ window::GetSize() };
+		V2_int window_size{ game.window.GetSize() };
 		Rectangle<float> bg{ {},window_size };
 		texture::Get(2).Draw(bg);
 
-		auto mouse = input::GetMousePosition();
+		auto mouse = game.input.GetMousePosition();
 		V2_int s{ 960, 480 };
 
 		V2_int play_size{ 463, 204 };
@@ -1277,7 +1277,7 @@ public:
 
 		bool hover = overlap::PointRectangle(mouse, Rectangle<int>{ {window_size.x / 2 - (int)(716 / 2),window_size.y / 2 - (int)(274 / 2) }, { (int)(716), (int)(274) } });
 
-        if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
+        if ((hover && game.input.MouseDown(Mouse::LEFT)) || game.input.KeyDown(Key::SPACE)) {
 			sound::Get(Hash("click")).Play(3, 0);
 			scene::Load<GameScene>(Hash("game"));
 			scene::SetActive(Hash("game"));
@@ -1303,12 +1303,12 @@ class GMTKJam2023 : public Scene {
 public:
 	GMTKJam2023() {
 		// Setup window configuration.
-		window::SetTitle("Tower Offense");
-		window::SetSize({ 1080, 720 }, true);
-		window::SetColor(color::Black);
-		window::SetResizeable(true);
-		window::Maximize();
-		window::SetResolution({ 960, 480 });
+		game.window.SetTitle("Tower Offense");
+		game.window.SetSize({ 1080, 720 }, true);
+		game.window.SetColor(color::Black);
+		game.window.SetResizeable(true);
+		game.window.Maximize();
+		game.window.SetResolution({ 960, 480 });
 
 		texture::Load(2, "resources/background/menu.png");
 		font::Load(Hash("0"), "resources/font/04B_30.ttf", 32);

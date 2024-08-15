@@ -35,7 +35,7 @@ public:
 	ecs::Entity main_br;
 
 	SandboxScene() {
-		window::SetColor(color::Black);
+		game.window.SetColor(color::Black);
 
 		t = texture::Load(Hash("test"), "resources/tile/thick_nochoice.png");
 
@@ -46,9 +46,9 @@ public:
 		bool borderless = false;
 		bool resizeable = true;
 
-		window::SetupSize(resolution, minimum_resolution, fullscreen, borderless, resizeable, scale);
+		game.window.SetupSize(resolution, minimum_resolution, fullscreen, borderless, resizeable, scale);
 
-		window::SetScale({ 4.0f, 4.0f });
+		game.window.SetScale({ 4.0f, 4.0f });
 
 		//tileset::Create("h1", 4, 4, 44, 20, 32, 32)
 
@@ -71,7 +71,7 @@ public:
 	}
 	void Update(float dt) final {
 
-		V2_int size = window::GetResolution();
+		V2_int size = game.window.GetResolution();
 		Rectangle<float> r{ {}, size };
 		r.DrawSolid(color::Grey);
 
@@ -108,7 +108,7 @@ public:
 
 		r5.DrawSolid(color::Blue);
 
-		//window::Test(r5);
+		//game.window.Test(r5);
 	}
 };
 

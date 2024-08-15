@@ -278,11 +278,11 @@ public:
 		assert(pair.second.size() != 0 && "Could not find a valid starting positions, restart program");
 	}
 	void Update(float dt) final {
-		auto mouse = input::GetMousePosition();
-		if (input::KeyDown(Key::I)) {
+		auto mouse = game.input.GetMousePosition();
+		if (game.input.KeyDown(Key::I)) {
 			scene::SetActive(Hash("menu"));
 		}
-		if (input::KeyDown(Key::R) || game_over) {
+		if (game.input.KeyDown(Key::R) || game_over) {
 			if (turn > 0) {
 				s_loss.Play(-1, 0);
 				current_moves = 0;
@@ -295,7 +295,7 @@ public:
 					title += " | Lowest: ";
 					title += std::to_string(best_moves);
 				}
-				window::SetTitle(title.c_str());
+				game.window.SetTitle(title.c_str());
 			}
 			++turn;
 			grid.Clear();
@@ -337,7 +337,7 @@ public:
 				absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 			}
 
-			if (turn_allowed && input::KeyDown(Key::SPACE) && sequence.size() > 0) {
+			if (turn_allowed && game.input.KeyDown(Key::SPACE) && sequence.size() > 0) {
 				grid.AddTile(player_tile, Tile{ TileType::USED });
 				player_tile = absolute_sequence.back();
 				grid.AddTiles(absolute_sequence, Tile{ TileType::USED });
@@ -365,7 +365,7 @@ public:
 					title += " | Lowest: ";
 					title += std::to_string(best_moves);
 				}
-				window::SetTitle(title.c_str());
+				game.window.SetTitle(title.c_str());
 				//game_over = !CanWin(grid, player_tile, win_tile);
 			}
 
@@ -426,7 +426,7 @@ public:
 		music::Get(Hash("music")).Play(-1);
 	}
 	virtual void Update(float dt) override final {
-		auto mouse = input::GetMousePosition();
+		auto mouse = game.input.GetMousePosition();
 		auto s = grid.GetSize() * grid.GetTileSize();
 		text0.Draw({ { 32, 32 }, { s.x, 64 } });
 		text1.Draw({ { 32, s.y }, { s.x, 64 } });
@@ -448,7 +448,7 @@ public:
 		if (hover) {
 			text_color = color::Gold;
 		}
-		if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
+		if ((hover && game.input.MouseDown(Mouse::LEFT)) || game.input.KeyDown(Key::SPACE)) {
 			scene::Load<DiceScene>(Hash("game"), grid);
 			scene::SetActive(Hash("game"));
 		}
@@ -462,7 +462,7 @@ public:
 class DiceGame : public Scene {
 public:
 	DiceGame() {
-		window::SetSize({ 704, 860 });
+		game.window.SetSize({ 704, 860 });
 		font::Load(Hash("0"), "resources/font/04B_30.ttf", 32);
 		font::Load(Hash("1"), "resources/font/retro_gaming.ttf", 32);
 		scene::Load<MenuScreen>(Hash("menu"));
