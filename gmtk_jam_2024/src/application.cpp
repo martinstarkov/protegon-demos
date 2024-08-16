@@ -20,15 +20,27 @@ struct Size {
 struct Velocity {
 	Velocity() = default;
 
-	Velocity(const V2_float& velocity) : v{ velocity } {}
+	Velocity(const V2_float& velocity, const V2_float& max) : current{ velocity }, max{ max } {}
 
-	V2_float v;
+	V2_float current;
+	V2_float max;
 };
 
-struct TextureComponent {
-	TextureComponent(const Texture& t) : t{ t } {}
+struct Acceleration {
+	Acceleration(const V2_float& current, const V2_float& max) : current{ current }, max{ max } {}
 
-	Texture t;
+	V2_float current;
+	V2_float max;
+};
+
+struct DirectionalTextureComponent {
+	DirectionalTextureComponent(const Texture& front, const Texture& back, const Texture& side) :
+		current{ front }, front{ front }, back{ back }, side{ side } {}
+
+	Texture current;
+	Texture front;
+	Texture back;
+	Texture side;
 };
 
 struct GridComponent {
@@ -41,8 +53,8 @@ class GameScene : public Scene {
 public:
 	ecs::Manager manager;
 
-	V2_int tile_size{ 16, 16 };
-	V2_int grid_size{ 60, 34 };
+	V2_int tile_size{ 32, 32 };
+	V2_int grid_size{ 30, 17 };
 
 	ecs::Entity main_tl;
 	ecs::Entity main_tr;
@@ -51,15 +63,29 @@ public:
 
 	ecs::Entity player;
 
-	GameScene() {
-		player	   = manager.CreateEntity();
+	GameScene() {}
+
+	void CreatePlayer() {
+		player = manager.CreateEntity();
+
 		auto& ppos = player.Add<Position>(center);
-		player.Add<Velocity>();
+		player.Add<Velocity>(V2_float{}, V2_float{ 1500.0f });
+		player.Add<Acceleration>(V2_float{}, V2_float{ 3000.0f });
 		player.Add<Origin>(Origin::Center);
 		player.Add<Flip>(Flip::None);
 		player.Add<Size>(V2_int{ tile_size.x, 2 * tile_size.y });
-		player.Add<TextureComponent>(Texture{ "resources/entity/player_front.png" });
+		player.Add<DirectionalTextureComponent>(
+			Texture{ "resources/entity/player_front.png" },
+			Texture{ "resources/entity/player_back.png" },
+			Texture{ "resources/entity/player_side.png" }
+		);
 		player.Add<GridComponent>(ppos.p / grid_size);
+
+		manager.Refresh();
+	}
+
+	void Init() final {
+		CreatePlayer();
 
 		main_tl = manager.CreateEntity();
 		main_tr = manager.CreateEntity();
@@ -74,7 +100,69 @@ public:
 		manager.Refresh();
 	}
 
+	void PlayerMovementInput(float dt) {
+		auto& v = player.Get<Velocity>();
+		auto& a = player.Get<Acceleration>();
+		auto& f = player.Get<Flip>();
+		auto& t = player.Get<DirectionalTextureComponent>();
+
+		bool up{ game.input.KeyPressed(Key::W) };
+		bool down{ game.input.KeyPressed(Key::S) };
+		bool right{ game.input.KeyPressed(Key::D) };
+		bool left{ game.input.KeyPressed(Key::A) };
+
+		if (t.current != t.back) {
+			t.current = t.front;
+		}
+
+		if (left) {
+			a.current.x = -1;
+			f			= Flip::Horizontal;
+			t.current	= t.side;
+		} else if (right) {
+			a.current.x = 1;
+			f			= Flip::None;
+			t.current	= t.side;
+		} else {
+			a.current.x = 0;
+			v.current.x = 0;
+		}
+
+		if (up) {
+			a.current.y = -1;
+			t.current	= t.back;
+		} else if (down) {
+			a.current.y = 1;
+			t.current	= t.front;
+		} else {
+			a.current.y = 0;
+			v.current.y = 0;
+		}
+
+		a.current = a.current.Normalized() * a.max;
+	}
+
+	void UpdatePhysics(float dt) {
+		float drag{ 10.0f };
+
+		for (auto [e, p, v, a] : manager.EntitiesWith<Position, Velocity, Acceleration>()) {
+			v.current += a.current * dt;
+
+			v.current.x = std::clamp(v.current.x, -v.max.x, v.max.x);
+			v.current.y = std::clamp(v.current.y, -v.max.y, v.max.y);
+
+			v.current.x -= drag * v.current.x * dt;
+			v.current.y -= drag * v.current.y * dt;
+
+			p.p += v.current * dt;
+		}
+	}
+
 	void Update(float dt) final {
+		PlayerMovementInput(dt);
+
+		UpdatePhysics(dt);
+
 		V2_int ws = game.window.GetSize();
 
 		V2_float size{ tile_size };
@@ -90,8 +178,9 @@ public:
 		game.renderer.DrawRectangleFilled(r4, color::Yellow);
 
 		game.renderer.DrawTexture(
-			player.Get<Position>().p, player.Get<Size>().s, player.Get<TextureComponent>().t, {},
-			{}, 0.0f, { 0.5f, 0.5f }, player.Get<Flip>(), player.Get<Origin>()
+			player.Get<Position>().p, player.Get<Size>().s,
+			player.Get<DirectionalTextureComponent>().current, {}, {}, 0.0f, { 0.5f, 0.5f },
+			player.Get<Flip>(), player.Get<Origin>()
 		);
 	}
 };
