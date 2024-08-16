@@ -3,17 +3,32 @@
 using namespace ptgn;
 
 constexpr const V2_int resolution{ 960, 540 };
+constexpr const V2_int center{ resolution / 2 };
 
-struct RectangleComponent {
-	RectangleComponent(const V2_int& pos, const V2_int& size) : r{ pos, size } {}
+struct Position {
+	Position(const V2_float& pos) : p{ pos } {}
 
-	Rectangle<float> r;
+	V2_float p;
 };
 
-struct VelocityComponent {
-	VelocityComponent(const V2_float& velocity) : v{ velocity } {}
+struct Size {
+	Size(const V2_float& size) : s{ size } {}
+
+	V2_float s;
+};
+
+struct Velocity {
+	Velocity() = default;
+
+	Velocity(const V2_float& velocity) : v{ velocity } {}
 
 	V2_float v;
+};
+
+struct TextureComponent {
+	TextureComponent(const Texture& t) : t{ t } {}
+
+	Texture t;
 };
 
 struct GridComponent {
@@ -34,7 +49,18 @@ public:
 	ecs::Entity main_bl;
 	ecs::Entity main_br;
 
+	ecs::Entity player;
+
 	GameScene() {
+		player	   = manager.CreateEntity();
+		auto& ppos = player.Add<Position>(center);
+		player.Add<Velocity>();
+		player.Add<Origin>(Origin::Center);
+		player.Add<Flip>(Flip::None);
+		player.Add<Size>(V2_int{ tile_size.x, 2 * tile_size.y });
+		player.Add<TextureComponent>(Texture{ "resources/entity/player_front.png" });
+		player.Add<GridComponent>(ppos.p / grid_size);
+
 		main_tl = manager.CreateEntity();
 		main_tr = manager.CreateEntity();
 		main_bl = manager.CreateEntity();
@@ -62,6 +88,11 @@ public:
 		game.renderer.DrawRectangleFilled(r2, color::Green);
 		game.renderer.DrawRectangleFilled(r3, color::Blue);
 		game.renderer.DrawRectangleFilled(r4, color::Yellow);
+
+		game.renderer.DrawTexture(
+			player.Get<Position>().p, player.Get<Size>().s, player.Get<TextureComponent>().t, {},
+			{}, 0.0f, { 0.5f, 0.5f }, player.Get<Flip>(), player.Get<Origin>()
+		);
 	}
 };
 
@@ -124,8 +155,9 @@ public:
 		game.renderer.SetClearColor(color::Silver);
 		game.window.SetSize(resolution);
 
-		game.scene.Load<MainMenu>(Hash("main_menu"));
-		game.scene.SetActive(Hash("main_menu"));
+		std::size_t initial_scene{ Hash("game") };
+		game.scene.Load<GameScene>(initial_scene);
+		game.scene.SetActive(initial_scene);
 	}
 };
 
