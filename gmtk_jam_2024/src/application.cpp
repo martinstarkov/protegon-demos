@@ -5,6 +5,8 @@ using namespace ptgn;
 constexpr const V2_int resolution{ 960, 540 };
 constexpr const V2_int center{ resolution / 2 };
 
+struct WallComponent {};
+
 struct Position {
 	Position(const V2_float& pos) : p{ pos } {}
 
@@ -15,6 +17,13 @@ struct Size {
 	Size(const V2_float& size) : s{ size } {}
 
 	V2_float s;
+};
+
+struct Hitbox {
+	Hitbox(const V2_float& size, const V2_float& offset = {}) : size{ size }, offset{ offset } {}
+
+	V2_float size;
+	V2_float offset;
 };
 
 struct Velocity {
@@ -56,23 +65,25 @@ public:
 	V2_int tile_size{ 32, 32 };
 	V2_int grid_size{ 30, 17 };
 
-	ecs::Entity main_tl;
-	ecs::Entity main_tr;
-	ecs::Entity main_bl;
-	ecs::Entity main_br;
+	Surface level;
+	Texture background;
 
 	ecs::Entity player;
 
-	GameScene() {}
+	GameScene() {
+		level	   = Surface{ "resources/level/level0.png" };
+		background = Texture{ "resources/ui/background.png" };
+	}
 
 	void CreatePlayer() {
 		player = manager.CreateEntity();
 
-		auto& ppos = player.Add<Position>(center);
+		auto& ppos = player.Add<Position>(V2_float{ 215, 290 });
 		player.Add<Velocity>(V2_float{}, V2_float{ 1500.0f });
 		player.Add<Acceleration>(V2_float{}, V2_float{ 3000.0f });
 		player.Add<Origin>(Origin::Center);
 		player.Add<Flip>(Flip::None);
+		player.Add<Hitbox>(V2_int{ 24, 50 });
 		player.Add<Size>(V2_int{ tile_size.x, 2 * tile_size.y });
 		player.Add<DirectionalTextureComponent>(
 			Texture{ "resources/entity/player_front.png" },
@@ -80,6 +91,20 @@ public:
 			Texture{ "resources/entity/player_side.png" }
 		);
 		player.Add<GridComponent>(ppos.p / grid_size);
+		player.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
+
+		manager.Refresh();
+	}
+
+	void CreateWall(const V2_int& cell) {
+		auto wall = manager.CreateEntity();
+		wall.Add<WallComponent>();
+		wall.Add<GridComponent>(cell);
+		wall.Add<Size>(tile_size);
+		wall.Add<Hitbox>(tile_size);
+		wall.Add<Position>(cell * tile_size);
+		wall.Add<Origin>(Origin::TopLeft);
+		wall.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
 
 		manager.Refresh();
 	}
@@ -87,17 +112,11 @@ public:
 	void Init() final {
 		CreatePlayer();
 
-		main_tl = manager.CreateEntity();
-		main_tr = manager.CreateEntity();
-		main_bl = manager.CreateEntity();
-		main_br = manager.CreateEntity();
-
-		main_tl.Add<GridComponent>(V2_int{ 0, 0 });
-		main_tr.Add<GridComponent>(V2_int{ grid_size.x - 1, 0 });
-		main_bl.Add<GridComponent>(V2_int{ 0, grid_size.y - 1 });
-		main_br.Add<GridComponent>(V2_int{ grid_size.x - 1, grid_size.y - 1 });
-
-		manager.Refresh();
+		level.ForEachPixel([&](const V2_int& cell, const Color& color) {
+			if (color == color::Black) {
+				CreateWall(cell);
+			}
+		});
 	}
 
 	void PlayerMovementInput(float dt) {
@@ -142,6 +161,18 @@ public:
 		a.current = a.current.Normalized() * a.max;
 	}
 
+	void ResolveCollisions(float dt, V2_float& position, const ecs::Entity& entity) {
+		position += game.collision.dynamic.Sweep(
+			dt, entity, manager.EntitiesWith<Position, Hitbox, Origin, DynamicCollisionShape>(),
+			std::function([](const Position& p) { return p.p; }),
+			std::function([](const Hitbox& s) { return s.size; }),
+			std::function([](const Velocity& v) { return v.current; }),
+			std::function([](const Origin& o) { return o; }),
+			std::function([](const DynamicCollisionShape& s) { return s; }),
+			DynamicCollisionResponse::Slide
+		);
+	}
+
 	void UpdatePhysics(float dt) {
 		float drag{ 10.0f };
 
@@ -154,6 +185,10 @@ public:
 			v.current.x -= drag * v.current.x * dt;
 			v.current.y -= drag * v.current.y * dt;
 
+			if (e == player) {
+				ResolveCollisions(dt, p.p, player);
+			}
+
 			p.p += v.current * dt;
 		}
 	}
@@ -163,25 +198,37 @@ public:
 
 		UpdatePhysics(dt);
 
-		V2_int ws = game.window.GetSize();
+		Draw();
+	}
 
-		V2_float size{ tile_size };
+	void DrawWalls() {
+		for (auto [e, p, s, origin, w] :
+			 manager.EntitiesWith<Position, Size, Origin, WallComponent>()) {
+			game.renderer.DrawRectangleHollow(
+				p.p, s.s, color::Black, 0.0f, { 0.5f, 0.5f }, 1.0f, origin
+			);
+		}
+	}
 
-		Rectangle<float> r1{ main_tl.Get<GridComponent>().cell * tile_size, size, Origin::TopLeft };
-		Rectangle<float> r2{ main_tr.Get<GridComponent>().cell * tile_size, size, Origin::TopLeft };
-		Rectangle<float> r3{ main_bl.Get<GridComponent>().cell * tile_size, size, Origin::TopLeft };
-		Rectangle<float> r4{ main_br.Get<GridComponent>().cell * tile_size, size, Origin::TopLeft };
-
-		game.renderer.DrawRectangleFilled(r1, color::Red);
-		game.renderer.DrawRectangleFilled(r2, color::Green);
-		game.renderer.DrawRectangleFilled(r3, color::Blue);
-		game.renderer.DrawRectangleFilled(r4, color::Yellow);
-
-		game.renderer.DrawTexture(
-			player.Get<Position>().p, player.Get<Size>().s,
-			player.Get<DirectionalTextureComponent>().current, {}, {}, 0.0f, { 0.5f, 0.5f },
-			player.Get<Flip>(), player.Get<Origin>()
+	void DrawPlayer() {
+		const auto& pos	   = player.Get<Position>().p;
+		const auto& size   = player.Get<Size>().s;
+		const auto& hitbox = player.Get<Hitbox>();
+		const auto origin  = player.Get<Origin>();
+		// Hitbox for debugging purposes.
+		game.renderer.DrawRectangleHollow(
+			pos + hitbox.offset, hitbox.size, color::Black, 0.0f, { 0.5f, 0.5f }, 1.0f, origin
 		);
+		game.renderer.DrawTexture(
+			pos, size, player.Get<DirectionalTextureComponent>().current, {}, {}, 0.0f,
+			{ 0.5f, 0.5f }, player.Get<Flip>(), origin
+		);
+	}
+
+	void Draw() {
+		game.renderer.DrawTexture(game.window.GetCenter(), resolution, background);
+		DrawWalls();
+		DrawPlayer();
 	}
 };
 
