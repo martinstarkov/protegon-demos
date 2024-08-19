@@ -209,21 +209,54 @@ struct Dog {
 	ecs::Entity dog;
 
 	Dog(ecs::Entity dog_entity, const V2_float& start_target, std::size_t walk,
-		const std::vector<std::size_t>& bark_keys) :
-		dog{ dog_entity }, target{ start_target }, walk{ walk }, bark_keys{ bark_keys } {
+		const std::vector<std::size_t>& bark_keys, const V2_float& bark_offset) :
+		dog{ dog_entity },
+		target{ start_target },
+		walk{ walk },
+		bark_keys{ bark_keys },
+		bark_offset{ bark_offset } {
 		animations_to_goal = dog.Get<AnimationComponent>().column_count;
 		for (std::size_t i = 0; i < bark_keys.size(); i++) {
 			PTGN_ASSERT(game.sound.Has(bark_keys[i]));
 		}
 	}
 
-	void Bark() const {
+	void Bark() {
 		PTGN_ASSERT(bark_keys.size() > 0);
 		RNG<std::size_t> bark_rng{ 0, bark_keys.size() - 1 };
 		auto bark_index{ bark_rng() };
 		PTGN_ASSERT(bark_index < bark_keys.size());
 		auto bark_key{ bark_keys[bark_index] };
 		PTGN_ASSERT(game.sound.Has(bark_key));
+		std::size_t bark_tween_key{ dog.GetId() + Hash("bark") };
+		if (!game.tween.Has(bark_tween_key)) {
+			TweenConfig config;
+			// TODO: Consider using an entity.
+			// auto bark_anim = dog.GetManager().CreateEntity();
+			// bark_anim.Add<AnimationComponent>();
+			config.on_update = [=](Tween& tw, float f) {
+				std::size_t bark_texture_key{ Hash("bark") };
+				const int count{ 6 };
+				float column = std::floorf(f * (count - 1));
+				Texture t{ game.texture.Get(bark_texture_key) };
+				V2_float source_size{ t.GetSize() / V2_float{ count, 1 } };
+				V2_float source_pos = { column * source_size.x, 0.0f };
+				// TODO: Add to shift where the bark is for each dog.
+				auto& h{ dog.Get<Hitbox>() };
+				auto flip{ dog.Get<Flip>() };
+				float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
+				auto offset = GetDrawOffset(h.size, dog.Get<Origin>());
+				V2_float pos{ dog.Get<Position>().p + offset +
+							  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } };
+				// TODO: Move this to draw functions and use an entity instead.
+				game.renderer.DrawTexture(
+					pos, source_size * scale, t, source_pos, source_size, 0.0f, { 0.5f, 0.5f },
+					flip, dog.Get<Origin>(), 0.8f
+				);
+			};
+			auto& tween = game.tween.Load(bark_tween_key, 0.0f, 1.0f, milliseconds{ 135 }, config);
+			tween.Start();
+		}
 		game.sound.Get(bark_key).Play(0);
 	}
 
@@ -392,6 +425,9 @@ struct Dog {
 	// TODO: Temporary.
 	V2_float potential_target;
 
+	// Pixels from corner of hitbox that the mouth of the dog is.
+	V2_float bark_offset;
+
 	float max_walk_distance{ 300.0f };
 	float run_factor{ 5.0f };
 
@@ -444,6 +480,7 @@ public:
 		progress_bar_texture = Surface{ "resources/ui/progress_bar.png" };
 		progress_car_texture = Surface{ "resources/ui/progress_car.png" };
 		level				 = Surface{ "resources/level/house_hitbox.png" };
+		game.texture.Load(Hash("bark"), "resources/entity/bark.png");
 		house_background = game.texture.Load(Hash("house_background"), "resources/level/house.png");
 		world_bounds	 = house_background.GetSize() * scale;
 		// TODO: Populate with actual barks.
@@ -513,7 +550,7 @@ public:
 	ecs::Entity CreateDog(
 		const V2_float& pos, const path& texture, const V2_float& hitbox_size,
 		const V2_float& hitbox_offset, V2_int animation_count,
-		const std::vector<std::size_t>& bark_sound_keys
+		const std::vector<std::size_t>& bark_sound_keys, const V2_float& bark_offset
 	) {
 		auto dog = manager.CreateEntity();
 
@@ -547,7 +584,7 @@ public:
 		dog.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
 		dog.Add<Flip>(Flip::None);
 		dog.Add<AnimationComponent>(Hash(dog), animation_count.x, milliseconds{ 2000 });
-		dog.Add<Dog>(dog, V2_float{}, Hash(dog), bark_sound_keys);
+		dog.Add<Dog>(dog, V2_float{}, Hash(dog), bark_sound_keys, bark_offset);
 
 		auto& tween = game.tween.Load(Hash(dog), 0.0f, 1.0f, seconds{ 1 }, tween_config);
 		tween.Start();
@@ -604,21 +641,21 @@ public:
 	void CreateVizsla(const V2_float& pos) {
 		CreateDog(
 			pos, "resources/dog/vizsla.png", V2_float{ 22, 7 } * scale, V2_float{ -3, 0 },
-			V2_int{ 6, 1 }, { Hash("vizsla_bark1") }
+			V2_int{ 6, 1 }, { Hash("vizsla_bark1") }, V2_float{ 8, 17 } * scale
 		);
 	}
 
 	void CreateGreatDane(const V2_float& pos) {
 		CreateDog(
 			pos, "resources/dog/great_dane.png", V2_float{ 34, 8 } * scale, V2_float{ -4, 0 },
-			V2_int{ 6, 1 }, { Hash("great_dane_bark1") }
+			V2_int{ 6, 1 }, { Hash("great_dane_bark1") }, V2_float{ 11, 24 } * scale
 		);
 	}
 
 	void CreateMaltese(const V2_float& pos) {
 		CreateDog(
 			pos, "resources/dog/maltese.png", V2_float{ 11, 6 } * scale, V2_float{ -2, 0 },
-			V2_int{ 4, 1 }, { Hash("maltese_bark1") }
+			V2_int{ 4, 1 }, { Hash("maltese_bark1") }, V2_float{ 6, 5 } * scale
 		);
 	}
 
@@ -627,7 +664,7 @@ public:
 		PTGN_ASSERT(FileExists(p), "Could not find specified dachshund type");
 		CreateDog(
 			pos, p, V2_float{ 14, 5 } * scale, V2_float{ -3, 0 }, V2_int{ 4, 1 },
-			{ Hash("dachshund_bark1") }
+			{ Hash("dachshund_bark1") }, V2_float{ 7, 3 } * scale
 		);
 	}
 
@@ -927,13 +964,6 @@ public:
 
 		UpdatePlayerHand();
 
-		// TODO: Remove bark button.
-		if (game.input.KeyDown(Key::B)) {
-			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-				d.Bark();
-			}
-		}
-
 		// UpdateZIndices();
 
 		UpdateAnimations();
@@ -1054,6 +1084,14 @@ public:
 		DrawPlayer();
 		DrawDogs();
 		DrawItems();
+
+		// TODO: Move out of here.
+		// TODO: Remove bark button.
+		if (game.input.KeyDown(Key::B)) {
+			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
+				d.Bark();
+			}
+		}
 
 		DrawUI();
 	}
