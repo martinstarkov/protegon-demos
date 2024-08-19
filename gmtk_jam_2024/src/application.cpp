@@ -205,20 +205,130 @@ auto GetWalls(ecs::Manager& manager) {
 	return manager.EntitiesWith<Position, Hitbox, Origin, DynamicCollisionShape, WallComponent>();
 }
 
+enum class DogRequest {
+	None,
+	Food,
+	Cleanup,
+	Outside,
+	Toy,
+	Pet
+};
+
 struct Dog {
 	ecs::Entity dog;
 
 	Dog(ecs::Entity dog_entity, const V2_float& start_target, std::size_t walk,
-		const std::vector<std::size_t>& bark_keys, const V2_float& bark_offset) :
+		const std::vector<std::size_t>& bark_keys, std::size_t whine_key,
+		const V2_float& bark_offset) :
 		dog{ dog_entity },
 		target{ start_target },
 		walk{ walk },
 		bark_keys{ bark_keys },
+		whine_key{ whine_key },
 		bark_offset{ bark_offset } {
 		animations_to_goal = dog.Get<AnimationComponent>().column_count;
 		for (std::size_t i = 0; i < bark_keys.size(); i++) {
 			PTGN_ASSERT(game.sound.Has(bark_keys[i]));
 		}
+	}
+
+	void SpawnBarkAnimation() {
+		std::size_t bark_tween_key{ dog.GetId() + Hash("bark") };
+		if (game.tween.Has(bark_tween_key)) {
+			// Already in the middle of a bark animation.
+			return;
+		}
+		TweenConfig config;
+		// TODO: Consider using an entity.
+		// auto bark_anim = dog.GetManager().CreateEntity();
+		// bark_anim.Add<AnimationComponent>();
+		config.on_update = [=](Tween& tw, float f) {
+			std::size_t bark_texture_key{ Hash("bark") };
+			const int count{ 6 };
+			float column = std::floorf(f * (count - 1));
+			Texture t{ game.texture.Get(bark_texture_key) };
+			V2_float source_size{ t.GetSize() / V2_float{ count, 1 } };
+			V2_float source_pos = { column * source_size.x, 0.0f };
+			auto& h{ dog.Get<Hitbox>() };
+			auto flip{ dog.Get<Flip>() };
+			float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
+			auto offset = GetDrawOffset(h.size, dog.Get<Origin>());
+			V2_float pos{ dog.Get<Position>().p + offset +
+						  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } };
+			// TODO: Move this to draw functions and use an entity instead.
+			game.renderer.DrawTexture(
+				pos, source_size * scale, t, source_pos, source_size, 0.0f, { 0.5f, 0.5f }, flip,
+				dog.Get<Origin>(), 0.8f
+			);
+		};
+		auto& tween = game.tween.Load(bark_tween_key, 0.0f, 1.0f, milliseconds{ 135 }, config);
+		tween.Start();
+	}
+
+	void SpawnRequestAnimation(DogRequest dog_request) {
+		std::size_t request_tween_key{ dog.GetId() + Hash("request") };
+		if (game.tween.Has(request_tween_key)) {
+			// Already in the middle of a request animation.
+			// This means a dog cannot request multiple things at the same time (probably a good
+			// thing :) ).
+			return;
+		}
+		// Setup new request.
+		request = dog_request;
+		// TODO: Consider using an entity component?
+		TweenConfig config;
+
+		float start_hold_threshold{ request_animation_popup_duration / total_request_duration };
+
+		config.on_complete = [=](Tween& tw, float f) {
+			dog.Get<Dog>().whined = false;
+		};
+
+		config.on_update = [=](Tween& tw, float f) {
+			std::size_t request_texture_key{ Hash("request") + static_cast<std::size_t>(request) };
+			const int request_animation_count{ 4 };
+			Texture t{ game.texture.Get(request_texture_key) };
+			V2_float source_size{ t.GetSize() / V2_float{ request_animation_count, 1 } };
+
+			const int hold_frame{ request_animation_count - 1 };
+
+			float column = 0.0f;
+
+			if (f >= start_hold_threshold) {
+				// Whine once after request has finished popping up and is just starting its hold
+				// phase.
+				if (!dog.Get<Dog>().whined) {
+					Whine();
+					dog.Get<Dog>().whined = true;
+				}
+				column = hold_frame;
+			} else {
+				column = std::floorf(f / start_hold_threshold * hold_frame);
+			}
+
+			V2_float source_pos = { column * source_size.x, 0.0f };
+			auto& h{ dog.Get<Hitbox>() };
+			auto flip{ dog.Get<Flip>() };
+			float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
+			auto offset = GetDrawOffset(h.size, dog.Get<Origin>());
+			V2_float pos{ dog.Get<Position>().p + offset +
+						  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } +
+						  V2_float{ sign * request_offset.x, -request_offset.y } };
+			// TODO: Move this to draw functions and use an entity instead.
+			// Origin o{ (flip == Flip::Horizontal ? Origin::BottomRight :
+			// Origin::BottomLeft) };
+			Origin o{ dog.Get<Origin>() };
+			game.renderer.DrawTexture(
+				pos, source_size * scale, t, source_pos, source_size, 0.0f, { 0.5f, 0.5f }, flip, o,
+				0.9f
+			);
+		};
+
+		auto& tween = game.tween.Load(
+			request_tween_key, 0.0f, 1.0f,
+			std::chrono::duration_cast<milliseconds>(total_request_duration), config
+		);
+		tween.Start();
 	}
 
 	void Bark() {
@@ -228,36 +338,13 @@ struct Dog {
 		PTGN_ASSERT(bark_index < bark_keys.size());
 		auto bark_key{ bark_keys[bark_index] };
 		PTGN_ASSERT(game.sound.Has(bark_key));
-		std::size_t bark_tween_key{ dog.GetId() + Hash("bark") };
-		if (!game.tween.Has(bark_tween_key)) {
-			TweenConfig config;
-			// TODO: Consider using an entity.
-			// auto bark_anim = dog.GetManager().CreateEntity();
-			// bark_anim.Add<AnimationComponent>();
-			config.on_update = [=](Tween& tw, float f) {
-				std::size_t bark_texture_key{ Hash("bark") };
-				const int count{ 6 };
-				float column = std::floorf(f * (count - 1));
-				Texture t{ game.texture.Get(bark_texture_key) };
-				V2_float source_size{ t.GetSize() / V2_float{ count, 1 } };
-				V2_float source_pos = { column * source_size.x, 0.0f };
-				// TODO: Add to shift where the bark is for each dog.
-				auto& h{ dog.Get<Hitbox>() };
-				auto flip{ dog.Get<Flip>() };
-				float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
-				auto offset = GetDrawOffset(h.size, dog.Get<Origin>());
-				V2_float pos{ dog.Get<Position>().p + offset +
-							  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } };
-				// TODO: Move this to draw functions and use an entity instead.
-				game.renderer.DrawTexture(
-					pos, source_size * scale, t, source_pos, source_size, 0.0f, { 0.5f, 0.5f },
-					flip, dog.Get<Origin>(), 0.8f
-				);
-			};
-			auto& tween = game.tween.Load(bark_tween_key, 0.0f, 1.0f, milliseconds{ 135 }, config);
-			tween.Start();
-		}
 		game.sound.Get(bark_key).Play(0);
+		SpawnBarkAnimation();
+	}
+
+	void Whine() {
+		PTGN_ASSERT(game.sound.Has(whine_key));
+		game.sound.Get(whine_key).Play(0);
 	}
 
 	void Update(float progress) {
@@ -268,6 +355,7 @@ struct Dog {
 			// an.column = static_cast<int>(an.column_count * f) %
 			// an.column_count;
 		} else {
+			// dog.Get<SpriteSheet>().row = 0:
 			dog.Get<Position>().p = Lerp(start, target, progress) - dog.Get<Hitbox>().offset;
 			ApplyBounds(dog, game.texture.Get(Hash("house_background")).GetSize() * scale);
 			if (draw_hitboxes) {
@@ -422,17 +510,28 @@ struct Dog {
 		game.tween.Get(walk).Resume();
 	}
 
-	// TODO: Temporary.
+	bool whined{ false };
+
+	V2_float request_offset{ -19, 19 };
+
+	DogRequest request{ DogRequest::None };
+
+	// For debugging purposes.
 	V2_float potential_target;
 
 	// Pixels from corner of hitbox that the mouth of the dog is.
 	V2_float bark_offset;
+	duration<float, seconds::period> request_animation_hold_duration{ 5 };
+	duration<float, milliseconds::period> request_animation_popup_duration{ 500 };
+
+	duration<float, milliseconds::period> total_request_duration{ request_animation_popup_duration +
+																  request_animation_hold_duration };
 
 	float max_walk_distance{ 300.0f };
 	float run_factor{ 5.0f };
 
-	// chance that the dog will multiply their max_walk_distance by run_factor and divide diagonal
-	// time by run_factor.
+	// chance that the dog will multiply their max_walk_distance by run_factor and divide
+	// diagonal time by run_factor.
 	float run_chance{ 0.3f };
 	// % chance  that the dog will wait instead of walking.
 	float linger_chance{ 0.3f };
@@ -445,6 +544,7 @@ struct Dog {
 
 	seconds diagonal_time{ 100 };
 	std::vector<std::size_t> bark_keys;
+	std::size_t whine_key;
 	std::size_t walk;
 	V2_float target;
 	V2_float start;
@@ -480,7 +580,21 @@ public:
 		progress_bar_texture = Surface{ "resources/ui/progress_bar.png" };
 		progress_car_texture = Surface{ "resources/ui/progress_car.png" };
 		level				 = Surface{ "resources/level/house_hitbox.png" };
+
 		game.texture.Load(Hash("bark"), "resources/entity/bark.png");
+
+		std::size_t r{ Hash("request") };
+		auto load_request = [&](DogRequest request, const std::string& type) {
+			path p{ "resources/ui/request_" + type + ".png" };
+			PTGN_ASSERT(FileExists(p));
+			game.texture.Load(r + static_cast<std::size_t>(request), p);
+		};
+		load_request(DogRequest::Food, "food");
+		load_request(DogRequest::Cleanup, "cleanup");
+		load_request(DogRequest::Outside, "outside");
+		load_request(DogRequest::Toy, "toy");
+		load_request(DogRequest::Pet, "pet");
+
 		house_background = game.texture.Load(Hash("house_background"), "resources/level/house.png");
 		world_bounds	 = house_background.GetSize() * scale;
 		// TODO: Populate with actual barks.
@@ -488,6 +602,11 @@ public:
 		game.sound.Load(Hash("great_dane_bark1"), "resources/sound/random_bark.ogg");
 		game.sound.Load(Hash("maltese_bark1"), "resources/sound/random_bark.ogg");
 		game.sound.Load(Hash("dachshund_bark1"), "resources/sound/random_bark.ogg");
+		// TODO: Populate with actual whines.
+		game.sound.Load(Hash("vizsla_whine"), "resources/sound/random_whine.ogg");
+		game.sound.Load(Hash("great_dane_whine"), "resources/sound/random_whine.ogg");
+		game.sound.Load(Hash("maltese_whine"), "resources/sound/random_whine.ogg");
+		game.sound.Load(Hash("dachshund_whine"), "resources/sound/random_whine.ogg");
 	}
 
 	void CreatePlayer() {
@@ -550,7 +669,8 @@ public:
 	ecs::Entity CreateDog(
 		const V2_float& pos, const path& texture, const V2_float& hitbox_size,
 		const V2_float& hitbox_offset, V2_int animation_count,
-		const std::vector<std::size_t>& bark_sound_keys, const V2_float& bark_offset
+		const std::vector<std::size_t>& bark_sound_keys, std::size_t whine_sound_key,
+		const V2_float& bark_offset
 	) {
 		auto dog = manager.CreateEntity();
 
@@ -584,7 +704,7 @@ public:
 		dog.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
 		dog.Add<Flip>(Flip::None);
 		dog.Add<AnimationComponent>(Hash(dog), animation_count.x, milliseconds{ 2000 });
-		dog.Add<Dog>(dog, V2_float{}, Hash(dog), bark_sound_keys, bark_offset);
+		dog.Add<Dog>(dog, V2_float{}, Hash(dog), bark_sound_keys, whine_sound_key, bark_offset);
 
 		auto& tween = game.tween.Load(Hash(dog), 0.0f, 1.0f, seconds{ 1 }, tween_config);
 		tween.Start();
@@ -639,23 +759,26 @@ public:
 	// Tween camera_motion;
 
 	void CreateVizsla(const V2_float& pos) {
-		CreateDog(
+		auto e = CreateDog(
 			pos, "resources/dog/vizsla.png", V2_float{ 22, 7 } * scale, V2_float{ -3, 0 },
-			V2_int{ 6, 1 }, { Hash("vizsla_bark1") }, V2_float{ 8, 17 } * scale
+			V2_int{ 6, 1 }, { Hash("vizsla_bark1") }, Hash("vizsla_whine"),
+			V2_float{ 8, 17 } * scale
 		);
 	}
 
 	void CreateGreatDane(const V2_float& pos) {
 		CreateDog(
 			pos, "resources/dog/great_dane.png", V2_float{ 34, 8 } * scale, V2_float{ -4, 0 },
-			V2_int{ 6, 1 }, { Hash("great_dane_bark1") }, V2_float{ 11, 24 } * scale
+			V2_int{ 6, 1 }, { Hash("great_dane_bark1") }, Hash("great_dane_whine"),
+			V2_float{ 11, 24 } * scale
 		);
 	}
 
 	void CreateMaltese(const V2_float& pos) {
 		CreateDog(
 			pos, "resources/dog/maltese.png", V2_float{ 11, 6 } * scale, V2_float{ -2, 0 },
-			V2_int{ 4, 1 }, { Hash("maltese_bark1") }, V2_float{ 6, 5 } * scale
+			V2_int{ 4, 1 }, { Hash("maltese_bark1") }, Hash("maltese_whine"),
+			V2_float{ 6, 5 } * scale
 		);
 	}
 
@@ -664,7 +787,7 @@ public:
 		PTGN_ASSERT(FileExists(p), "Could not find specified dachshund type");
 		CreateDog(
 			pos, p, V2_float{ 14, 5 } * scale, V2_float{ -3, 0 }, V2_int{ 4, 1 },
-			{ Hash("dachshund_bark1") }, V2_float{ 7, 3 } * scale
+			{ Hash("dachshund_bark1") }, Hash("dachshund_whine"), V2_float{ 7, 3 } * scale
 		);
 	}
 
@@ -1085,6 +1208,32 @@ public:
 		DrawDogs();
 		DrawItems();
 
+		if (game.input.KeyDown(Key::F)) {
+			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
+				d.SpawnRequestAnimation(DogRequest::Food);
+			}
+		}
+		if (game.input.KeyDown(Key::O)) {
+			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
+				d.SpawnRequestAnimation(DogRequest::Outside);
+			}
+		}
+		if (game.input.KeyDown(Key::P)) {
+			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
+				d.SpawnRequestAnimation(DogRequest::Pet);
+			}
+		}
+		if (game.input.KeyDown(Key::C)) {
+			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
+				d.SpawnRequestAnimation(DogRequest::Cleanup);
+			}
+		}
+		if (game.input.KeyDown(Key::T)) {
+			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
+				d.SpawnRequestAnimation(DogRequest::Toy);
+			}
+		}
+
 		// TODO: Move out of here.
 		// TODO: Remove bark button.
 		if (game.input.KeyDown(Key::B)) {
@@ -1189,7 +1338,8 @@ public:
 		game.renderer.SetClearColor(color::Silver);
 		game.window.SetSize(resolution);
 
-		// TODO: For some reason, going straight to "GameScene" causes camera not to follow player.
+		// TODO: For some reason, going straight to "GameScene" causes camera not to follow
+		// player.
 		/*std::size_t initial_scene{ Hash("game") };
 		game.scene.Load<GameScene>(initial_scene);*/
 		std::size_t initial_scene{ Hash("main_menu") };
