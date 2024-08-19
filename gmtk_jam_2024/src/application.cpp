@@ -629,7 +629,9 @@ public:
 		});
 
 		bowl	 = CreateItem({ 310, 300 }, "resources/entity/bowl.png", scale.x, 0.7f);
-		dog_toy1 = CreateItem({ 300, 280 }, "resources/entity/dog_toy1.png", scale.x, 0.9f);
+		dog_toy1 = CreateItem({ 600, 220 }, "resources/entity/dog_toy1.png", scale.x, 0.9f);
+		CreateItem({ 500, 230 }, "resources/entity/dog_toy2.png", scale.x, 1.0f);
+		CreateItem({ 220, 280 }, "resources/entity/dog_toy2.png", scale.x, 1.0f);
 
 		CreateVizsla({ 300, 300 });
 
@@ -815,6 +817,8 @@ public:
 				auto& h_item{ hand.current_item.Get<Hitbox>() };
 				auto& o_item{ hand.current_item.Get<Origin>() };
 
+				hand.current_item.Get<Position>().p.y -= hand.offset.y;
+
 				// If item is not in the wall, throw it, otherwise push it out of the wall.
 
 				Rectangle<float> r_item{ h_item.GetPosition(), h_item.size, o_item };
@@ -836,6 +840,13 @@ public:
 				} else {
 					auto& item_vel{ hand.current_item.Get<Velocity>() };
 					auto& vel{ player.Get<Velocity>() };
+					const auto& accel{ player.Get<Acceleration>() };
+					if (FastAbs(accel.current.x) == 0.0f && FastAbs(accel.current.y) == 0.0f) {
+						// Throw item from ground (at low velocities).
+					} else {
+						// Throw item from hand.
+						hand.current_item.Get<Position>().p.y += hand.offset.y;
+					}
 					item_vel.current = vel.current.Normalized() * vel.max * 0.65f;
 				}
 				// auto& item_accel{ hand.current_item.Get<Acceleration>() };
@@ -1019,7 +1030,15 @@ public:
 
 class MainMenu : public Scene {
 public:
-	std::vector<std::shared_ptr<Button>> buttons;
+	struct TextButton {
+		TextButton(const std::shared_ptr<Button>& button, const Text& text) :
+			button{ button }, text{ text } {}
+
+		std::shared_ptr<Button> button;
+		Text text;
+	};
+
+	std::vector<TextButton> buttons;
 
 	Texture background;
 
@@ -1032,16 +1051,21 @@ public:
 		const V2_int button_size{ 192, 48 };
 		const V2_int first_button_coordinate{ 161, 193 };
 
-		auto add_solid_button = [&](const ButtonActivateFunction& f, const Color& color,
+		Font font{ "resources/font/retro_gaming.ttf", button_size.y };
+
+		auto add_solid_button = [&](const std::string& content, const Color& text_color,
+									const ButtonActivateFunction& f, const Color& color,
 									const Color& hover_color) {
 			ColorButton b;
 			b.SetOnActivate(f);
 			b.SetColor(color);
 			b.SetHoverColor(hover_color);
-			buttons.emplace_back(std::make_shared<ColorButton>(b));
+			Text text{ font, content, color };
+			buttons.emplace_back(std::make_shared<ColorButton>(b), text);
 		};
 
 		add_solid_button(
+			"Play", color::Blue,
 			[]() {
 				game.scene.Unload(Hash("main_menu"));
 				game.scene.SetActive(Hash("game"));
@@ -1049,6 +1073,7 @@ public:
 			color::Blue, color::Black
 		);
 		add_solid_button(
+			"Instructions", color::Green,
 			[]() {
 				game.scene.Unload(Hash("main_menu"));
 				game.scene.SetActive(Hash("game"));
@@ -1056,6 +1081,7 @@ public:
 			color::Green, color::Black
 		);
 		add_solid_button(
+			"Settings", color::Red,
 			[]() {
 				game.scene.Unload(Hash("main_menu"));
 				game.scene.SetActive(Hash("game"));
@@ -1064,11 +1090,11 @@ public:
 		);
 
 		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i]->SetRectangle({ V2_int{ first_button_coordinate.x,
-											   first_button_coordinate.y +
-												   i * (button_size.y + button_y_offset) },
-									   button_size, Origin::CenterTop });
-			buttons[i]->SubscribeToMouseEvents();
+			buttons[i].button->SetRectangle({ V2_int{ first_button_coordinate.x,
+													  first_button_coordinate.y +
+														  i * (button_size.y + button_y_offset) },
+											  button_size, Origin::CenterTop });
+			buttons[i].button->SubscribeToMouseEvents();
 		}
 
 		background = Texture{ "resources/ui/background.png" };
@@ -1077,7 +1103,8 @@ public:
 	void Update() final {
 		game.renderer.DrawTexture(game.window.GetCenter(), resolution, background);
 		for (std::size_t i = 0; i < buttons.size(); i++) {
-			buttons[i]->DrawHollow(3.0f);
+			buttons[i].button->DrawHollow(3.0f);
+			buttons[i].text.Draw(buttons[i].button->GetRectangle());
 		}
 		// TODO: Make this a texture and global (perhaps run in the start scene?).
 		// Draw Mouse Cursor.
