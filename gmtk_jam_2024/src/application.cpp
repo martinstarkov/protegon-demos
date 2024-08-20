@@ -4,7 +4,7 @@ using namespace ptgn;
 
 constexpr const V2_int resolution{ 960, 540 };
 constexpr const V2_int center{ resolution / 2 };
-constexpr const bool draw_hitboxes{ true };
+constexpr const bool draw_hitboxes{ false };
 
 struct WallComponent {};
 
@@ -563,21 +563,33 @@ public:
 	Texture house_background;
 	Texture progress_bar_texture;
 	Texture progress_car_texture;
+	Texture dog_counter_texture;
+	Texture barkometer_texture;
 
 	Timer return_timer;
 
 	seconds level_time{ 60 };
 
+	float bark_count{ 0.0f };
+	float bark_threshold{ 60.0f };
+
 	ecs::Entity player;
 	ecs::Entity bowl;
 	ecs::Entity dog_toy1;
 	OrthographicCamera player_camera;
+	OrthographicCamera neighbor_camera;
 
 	V2_float world_bounds;
+	std::size_t basic_font	 = Hash("basic_font");
+	std::size_t counter_font = basic_font;
 
 	GameScene() {
+		game.font.Load(basic_font, "resources/font/retro_gaming.ttf", 32);
+		progress_bar_texture = Surface{ "resources/ui/progress_bar.png" };
 		progress_bar_texture = Surface{ "resources/ui/progress_bar.png" };
 		progress_car_texture = Surface{ "resources/ui/progress_car.png" };
+		dog_counter_texture	 = Surface{ "resources/ui/dog_counter.png" };
+		barkometer_texture	 = Surface{ "resources/ui/barkometer.png" };
 		level				 = Surface{ "resources/level/house_hitbox.png" };
 
 		game.texture.Load(Hash("bark"), "resources/entity/bark.png");
@@ -788,16 +800,21 @@ public:
 		);
 	}
 
+	bool player_can_move{ true };
+
 	void Init() final {
 		CreatePlayer();
+		float scale = 2.0f;
 
 		player_camera = game.camera.Load(Hash("player_camera"));
 		// player_camera.SetSizeToWindow();
-		player_camera.SetSize(game.window.GetSize() / 2.0f);
+		player_camera.SetSize(game.window.GetSize() / scale);
 		game.camera.SetPrimary(Hash("player_camera"));
 		player_camera.SetClampBounds({ {}, world_bounds, Origin::TopLeft });
-
 		player_camera.SetPosition(player.Get<Position>().p);
+
+		neighbor_camera = game.camera.Load(Hash("neighbor_camera"));
+		neighbor_camera.SetSize(game.window.GetSize() / scale);
 
 		/*
 		camera_motion = game.tween.Load(Hash("camera_tween"), 0.0f, 800.0f, seconds{ 10 });
@@ -812,19 +829,18 @@ public:
 			}
 		});
 
-		bowl	 = CreateItem({ 310, 300 }, "resources/entity/bowl.png", 1.0f, 0.7f);
-		dog_toy1 = CreateItem({ 600, 220 }, "resources/entity/dog_toy1.png", 1.0f, 0.9f);
-		CreateItem({ 500, 230 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f);
-		CreateItem({ 220, 280 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f);
+		bowl	 = CreateItem({ 155, 150 }, "resources/entity/bowl.png", 1.0f, 0.7f);
+		dog_toy1 = CreateItem({ 300, 110 }, "resources/entity/dog_toy1.png", 1.0f, 0.9f);
+		CreateItem({ 250, 290 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f);
+		CreateItem({ 100, 140 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f);
 
-		CreateGreatDane({ 514 / 2, 232 / 2 });
+		CreateGreatDane({ 257, 116 });
 
-		/*CreateVizsla({ 300, 300 });
+		CreateVizsla({ 150, 120 });
 
-		CreateGreatDane({ 270 * 2, 385 * 2 });
-		CreateMaltese({ 490, 232 });
-		CreateDachshund({ 600, 232 }, "purple");
-		CreateDachshund({ 550, 232 }, "purple");*/
+		CreateMaltese({ 280, 116 });
+		CreateDachshund({ 300, 116 }, "purple");
+		CreateDachshund({ 270, 116 }, "purple");
 
 		// TODO: Move elsewhere, perhaps react to some event.
 		return_timer.Start();
@@ -846,30 +862,32 @@ public:
 
 		bool movement{ up || down || right || left };
 
-		if (movement) {
-			anim.Resume();
-		} else {
-			anim.Pause();
-		}
+		if (player_can_move) {
+			if (movement) {
+				anim.Resume();
+			} else {
+				anim.Pause();
+			}
 
-		if (up) {
-			a.current.y = -1;
-		} else if (down) {
-			a.current.y = 1;
-		} else {
-			a.current.y = 0;
-			v.current.y = 0;
-		}
+			if (up) {
+				a.current.y = -1;
+			} else if (down) {
+				a.current.y = 1;
+			} else {
+				a.current.y = 0;
+				v.current.y = 0;
+			}
 
-		if (left) {
-			a.current.x = -1;
-			f			= Flip::Horizontal;
-		} else if (right) {
-			a.current.x = 1;
-			f			= Flip::None;
-		} else {
-			a.current.x = 0;
-			v.current.x = 0;
+			if (left) {
+				a.current.x = -1;
+				f			= Flip::Horizontal;
+			} else if (right) {
+				a.current.x = 1;
+				f			= Flip::None;
+			} else {
+				a.current.x = 0;
+				v.current.x = 0;
+			}
 		}
 
 		// Store previous direction.
@@ -1078,7 +1096,9 @@ public:
 	void Update(float dt) final {
 		DrawBackground();
 		// Camera follows the player.
-		player_camera.SetPosition(player.Get<Position>().p);
+		if (!game.tween.Has(Hash("neighbor_cutscene"))) {
+			player_camera.SetPosition(player.Get<Position>().p);
+		}
 
 		ResetHitboxColors();
 
@@ -1187,7 +1207,88 @@ public:
 		game.renderer.DrawTexture(progress_car_texture, car_pos, car_size, {}, {}, Origin::Center);
 	}
 
+	void DrawDogCounter() {
+		std::size_t dog_count = manager.EntitiesWith<Dog>().Count();
+		V2_float cs{ game.camera.GetPrimary().GetSize() };
+		V2_float ui_offset{ -12.0f, 12.0f };
+		V2_float counter_size{ dog_counter_texture.GetSize() };
+		V2_float text_offset{ -counter_size.x / 2,
+							  counter_size.y - 14.0f }; // relative to counter ui top right
+		Text t{ counter_font, std::to_string(dog_count), color::Black };
+		V2_float pos{ cs.x + ui_offset.x, ui_offset.y };
+		V2_float counter_text_size{ 20, 25 };
+		game.renderer.DrawTexture(dog_counter_texture, pos, counter_size, {}, {}, Origin::TopRight);
+		t.Draw({ pos + text_offset, counter_text_size, Origin::Center });
+	}
+
+	void StartNeighborCutscene() {
+		V2_float neighbor_pos{ 40, 370 };
+		TweenConfig config;
+		auto player_pos	 = player.Get<Position>().p;
+		player_can_move	 = false;
+		config.on_update = [=](auto& tw, auto f) {
+			float shift_frac{ 0.2f };
+			float backshift_frac{ 0.8f };
+			if (f > shift_frac && f < backshift_frac) {
+				// TODO: Neighbor complaint stuff here.
+				return;
+			} else {
+				float shift_progress = std::clamp(f / shift_frac, 0.0f, 1.0f);
+				V2_float start		 = player_pos;
+				V2_float end		 = neighbor_pos;
+				// Camera moving back and then forth between player and neighbor.
+				if (f >= backshift_frac) {
+					shift_progress =
+						std::clamp((f - backshift_frac) / (1.0f - backshift_frac), 0.0f, 1.0f);
+					start = neighbor_pos;
+					end	  = player.Get<Position>().p;
+				}
+				V2_float pos = Lerp(start, end, shift_progress);
+				player_camera.SetPosition(pos);
+				PTGN_LOG("Shift progress: ", shift_progress);
+			}
+		};
+		auto& t = game.tween.Load(Hash("neighbor_cutscene"), 0.0f, 1.0f, seconds{ 10 }, config);
+		t.Start();
+	}
+
+	void DrawBarkometer() {
+		V2_float meter_pos{ 25, 258 };
+		V2_float meter_size{ barkometer_texture.GetSize() };
+
+		float bark_progress = std::clamp(bark_count / bark_threshold, 0.0f, 1.0f);
+
+		static bool trigger_neighbor = false;
+		if (bark_progress >= 1.0f) {
+			if (!trigger_neighbor) {
+				trigger_neighbor = true;
+				StartNeighborCutscene();
+			}
+		}
+
+		// TODO: If bark_progress > 0.8f (etc) give a warning to player.
+
+		Color color = Lerp(color::Grey, color::Red, bark_progress);
+
+		V2_float border_size{ 4, 4 };
+
+		V2_float barkometer_fill_size{ meter_size - border_size * 2.0f };
+
+		V2_float fill_pos{ meter_pos.x, meter_pos.y - border_size.y };
+
+		game.renderer.DrawTexture(
+			barkometer_texture, meter_pos, meter_size, {}, {}, Origin::CenterBottom
+		);
+
+		game.renderer.DrawRectangleFilled(
+			fill_pos, { barkometer_fill_size.x, barkometer_fill_size.y * bark_progress }, color,
+			Origin::CenterBottom
+		);
+	}
+
 	void DrawUI() {
+		auto prev_primary = game.camera.GetPrimary();
+
 		game.renderer.Flush();
 		OrthographicCamera c;
 		c.SetSizeToWindow();
@@ -1196,9 +1297,13 @@ public:
 		// Draw UI here...
 
 		DrawProgressBar();
+		DrawDogCounter();
+		DrawBarkometer();
 		game.renderer.Flush();
 
-		game.camera.SetPrimary(Hash("player_camera"));
+		if (game.camera.GetPrimary() == c) {
+			game.camera.SetPrimary(prev_primary);
+		}
 	}
 
 	void Draw() {
@@ -1240,6 +1345,7 @@ public:
 		// TODO: Move out of here.
 		// TODO: Remove bark button.
 		if (game.input.KeyDown(Key::B)) {
+			bark_count += 30.0f;
 			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
 				d.Bark();
 			}
