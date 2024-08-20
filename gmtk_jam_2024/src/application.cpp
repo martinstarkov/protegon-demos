@@ -6,7 +6,57 @@ constexpr const V2_int resolution{ 960, 540 };
 constexpr const V2_int center{ resolution / 2 };
 constexpr const bool draw_hitboxes{ false };
 
+enum class Difficulty {
+	Easy,
+	Medium,
+	Hard,
+};
+
+enum class BubbleAnimation {
+	None,
+	Food,
+	Cleanup,
+	Bone,
+	Outside,
+	Toy,
+	Pet,
+	Love,
+	Anger0,
+	Anger1,
+	Anger2,
+	Anger3,
+	Anger4,
+	AngerStop,
+};
+
+enum class FadeState {
+	Win,
+	Lose,
+	None,
+};
+
 struct WallComponent {};
+
+struct FadeComponent {
+	FadeComponent(FadeState state) : state{ state } {}
+
+	FadeState state{ FadeState::None };
+};
+
+struct Human {};
+
+struct TintColor {
+	TintColor(const Color& tint) : tint{ tint } {}
+
+	Color tint;
+};
+
+struct Wife {
+	Wife() = default;
+
+	bool returned{ false };
+	bool voice_heard{ false };
+};
 
 struct SpriteSheet {
 	SpriteSheet(
@@ -19,6 +69,7 @@ struct SpriteSheet {
 			if (animation_count.IsZero()) {
 				return V2_int{};
 			}
+			PTGN_ASSERT(animation_count.x != 0 && animation_count.y != 0);
 			return texture.GetSize() / animation_count;
 		}() }
 
@@ -35,6 +86,7 @@ struct SpriteSheet {
 struct ItemComponent {
 	ItemComponent() = default;
 	bool held{ false };
+	BubbleAnimation type{ BubbleAnimation::None };
 	float weight_factor{ 1.0f };
 };
 
@@ -172,9 +224,15 @@ static bool OutOfBounds(ecs::Entity e, const V2_float& pos, const V2_float& max_
 }
 
 static void ApplyBounds(ecs::Entity e, const V2_float& max_bounds) {
-	PTGN_ASSERT(e.Has<Position>());
-	PTGN_ASSERT(e.Has<Hitbox>());
-	PTGN_ASSERT(e.Has<Origin>());
+	if (!e.Has<Position>()) {
+		return;
+	}
+	if (!e.Has<Hitbox>()) {
+		return;
+	}
+	if (!e.Has<Origin>()) {
+		return;
+	}
 	auto& pos		   = e.Get<Position>();
 	const auto& hitbox = e.Get<Hitbox>();
 	const auto& origin = e.Get<Origin>();
@@ -193,12 +251,6 @@ static void ApplyBounds(ecs::Entity e, const V2_float& max_bounds) {
 		pos.p.y += max_bounds.y - max.y;
 	}
 }
-
-struct GridComponent {
-	GridComponent(const V2_int& cell) : cell{ cell } {}
-
-	V2_int cell;
-};
 
 auto GetWalls(ecs::Manager& manager) {
 	return manager.EntitiesWith<Position, Hitbox, Origin, DynamicCollisionShape, WallComponent>();
@@ -224,35 +276,143 @@ void ResolveStaticWallCollisions(ecs::Entity obj) {
 	}
 }
 
-enum class DogRequest {
-	None,
-	Food,
-	Cleanup,
-	Outside,
-	Toy,
-	Pet
+bool IsRequest(BubbleAnimation anim) {
+	switch (anim) {
+		case BubbleAnimation::Food:	   return true;
+		case BubbleAnimation::Cleanup: return true;
+		case BubbleAnimation::Bone:	   return true;
+		case BubbleAnimation::Pet:	   return true;
+		case BubbleAnimation::Toy:	   return true;
+		case BubbleAnimation::Outside: return true;
+	}
+	return false;
+}
+
+struct AngerComponent {
+	AngerComponent(BubbleAnimation bubble) : bubble{ bubble } {}
+
+	bool started{ false };
+	bool yelling{ false };
+	BubbleAnimation bubble;
 };
 
-struct Dog {
-	ecs::Entity dog;
+void SpawnBubbleAnimation(
+	ecs::Entity entity, BubbleAnimation bubble_type, std::size_t bubble_tween_key,
+	duration<float, milliseconds::period> popup_duration,
+	duration<float, milliseconds::period> total_duration,
+	const std::function<void(Tween& tw, float f)>& start_callback,
+	const std::function<V2_float()>& get_pos_callback,
+	const std::function<void()>& hold_start_callback,
+	const std::function<void(Tween& tw, float f)>& complete_callback
+) {
+	if (game.tween.Has(bubble_tween_key)) {
+		// Already in the middle of an animation.
+		return;
+	}
 
-	Dog(ecs::Entity dog_entity, const V2_float& start_target, std::size_t walk,
+	float start_hold_threshold{ popup_duration / total_duration };
+
+	TweenConfig config;
+
+	config.on_start	   = start_callback;
+	config.on_complete = complete_callback;
+	config.on_stop	   = complete_callback;
+
+	config.on_update = [=](auto& tw, auto f) {
+		std::size_t bubble_texture_key{ Hash("bubble") + static_cast<std::size_t>(bubble_type) };
+		const int request_animation_count{ 4 };
+		Texture t{ game.texture.Get(bubble_texture_key) };
+		V2_float source_size{ t.GetSize() / V2_float{ request_animation_count, 1 } };
+
+		const int hold_frame{ request_animation_count - 1 };
+
+		float column = 0.0f;
+
+		if (f >= start_hold_threshold) {
+			hold_start_callback();
+			column = hold_frame;
+		} else {
+			column = std::floorf(f / start_hold_threshold * hold_frame);
+		}
+
+		V2_float source_pos = { column * source_size.x, 0.0f };
+
+		// TODO: Move this to draw functions and use an entity instead.
+		game.renderer.DrawTexture(
+			t, get_pos_callback(), source_size, source_pos, source_size, entity.Get<Origin>(),
+			entity.Get<Flip>(), 0.0f, {}, 1.0f
+		);
+	};
+
+	auto& tween = game.tween.Load(
+		bubble_tween_key, 0.0f, 1.0f, std::chrono::duration_cast<milliseconds>(total_duration),
+		config
+	);
+	tween.Start();
+}
+
+struct Dog {
+	Timer patience;
+	seconds patience_duration{ 5 };
+	BubbleAnimation req;
+
+	bool spawn_thingy = false;
+
+	Dog(ecs::Entity e, const V2_float& start_target, std::size_t walk,
 		const std::vector<std::size_t>& bark_keys, std::size_t whine_key,
 		const V2_float& bark_offset) :
-		dog{ dog_entity },
 		target{ start_target },
 		walk{ walk },
 		bark_keys{ bark_keys },
 		whine_key{ whine_key },
 		bark_offset{ bark_offset } {
-		animations_to_goal = dog.Get<AnimationComponent>().column_count;
+		animations_to_goal = e.Get<AnimationComponent>().column_count;
 		for (std::size_t i = 0; i < bark_keys.size(); i++) {
 			PTGN_ASSERT(game.sound.Has(bark_keys[i]));
 		}
 	}
 
-	void SpawnBarkAnimation() {
-		std::size_t bark_tween_key{ dog.GetId() + Hash("bark") };
+	void SpawnRequestAnimation(ecs::Entity e, BubbleAnimation dog_request) {
+		std::size_t request_key{ e.GetId() + Hash("request") };
+		if (game.tween.Has(request_key)) {
+			// Already in the middle of an animation.
+			return;
+		}
+		request = dog_request;
+
+		SpawnBubbleAnimation(
+			e, request, request_key, request_animation_popup_duration,
+			request_animation_hold_duration + request_animation_popup_duration,
+			[=](Tween& tw, float f) { e.Get<Dog>().whined = false; },
+			[=]() {
+				if (e.IsAlive() && IsRequest(e.Get<Dog>().request)) {
+					auto& h{ e.Get<Hitbox>() };
+					auto flip{ e.Get<Flip>() };
+					float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
+					auto offset = GetDrawOffset(h.size, e.Get<Origin>());
+					V2_float pos{ e.Get<Position>().p + offset +
+								  V2_float{ sign * (h.size.x / 2 + bark_offset.x),
+											-bark_offset.y } +
+								  V2_float{ sign * request_offset.x, -request_offset.y } };
+					return pos;
+				} else {
+					return V2_float{ -10000, -10000 };
+				}
+			},
+			[=]() {
+				// Whine once after request has finished popping up and is just starting its hold
+				// phase.
+				if (!e.Get<Dog>().whined) {
+					Whine();
+					e.Get<Dog>().whined = true;
+				}
+			},
+			[](auto& tw, float f) {}
+		);
+	}
+
+	void SpawnBarkAnimation(ecs::Entity e) {
+		std::size_t bark_tween_key{ e.GetId() + Hash("bark") };
 		if (game.tween.Has(bark_tween_key)) {
 			// Already in the middle of a bark animation.
 			return;
@@ -268,104 +428,41 @@ struct Dog {
 			Texture t{ game.texture.Get(bark_texture_key) };
 			V2_float source_size{ t.GetSize() / V2_float{ count, 1 } };
 			V2_float source_pos = { column * source_size.x, 0.0f };
-			auto& h{ dog.Get<Hitbox>() };
-			auto flip{ dog.Get<Flip>() };
+			auto& h{ e.Get<Hitbox>() };
+			auto flip{ e.Get<Flip>() };
 			float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
-			auto offset = GetDrawOffset(h.size, dog.Get<Origin>());
-			V2_float pos{ dog.Get<Position>().p + offset +
+			auto offset = GetDrawOffset(h.size, e.Get<Origin>());
+			V2_float pos{ e.Get<Position>().p + offset +
 						  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } };
 			// TODO: Move this to draw functions and use an entity instead.
 			game.renderer.DrawTexture(
-				t, pos, source_size, source_pos, source_size, dog.Get<Origin>(), flip, 0.0f, {},
-				0.8f
+				t, pos, source_size, source_pos, source_size, e.Get<Origin>(), flip, 0.0f, {}, 0.8f
 			);
 		};
 		auto& tween = game.tween.Load(bark_tween_key, 0.0f, 1.0f, milliseconds{ 135 }, config);
 		tween.Start();
 	}
 
-	void SpawnRequestAnimation(DogRequest dog_request) {
-		std::size_t request_tween_key{ dog.GetId() + Hash("request") };
-		if (game.tween.Has(request_tween_key)) {
-			// Already in the middle of a request animation.
-			// This means a dog cannot request multiple things at the same time (probably a good
-			// thing :) ).
-			return;
-		}
-		// Setup new request.
-		request = dog_request;
-		// TODO: Consider using an entity component?
-		TweenConfig config;
-
-		float start_hold_threshold{ request_animation_popup_duration / total_request_duration };
-
-		config.on_complete = [=](Tween& tw, float f) {
-			dog.Get<Dog>().whined = false;
-		};
-
-		config.on_update = [=](Tween& tw, float f) {
-			std::size_t request_texture_key{ Hash("request") + static_cast<std::size_t>(request) };
-			const int request_animation_count{ 4 };
-			Texture t{ game.texture.Get(request_texture_key) };
-			V2_float source_size{ t.GetSize() / V2_float{ request_animation_count, 1 } };
-
-			const int hold_frame{ request_animation_count - 1 };
-
-			float column = 0.0f;
-
-			if (f >= start_hold_threshold) {
-				// Whine once after request has finished popping up and is just starting its hold
-				// phase.
-				if (!dog.Get<Dog>().whined) {
-					Whine();
-					dog.Get<Dog>().whined = true;
-				}
-				column = hold_frame;
-			} else {
-				column = std::floorf(f / start_hold_threshold * hold_frame);
-			}
-
-			V2_float source_pos = { column * source_size.x, 0.0f };
-			auto& h{ dog.Get<Hitbox>() };
-			auto flip{ dog.Get<Flip>() };
-			float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
-			auto offset = GetDrawOffset(h.size, dog.Get<Origin>());
-			V2_float pos{ dog.Get<Position>().p + offset +
-						  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } +
-						  V2_float{ sign * request_offset.x, -request_offset.y } };
-			// TODO: Move this to draw functions and use an entity instead.
-			// Origin o{ (flip == Flip::Horizontal ? Origin::BottomRight :
-			// Origin::BottomLeft) };
-			Origin o{ dog.Get<Origin>() };
-			game.renderer.DrawTexture(
-				t, pos, source_size, source_pos, source_size, o, flip, 0.0f, {}, 0.9f
-			);
-		};
-
-		auto& tween = game.tween.Load(
-			request_tween_key, 0.0f, 1.0f,
-			std::chrono::duration_cast<milliseconds>(total_request_duration), config
-		);
-		tween.Start();
-	}
-
-	void Bark() {
+	void Bark(ecs::Entity e) {
 		PTGN_ASSERT(bark_keys.size() > 0);
 		RNG<std::size_t> bark_rng{ 0, bark_keys.size() - 1 };
 		auto bark_index{ bark_rng() };
 		PTGN_ASSERT(bark_index < bark_keys.size());
 		auto bark_key{ bark_keys[bark_index] };
 		PTGN_ASSERT(game.sound.Has(bark_key));
-		game.sound.Get(bark_key).Play(0);
-		SpawnBarkAnimation();
+		game.sound.Get(bark_key).Play(-1);
+		SpawnBarkAnimation(e);
 	}
 
 	void Whine() {
-		PTGN_ASSERT(game.sound.Has(whine_key));
-		game.sound.Get(whine_key).Play(0);
+		if (!game.sound.Has(whine_key)) {
+			return;
+		}
+		RNG<int> channel_rng{ 1, 4 };
+		game.sound.Get(whine_key).Play(-1);
 	}
 
-	void Update(float progress) {
+	void Update(ecs::Entity e, float progress) {
 		if (lingering) {
 			// TODO: Different animation?
 			// dog.Get<SpriteSheet>().row = X:
@@ -374,42 +471,68 @@ struct Dog {
 			// an.column_count;
 		} else {
 			// dog.Get<SpriteSheet>().row = 0:
-			dog.Get<Position>().p = Lerp(start, target, progress) - dog.Get<Hitbox>().offset;
-			ApplyBounds(dog, game.texture.Get(Hash("house_background")).GetSize());
-			ResolveStaticWallCollisions(dog);
+			e.Get<Position>().p = Lerp(start, target, progress) - e.Get<Hitbox>().offset;
+			ApplyBounds(e, game.texture.Get(Hash("house_background")).GetSize());
+			// ResolveStaticWallCollisions(e);
 			if (draw_hitboxes) {
 				game.renderer.DrawLine(start, target, color::Purple, 5.0f);
 			}
-			auto& an{ dog.Get<AnimationComponent>() };
+			auto& an{ e.Get<AnimationComponent>() };
 			an.column = static_cast<int>(animations_to_goal * progress) % an.column_count;
 		}
 	}
 
-	void StartWalk() {
+	float neediness{ 0.3f };
+
+	void StartWalk(ecs::Entity e) {
+		RNG<int> rng_request{ 0, 6 };
+		int index_request = rng_request();
+		RNG<float> chance_rng{ 0.0f, 1.0f };
+		if (chance_rng() < neediness) {
+			BubbleAnimation r = BubbleAnimation::None;
+			if (index_request == 0) {
+				r = BubbleAnimation::Food;
+			} else if (index_request == 1) {
+				r = BubbleAnimation::Pet;
+			} else if (index_request == 2) {
+				r = BubbleAnimation::Toy;
+			} else if (index_request == 3) {
+				// r = BubbleAnimation::Outside;
+			} else if (index_request == 4) {
+				r = BubbleAnimation::Cleanup;
+			} else if (index_request == 5) {
+				r = BubbleAnimation::Bone;
+			}
+			if (IsRequest(r)) {
+				e.Get<Dog>().spawn_thingy = true;
+				e.Get<Dog>().req		  = r;
+			}
+		}
+
 		if (start.IsZero()) {
-			start  = dog.Get<Hitbox>().GetPosition();
+			start  = e.Get<Hitbox>().GetPosition();
 			target = start;
 		}
-		ResolveStaticWallCollisions(dog);
-		// Reset lingering state.
+		// ResolveStaticWallCollisions(e);
+		//  Reset lingering state.
 		lingering = false;
-		SetNewTarget();
+		SetNewTarget(e);
 		// Reset animation.
-		dog.Get<AnimationComponent>().column = 0;
+		e.Get<AnimationComponent>().column = 0;
 	}
 
-	void SetNewTarget() {
+	void SetNewTarget(ecs::Entity e) {
 		start = target;
-		static V2_float min{ 0.0f, 0.0f };
-		static V2_float max = game.texture.Get(Hash("house_background")).GetSize();
+		V2_float min{ 0.0f, 0.0f };
+		V2_float max = game.texture.Get(Hash("house_background")).GetSize();
 
-		static float max_length{ (max - min).MagnitudeSquared() };
+		float max_length{ (max - min).MagnitudeSquared() };
 		PTGN_ASSERT(max_length != 0.0f);
 
 		auto viable_path = [=](const V2_float& vel) {
-			auto& hitbox{ dog.Get<Hitbox>() };
-			Rectangle<float> dog_rect{ hitbox.GetPosition(), hitbox.size, dog.Get<Origin>() };
-			for (auto [e, p, h, o, s, w] : GetWalls(dog.GetManager())) {
+			auto& hitbox{ e.Get<Hitbox>() };
+			Rectangle<float> dog_rect{ hitbox.GetPosition(), hitbox.size, e.Get<Origin>() };
+			for (auto [en, p, h, o, s, w] : GetWalls(const_cast<ecs::Manager&>(e.GetManager()))) {
 				Rectangle<float> r{ h.GetPosition(), h.size, o };
 				DynamicCollision c;
 				if (game.collision.dynamic.RectangleRectangle(dog_rect, vel, r, c)) {
@@ -438,7 +561,7 @@ struct Dog {
 			potential_velocity =
 				potential_dir * distance_rng() * max_walk_distance * run_multiplier;
 			V2_float future_loc = start + potential_velocity;
-			if (viable_path(potential_velocity) && !OutOfBounds(dog, future_loc, max)) {
+			if (viable_path(potential_velocity) && !OutOfBounds(e, future_loc, max)) {
 				potential_target  = future_loc;
 				found_path		  = true;
 				potential_heading = ClampAngle2Pi(potential_dir.Angle());
@@ -466,9 +589,9 @@ struct Dog {
 		} else {
 			target = start + potential_velocity;
 			if (target.x < start.x) {
-				dog.Get<Flip>() = Flip::Horizontal;
+				e.Get<Flip>() = Flip::Horizontal;
 			} else {
-				dog.Get<Flip>() = Flip::None;
+				e.Get<Flip>() = Flip::None;
 			}
 
 			float length{ (target - start).MagnitudeSquared() };
@@ -488,7 +611,7 @@ struct Dog {
 			PTGN_ASSERT(path_duration > microseconds{ 100 });
 			tween.SetDuration(std::chrono::duration_cast<milliseconds>(path_duration));
 
-			auto& anim{ dog.Get<AnimationComponent>() };
+			auto& anim{ e.Get<AnimationComponent>() };
 
 			int animation_cycles =
 				static_cast<int>(std::ceilf(path_duration / duration<float>(anim.duration)));
@@ -513,18 +636,15 @@ struct Dog {
 
 	V2_float request_offset{ -11, 11 };
 
-	DogRequest request{ DogRequest::None };
+	BubbleAnimation request{ BubbleAnimation::None };
 
 	// For debugging purposes.
 	V2_float potential_target;
 
 	// Pixels from corner of hitbox that the mouth of the dog is.
 	V2_float bark_offset;
-	duration<float, seconds::period> request_animation_hold_duration{ 5 };
-	duration<float, milliseconds::period> request_animation_popup_duration{ 500 };
-
-	duration<float, milliseconds::period> total_request_duration{ request_animation_popup_duration +
-																  request_animation_hold_duration };
+	duration<float, seconds::period> request_animation_hold_duration{ 7 };
+	duration<float, milliseconds::period> request_animation_popup_duration{ 200 };
 
 	float max_walk_distance{ 300.0f };
 	float run_factor{ 5.0f };
@@ -567,8 +687,7 @@ public:
 	Texture barkometer_texture;
 
 	Timer return_timer;
-
-	seconds level_time{ 60 };
+	Timer bark_timer;
 
 	float bark_count{ 0.0f };
 	float bark_threshold{ 60.0f };
@@ -583,7 +702,47 @@ public:
 	std::size_t basic_font	 = Hash("basic_font");
 	std::size_t counter_font = basic_font;
 
-	GameScene() {
+	Tween fade_to_black;
+	ecs::Entity fade_entity;
+
+	Difficulty difficulty;
+
+	seconds level_time{ 6 };
+
+	seconds dog_spawn_rate{ 10 };
+
+	seconds bark_reset_time{ 3 };
+
+	~GameScene() {
+		game.tween.Clear();
+	}
+
+	GameScene(Difficulty difficulty) : difficulty{ difficulty } {
+		switch (difficulty) {
+			case Difficulty::Easy: {
+				level_time		= seconds{ 80 };
+				dog_spawn_rate	= seconds{ 14 };
+				bark_reset_time = seconds{ 3 };
+				bark_threshold	= 40.0f;
+				break;
+			};
+			case Difficulty::Medium: {
+				level_time		= seconds{ 120 };
+				dog_spawn_rate	= seconds{ 14 };
+				bark_reset_time = seconds{ 6 };
+				bark_threshold	= 30.0f;
+				break;
+			};
+			case Difficulty::Hard: {
+				level_time		= seconds{ 180 };
+				dog_spawn_rate	= seconds{ 8 };
+				bark_reset_time = seconds{ 9 };
+				bark_threshold	= 10.0f;
+				break;
+			};
+			default: PTGN_ERROR("Failed to identify difficulty");
+		}
+
 		game.font.Load(basic_font, "resources/font/retro_gaming.ttf", 32);
 		progress_bar_texture = Surface{ "resources/ui/progress_bar.png" };
 		progress_bar_texture = Surface{ "resources/ui/progress_bar.png" };
@@ -594,30 +753,49 @@ public:
 
 		game.texture.Load(Hash("bark"), "resources/entity/bark.png");
 
-		std::size_t r{ Hash("request") };
-		auto load_request = [&](DogRequest request, const std::string& type) {
-			path p{ "resources/ui/request_" + type + ".png" };
+		std::size_t r{ Hash("bubble") };
+		auto load_request = [&](BubbleAnimation animation_type, const std::string& name) {
+			path p{ "resources/ui/bubble_" + name + ".png" };
 			PTGN_ASSERT(FileExists(p));
-			game.texture.Load(r + static_cast<std::size_t>(request), p);
+			game.texture.Load(r + static_cast<std::size_t>(animation_type), p);
 		};
-		load_request(DogRequest::Food, "food");
-		load_request(DogRequest::Cleanup, "cleanup");
-		load_request(DogRequest::Outside, "outside");
-		load_request(DogRequest::Toy, "toy");
-		load_request(DogRequest::Pet, "pet");
+		load_request(BubbleAnimation::Food, "food");
+		load_request(BubbleAnimation::Cleanup, "cleanup");
+		load_request(BubbleAnimation::Bone, "bone");
+		load_request(BubbleAnimation::Outside, "outside");
+		load_request(BubbleAnimation::Toy, "toy");
+		load_request(BubbleAnimation::Pet, "pet");
+		load_request(BubbleAnimation::Love, "love");
+		load_request(BubbleAnimation::Anger0, "anger0");
+		load_request(BubbleAnimation::Anger1, "anger1");
+		load_request(BubbleAnimation::Anger2, "anger2");
+		load_request(BubbleAnimation::Anger3, "anger3");
+		load_request(BubbleAnimation::Anger4, "anger4");
 
 		house_background = game.texture.Load(Hash("house_background"), "resources/level/house.png");
 		world_bounds	 = house_background.GetSize();
 		// TODO: Populate with actual barks.
-		game.sound.Load(Hash("vizsla_bark1"), "resources/sound/random_bark.ogg");
-		game.sound.Load(Hash("great_dane_bark1"), "resources/sound/random_bark.ogg");
-		game.sound.Load(Hash("maltese_bark1"), "resources/sound/random_bark.ogg");
-		game.sound.Load(Hash("dachshund_bark1"), "resources/sound/random_bark.ogg");
+		game.sound.Load(Hash("vizsla_bark1"), "resources/sound/bark_1.ogg");
+		game.sound.Load(Hash("vizsla_bark2"), "resources/sound/bark_2.ogg");
+		game.sound.Load(Hash("great_dane_bark1"), "resources/sound/bark_1.ogg");
+		game.sound.Load(Hash("great_dane_bark2"), "resources/sound/bark_2.ogg");
+		game.sound.Load(Hash("maltese_bark1"), "resources/sound/small_bark.ogg");
+		game.sound.Load(Hash("maltese_bark2"), "resources/sound/small_bark.ogg");
+		game.sound.Load(Hash("dachshund_bark1"), "resources/sound/small_bark.ogg");
+		game.sound.Load(Hash("dachshund_bark2"), "resources/sound/small_bark.ogg");
 		// TODO: Populate with actual whines.
-		game.sound.Load(Hash("vizsla_whine"), "resources/sound/random_whine.ogg");
-		game.sound.Load(Hash("great_dane_whine"), "resources/sound/random_whine.ogg");
-		game.sound.Load(Hash("maltese_whine"), "resources/sound/random_whine.ogg");
-		game.sound.Load(Hash("dachshund_whine"), "resources/sound/random_whine.ogg");
+		game.sound.Load(Hash("vizsla_whine"), "resources/sound/dog_whine.ogg");
+		game.sound.Load(Hash("great_dane_whine"), "resources/sound/dog_whine.ogg");
+		game.sound.Load(Hash("maltese_whine"), "resources/sound/small_dog_whine.ogg");
+		game.sound.Load(Hash("dachshund_whine"), "resources/sound/small_dog_whine.ogg");
+		// TODO: Populate with actual complaining.
+		game.sound.Load(Hash("neighbor_yell0"), "resources/sound/yell0.ogg");
+		game.sound.Load(Hash("neighbor_yell1"), "resources/sound/yell1.ogg");
+		game.sound.Load(Hash("neighbor_yell2"), "resources/sound/yell2.ogg");
+
+		game.sound.Load(Hash("door_close"), "resources/sound/door_close.ogg");
+		game.sound.Load(Hash("door_open"), "resources/sound/door_open.ogg");
+		game.sound.Load(Hash("wife_arrives"), "resources/sound/wife_arrives.ogg");
 	}
 
 	void CreatePlayer() {
@@ -629,6 +807,8 @@ public:
 		player.Add<Origin>(Origin::CenterBottom);
 		player.Add<Flip>(Flip::None);
 		player.Add<Direction>(V2_int{ 0, 1 });
+		player.Add<Human>();
+		player.Add<Wife>();
 
 		V2_int player_animation_count{ 4, 3 };
 
@@ -669,7 +849,6 @@ public:
 		V2_float hitbox_size{ 8, 8 };
 		player.Add<Hitbox>(player, hitbox_size, V2_float{ 0.0f, 0.0f });
 		player.Add<HandComponent>(8.0f, V2_float{ 8.0f, -s.s.y * 0.3f });
-		player.Add<GridComponent>(ppos.p / grid_size);
 		player.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
 		player.Add<SortByZ>();
 		player.Add<ZIndex>(0.0f);
@@ -693,7 +872,7 @@ public:
 		TweenConfig tween_config;
 		tween_config.repeat = -1;
 
-		auto start_walk = std::function([=](Tween& tw, float f) { dog.Get<Dog>().StartWalk(); });
+		auto start_walk = std::function([=](Tween& tw, float f) { dog.Get<Dog>().StartWalk(dog); });
 
 		tween_config.on_pause =
 			std::function([=](Tween& tw, float f) { dog.Get<AnimationComponent>().column = 0; });
@@ -701,7 +880,7 @@ public:
 		tween_config.on_resume = start_walk;
 		tween_config.on_repeat = start_walk;
 		tween_config.on_update =
-			std::function([=](Tween& tw, float f) { dog.Get<Dog>().Update(f); });
+			std::function([=](Tween& tw, float f) { dog.Get<Dog>().Update(dog, f); });
 		dog.Add<Size>(size);
 		dog.Add<InteractHitbox>(dog, size);
 		dog.Add<Hitbox>(dog, hitbox_size, hitbox_offset);
@@ -727,7 +906,7 @@ public:
 
 	ecs::Entity CreateItem(
 		const V2_float& pos, const path& texture, float hitbox_scale = 1.0f,
-		float weight_factor = 1.0f
+		float weight_factor = 1.0f, BubbleAnimation type = BubbleAnimation::None
 	) {
 		auto item = manager.CreateEntity();
 
@@ -735,6 +914,7 @@ public:
 		V2_int texture_size{ t.GetSize() };
 
 		auto& i			= item.Add<ItemComponent>();
+		i.type			= type;
 		i.weight_factor = weight_factor;
 		V2_float size{ texture_size };
 		item.Add<Size>(size);
@@ -757,7 +937,6 @@ public:
 	void CreateWall(const V2_int& hitbox_size, const V2_int& cell) {
 		auto wall = manager.CreateEntity();
 		wall.Add<WallComponent>();
-		wall.Add<GridComponent>(cell);
 		wall.Add<Size>(hitbox_size);
 		wall.Add<Hitbox>(wall, hitbox_size);
 		wall.Add<Position>(cell * hitbox_size);
@@ -772,22 +951,23 @@ public:
 	void CreateVizsla(const V2_float& pos) {
 		auto e = CreateDog(
 			pos, "resources/dog/vizsla.png", V2_float{ 22, 7 }, V2_float{ -3, 0 }, V2_int{ 6, 1 },
-			{ Hash("vizsla_bark1") }, Hash("vizsla_whine"), V2_float{ 8, 17 }
+			{ Hash("vizsla_bark1"), Hash("vizsla_bark2") }, Hash("vizsla_whine"), V2_float{ 8, 17 }
 		);
 	}
 
 	void CreateGreatDane(const V2_float& pos) {
 		CreateDog(
 			pos, "resources/dog/great_dane.png", V2_float{ 34, 8 }, V2_float{ -4, 0 },
-			V2_int{ 6, 1 }, { Hash("great_dane_bark1") }, Hash("great_dane_whine"),
-			V2_float{ 11, 24 }
+			V2_int{ 6, 1 }, { Hash("great_dane_bark1"), Hash("great_dane_bark2") },
+			Hash("great_dane_whine"), V2_float{ 11, 24 }
 		);
 	}
 
 	void CreateMaltese(const V2_float& pos) {
 		CreateDog(
 			pos, "resources/dog/maltese.png", V2_float{ 11, 6 }, V2_float{ -2, 0 }, V2_int{ 4, 1 },
-			{ Hash("maltese_bark1") }, Hash("maltese_whine"), V2_float{ 6, 5 }
+			{ Hash("maltese_bark1"), Hash("maltese_bark2") }, Hash("maltese_whine"),
+			V2_float{ 6, 5 }
 		);
 	}
 
@@ -796,11 +976,159 @@ public:
 		PTGN_ASSERT(FileExists(p), "Could not find specified dachshund type");
 		CreateDog(
 			pos, p, V2_float{ 14, 5 }, V2_float{ -3, 0 }, V2_int{ 4, 1 },
-			{ Hash("dachshund_bark1") }, Hash("dachshund_whine"), V2_float{ 7, 3 }
+			{ Hash("dachshund_bark1"), Hash("dachshund_bark2") }, Hash("dachshund_whine"),
+			V2_float{ 7, 3 }
 		);
 	}
 
 	bool player_can_move{ true };
+
+	ecs::Entity fade_text;
+	ecs::Entity daughter;
+
+	V2_float daughter_camera_pos{ 140, 0.0f };
+	V2_float daughter_walk_end_pos{ 140, 238.0f };
+
+	seconds daughter_spawn_rate{ 4 };
+
+	Timer spawn_timer;
+
+	void SpawnDog(const V2_float& pos) {
+		RNG<int> dog_rng{ 0, 3 };
+		int dog_index = dog_rng();
+		if (dog_index == 0) {
+			CreateVizsla(pos);
+		} else if (dog_index == 1) {
+			CreateGreatDane(pos);
+		} else if (dog_index == 2) {
+			CreateMaltese(pos);
+		} else if (dog_index == 3) {
+			CreateDachshund(pos, "purple");
+		}
+	}
+
+	void CreateDaughter() {
+		daughter = manager.CreateEntity();
+
+		// DAUGHTER ANIMATION COUNT
+		V2_int daughter_animation_count{ 4, 2 };
+
+		Texture girl_texture{ "resources/entity/little_girl.png" };
+
+		daughter_camera_pos.y = game.window.GetSize().y + 100.0f;
+
+		// Must be added before AnimationComponent as it pauses the animation immediately.
+		auto& spritesheet =
+			daughter.Add<SpriteSheet>(girl_texture, V2_int{}, daughter_animation_count);
+
+		V2_float daughter_start_pos{ daughter_camera_pos.x,
+									 daughter_camera_pos.y + spritesheet.source_size.y };
+
+		auto& ppos = daughter.Add<Position>(daughter_start_pos);
+		daughter.Add<Velocity>(V2_float{}, V2_float{ 700.0f });
+		daughter.Add<Acceleration>(V2_float{}, V2_float{ 1200.0f });
+		daughter.Add<Origin>(Origin::CenterBottom);
+		daughter.Add<Flip>(Flip::None);
+		daughter.Add<Human>();
+		daughter.Add<TintColor>(color::White);
+
+		milliseconds animation_duration{ 200 };
+
+		TweenConfig animation_config;
+		animation_config.repeat = -1;
+
+		animation_config.on_pause = [&](auto& t, auto v) {
+			daughter.Get<AnimationComponent>().column = 0;
+		};
+		animation_config.on_update = [&](auto& t, auto v) {
+			daughter.Get<AnimationComponent>().column = static_cast<int>(std::floorf(v));
+		};
+		animation_config.on_repeat = [&](auto& t, auto v) {
+			daughter.Get<AnimationComponent>().column = 0;
+		};
+
+		auto tween = game.tween.Load(
+			Hash("daughter_movement_animation"), 0.0f,
+			static_cast<float>(daughter_animation_count.x), animation_duration, animation_config
+		);
+		tween.Start();
+
+		auto& anim = daughter.Add<AnimationComponent>(
+			Hash("daughter_movement_animation"), daughter_animation_count.x, animation_duration
+		);
+
+		TweenConfig daughter_scene_config;
+
+		daughter_scene_config.yoyo	 = true;
+		daughter_scene_config.repeat = -1;
+
+		V2_float neighbot_walk_start_pos = ppos.p;
+
+		std::size_t love_key{ daughter.GetId() + Hash("love") };
+
+		duration<float, milliseconds::period> bubble_pop_duration{ 300 };
+
+		float love_bubble_offset{ 2.0f };
+
+		auto daughter_complain_bubble =
+			[=](BubbleAnimation anger, duration<float, milliseconds::period> bubble_hold_duration) {
+				SpawnBubbleAnimation(
+					daughter, anger, love_key, bubble_pop_duration,
+					bubble_hold_duration + bubble_pop_duration, [=](Tween& tw, float f) {},
+					[=]() {
+						V2_float pos =
+							daughter.Get<Position>().p -
+							V2_float{ 0.0f, daughter.Get<Size>().s.y + love_bubble_offset };
+						return pos;
+					},
+					[=]() {},
+					[=](auto& tw, float f) {
+						daughter.Get<AnimationComponent>().Resume();
+						// game.tween.Get(Hash("daughter_animation")).Resume();
+					}
+				);
+			};
+
+		const float anger_bubble_count{ 5.0f };
+
+		daughter.Add<AngerComponent>(BubbleAnimation::Love);
+
+		daughter_scene_config.on_update = [=](Tween& tw, auto f) {
+			V2_float start = neighbot_walk_start_pos;
+			V2_float end   = daughter_walk_end_pos;
+
+			if (f > 0.5f) {
+				daughter.Get<SpriteSheet>().row = 0;
+				// daughter.Get<Flip>() = Flip::None;
+				end	  = neighbot_walk_start_pos;
+				start = daughter_walk_end_pos;
+				daughter.Get<AnimationComponent>().Resume();
+			} else {
+				daughter.Get<SpriteSheet>().row = 1;
+				//  daughter.Get<Flip>() = Flip::Vertical;
+				//   game.tween.Get(Hash("daughter_animation")).Pause();
+				daughter.Get<AnimationComponent>().Pause();
+				daughter_complain_bubble(
+					daughter.Get<AngerComponent>().bubble, milliseconds{ 2000 }
+				);
+			}
+			daughter.Get<Position>().p = Lerp(start, end, (1.0f - f));
+		};
+
+		auto daughter_scene = game.tween.Load(
+			Hash("daughter_animation"), 0.0f, 1.0f, daughter_spawn_rate, daughter_scene_config
+		);
+		daughter_scene.Start();
+
+		V2_int size{ tile_size.x, 26 };
+
+		auto& s = daughter.Add<Size>(size);
+		V2_float hitbox_size{ 8, 8 };
+		daughter.Add<Hitbox>(daughter, hitbox_size, V2_float{ 0.0f, 0.0f });
+		daughter.Add<ZIndex>(1.0f);
+
+		manager.Refresh();
+	};
 
 	void Init() final {
 		CreatePlayer();
@@ -829,24 +1157,110 @@ public:
 			}
 		});
 
-		bowl	 = CreateItem({ 155, 150 }, "resources/entity/bowl.png", 1.0f, 0.7f);
-		dog_toy1 = CreateItem({ 300, 110 }, "resources/entity/dog_toy1.png", 1.0f, 0.9f);
-		CreateItem({ 250, 290 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f);
-		CreateItem({ 100, 140 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f);
+		bowl = CreateItem(
+			{ 155, 150 }, "resources/entity/bowl.png", 1.0f, 0.7f, BubbleAnimation::Food
+		);
+		bowl = CreateItem(
+			{ 216, 228 }, "resources/entity/bowl.png", 1.0f, 0.7f, BubbleAnimation::Food
+		);
+		bowl = CreateItem(
+			{ 531, 110 }, "resources/entity/bowl.png", 1.0f, 0.7f, BubbleAnimation::Food
+		);
+		dog_toy1 = CreateItem(
+			{ 300, 110 }, "resources/entity/dog_toy1.png", 1.0f, 0.9f, BubbleAnimation::Toy
+		);
+		dog_toy1 = CreateItem(
+			{ 372, 143 }, "resources/entity/dog_toy1.png", 1.0f, 0.9f, BubbleAnimation::Toy
+		);
+		CreateItem(
+			{ 300, 110 }, "resources/entity/cleanup.png", 1.0f, 1.0f, BubbleAnimation::Cleanup
+		);
+		CreateItem(
+			{ 538, 280 }, "resources/entity/cleanup.png", 1.0f, 1.0f, BubbleAnimation::Cleanup
+		);
+		CreateItem({ 448, 354 }, "resources/entity/bone.png", 1.0f, 1.0f, BubbleAnimation::Bone);
+		CreateItem({ 316, 89 }, "resources/entity/bone.png", 1.0f, 1.0f, BubbleAnimation::Bone);
+		CreateItem({ 250, 290 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f, BubbleAnimation::Toy);
+		CreateItem({ 100, 140 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f, BubbleAnimation::Toy);
 
-		CreateGreatDane({ 257, 116 });
+		Rectangle<float> garden{ V2_float{ 347, 332 }, V2_float{ 568, 368 } - V2_float{ 347, 332 },
+								 Origin::TopLeft };
+		std::size_t flowers = 10;
+		RNG<int> flower_ring{ 0, 2 };
 
-		CreateVizsla({ 150, 120 });
+		/*for (size_t i = 0; i < flowers; i++) {
+			V2_float pppoooss = V2_float::Random(garden.Min(), garden.Max());
+			int index		  = flower_ring();
+			CreateItem(
+				pppoooss, "resources/entity/flower" + std::to_string(index) + ".png", 1.0f, 1.0f,
+				BubbleAnimation::Outside
+			);
+		}*/
 
-		CreateMaltese({ 280, 116 });
-		CreateDachshund({ 300, 116 }, "purple");
-		CreateDachshund({ 270, 116 }, "purple");
+		fade_entity = manager.CreateEntity();
+		fade_entity.Add<TintColor>(Color{ 0, 0, 0, 0 });
+
+		fade_text = manager.CreateEntity();
+		fade_text.Add<TintColor>(Color{ 255, 255, 255, 0 });
+		fade_text.Add<FadeComponent>(FadeState::None);
+
+		TweenConfig fade_to_black_config;
+
+		fade_to_black_config.on_update = [=](auto& tw, auto f) {
+			fade_entity.Get<TintColor>().tint.a = static_cast<std::uint8_t>(f * 255.0f);
+		};
+
+		milliseconds background_fade_duration{ 500 };
+		seconds text_fade_duration{ 3 };
+
+		fade_to_black_config.on_complete = [=](auto& tw, auto f1) {
+			TweenConfig text_config;
+			text_config.ease	 = TweenEase::Linear;
+			text_config.on_start = [=](auto& tw2, float f2) {
+				game.sound.Get(Hash("door_close")).Play(-1);
+			};
+			text_config.on_update = [=](Tween& tw2, float f2) {
+				if (f2 > 0.5) {
+					f2 = 1.0f - f2;
+				}
+				fade_text.Get<TintColor>().tint.a = static_cast<std::uint8_t>(f2 / 0.5 * 255.0f);
+			};
+			text_config.on_complete = [=](auto& tw2, auto f2) {
+				BackToMenu();
+			};
+			text_config.on_stop = text_config.on_complete;
+			auto& text_fade_tween =
+				game.tween.Load(Hash("fade_text"), 0.0f, 1.0f, text_fade_duration, text_config);
+			text_fade_tween.Start();
+		};
+		fade_to_black_config.on_stop = fade_to_black_config.on_complete;
+
+		game.tween.Load(
+			Hash("fade_to_black"), 0.0f, 1.0f, background_fade_duration, fade_to_black_config
+		);
 
 		// TODO: Move elsewhere, perhaps react to some event.
 		return_timer.Start();
+		bark_timer.Start();
+
+		CreateDaughter();
+
+		spawn_timer.Start();
 	}
 
 	void PlayerMovementInput(float dt) {
+		if (!player_can_move) {
+			return;
+		}
+
+		PTGN_ASSERT(player.Has<Velocity>());
+		PTGN_ASSERT(player.Has<Acceleration>());
+		PTGN_ASSERT(player.Has<Flip>());
+		PTGN_ASSERT(player.Has<SpriteSheet>());
+		PTGN_ASSERT(player.Has<HandComponent>());
+		PTGN_ASSERT(player.Has<AnimationComponent>());
+		PTGN_ASSERT(player.Has<Direction>());
+
 		auto& v	   = player.Get<Velocity>();
 		auto& a	   = player.Get<Acceleration>();
 		auto& f	   = player.Get<Flip>();
@@ -862,32 +1276,30 @@ public:
 
 		bool movement{ up || down || right || left };
 
-		if (player_can_move) {
-			if (movement) {
-				anim.Resume();
-			} else {
-				anim.Pause();
-			}
+		if (movement) {
+			anim.Resume();
+		} else {
+			anim.Pause();
+		}
 
-			if (up) {
-				a.current.y = -1;
-			} else if (down) {
-				a.current.y = 1;
-			} else {
-				a.current.y = 0;
-				v.current.y = 0;
-			}
+		if (up) {
+			a.current.y = -1;
+		} else if (down) {
+			a.current.y = 1;
+		} else {
+			a.current.y = 0;
+			v.current.y = 0;
+		}
 
-			if (left) {
-				a.current.x = -1;
-				f			= Flip::Horizontal;
-			} else if (right) {
-				a.current.x = 1;
-				f			= Flip::None;
-			} else {
-				a.current.x = 0;
-				v.current.x = 0;
-			}
+		if (left) {
+			a.current.x = -1;
+			f			= Flip::Horizontal;
+		} else if (right) {
+			a.current.x = 1;
+			f			= Flip::None;
+		} else {
+			a.current.x = 0;
+			v.current.x = 0;
 		}
 
 		// Store previous direction.
@@ -983,7 +1395,9 @@ public:
 			p.p += v.current * dt;
 		}
 
-		ApplyBounds(player, world_bounds);
+		if (player_can_move) {
+			ApplyBounds(player, world_bounds);
+		}
 	}
 
 	void UpdatePlayerHand() {
@@ -1106,11 +1520,20 @@ public:
 
 		UpdatePhysics(dt);
 
-		UpdatePlayerHand();
+		if (player_can_move) {
+			UpdatePlayerHand();
+		}
 
 		// UpdateZIndices();
 
 		UpdateAnimations();
+
+		float dist{ (daughter.Get<Position>().p - daughter_walk_end_pos).Magnitude() };
+
+		if (spawn_timer.ElapsedPercentage(dog_spawn_rate) >= 1.0f && dist < 40.0f) {
+			spawn_timer.Start();
+			SpawnDog(daughter.Get<Position>().p);
+		}
 
 		Draw();
 	}
@@ -1156,26 +1579,24 @@ public:
 		}
 	}
 
-	void DrawPlayer() {
-		const auto& pos	   = player.Get<Position>().p;
-		const auto& size   = player.Get<Size>().s;
-		const auto& hitbox = player.Get<Hitbox>();
-		const auto& hand   = player.Get<HandComponent>();
-		const auto origin  = player.Get<Origin>();
-		const auto& t	   = player.Get<SpriteSheet>();
-		const auto& flip   = player.Get<Flip>();
-		const auto& dir	   = player.Get<Direction>();
-
-		if (draw_hitboxes) {
-			game.renderer.DrawCircleHollow(hand.GetPosition(player), hand.radius, hitbox.color);
-			game.renderer.DrawRectangleHollow(
-				pos + hitbox.offset, hitbox.size, color::Blue, origin, 1.0f
+	void DrawHumans() {
+		for (auto [e, pos, size, hitbox, origin, t, flip, human] :
+			 manager.EntitiesWith<Position, Size, Hitbox, Origin, SpriteSheet, Flip, Human>()) {
+			if (e.Has<HandComponent>() && draw_hitboxes) {
+				const auto& hand = e.Get<HandComponent>();
+				game.renderer.DrawCircleHollow(hand.GetPosition(e), hand.radius, hitbox.color);
+			}
+			if (draw_hitboxes) {
+				game.renderer.DrawRectangleHollow(
+					pos.p + hitbox.offset, hitbox.size, color::Blue, origin, 1.0f
+				);
+			}
+			game.renderer.DrawTexture(
+				t.texture, pos.p, size.s, t.source_pos, t.source_size, origin, flip, 0.0f,
+				{ 0.5f, 0.5f }, (e.Has<ZIndex>() ? e.Get<ZIndex>().z_index : 0.0f),
+				(e.Has<TintColor>() ? e.Get<TintColor>().tint : color::White)
 			);
 		}
-		game.renderer.DrawTexture(
-			t.texture, pos, size, t.source_pos, t.source_size, origin, flip, 0.0f, { 0.5f, 0.5f },
-			player.Has<ZIndex>() ? player.Get<ZIndex>().z_index : 0.0f
-		);
 	}
 
 	void DrawBackground() {
@@ -1184,9 +1605,52 @@ public:
 		);
 	}
 
+	void WifeReturn() {
+		player_can_move = false;
+		game.tween.Get(Hash("player_movement_animation")).Pause();
+		player.Remove<Velocity>();
+		player.Remove<Acceleration>();
+		player.Get<AnimationComponent>().column = 0;
+		player.Get<SpriteSheet>().row			= 0;
+
+		TweenConfig config;
+		config.on_start = [](auto& tw, auto f) {
+			game.sound.Get(Hash("door_open")).Play(-1);
+		};
+		milliseconds wife_return_duration{ 3000 };
+		duration<float, milliseconds::period> love_popup_dur{ 400 };
+		duration<float, milliseconds::period> love_duration{ wife_return_duration };
+
+		config.on_update = [=](auto& tw, auto f) {
+			if (f > 0.2f && !player.Get<Wife>().voice_heard) {
+				player.Get<Wife>().voice_heard = true;
+
+				SpawnBubbleAnimation(
+					player, BubbleAnimation::Love, Hash(player) + Hash("bubble"), love_popup_dur,
+					love_duration, [=](Tween& tw, float f) {},
+					[=]() {
+						V2_float pos = player.Get<Position>().p -
+									   V2_float{ 0.0f, player.Get<Size>().s.y + 1.0f };
+						return pos;
+					},
+					[=]() {}, [=](auto& tw, float f) {}
+				);
+
+				game.sound.Get(Hash("wife_arrives")).Play(-1);
+			}
+		};
+		config.on_complete = [=](auto& tw, auto f) {
+			fade_text.Get<FadeComponent>().state = FadeState::Win;
+			game.tween.Get(Hash("fade_to_black")).Start();
+		};
+		auto& wife_tween =
+			game.tween.Load(Hash("wife_return_tween"), 0.0f, 1.0f, wife_return_duration, config);
+		wife_tween.Start();
+	}
+
 	void DrawProgressBar() {
 		V2_float cs{ game.camera.GetPrimary().GetSize() };
-		float y_offset{ 12.0f };
+		float y_offset{ 0.0f };
 		V2_float bar_size{ progress_bar_texture.GetSize() };
 		V2_float bar_pos{ cs.x / 2.0f, y_offset };
 		game.renderer.DrawTexture(
@@ -1198,10 +1662,9 @@ public:
 		V2_float end{ bar_pos.x + bar_size.x / 2.0f - car_size.x / 2,
 					  bar_pos.y + bar_size.y / 2.0f };
 		float elapsed{ return_timer.ElapsedPercentage(level_time) };
-		static bool over = false;
-		if (elapsed >= 1.0f && !over) {
-			over = true;
-			// Trigger wife return event.
+		if (elapsed >= 1.0f && !player.Get<Wife>().returned && player.Has<Velocity>()) {
+			player.Get<Wife>().returned = true;
+			WifeReturn();
 		}
 		V2_float car_pos{ Lerp(start, end, elapsed) };
 		game.renderer.DrawTexture(progress_car_texture, car_pos, car_size, {}, {}, Origin::Center);
@@ -1221,33 +1684,207 @@ public:
 		t.Draw({ pos + text_offset, counter_text_size, Origin::Center });
 	}
 
-	void StartNeighborCutscene() {
-		V2_float neighbor_pos{ 40, 370 };
-		TweenConfig config;
-		auto player_pos	 = player.Get<Position>().p;
-		player_can_move	 = false;
-		config.on_update = [=](auto& tw, auto f) {
-			float shift_frac{ 0.2f };
-			float backshift_frac{ 0.8f };
-			if (f > shift_frac && f < backshift_frac) {
-				// TODO: Neighbor complaint stuff here.
-				return;
+	ecs::Entity neighbor;
+	V2_float neighbor_camera_pos{ 150, 0.0f };
+	V2_float neighbor_walk_end_pos{ 150, 360.0f };
+
+	// V2_float neighbor_pos{ 150, 0.0f };
+
+	std::array<std::size_t, 3> yell_keys{ Hash("neighbor_yell0"), Hash("neighbor_yell1"),
+										  Hash("neighbor_yell2") };
+
+	void NeighborYell() {
+		for (std::size_t i = 0; i < yell_keys.size(); i++) {
+			PTGN_ASSERT(game.sound.Has(yell_keys[i]));
+		}
+		PTGN_ASSERT(yell_keys.size() > 0);
+		std::size_t yell_key = yell_keys[0];
+		if (yell_keys.size() > 1) {
+			RNG<std::size_t> yell_rng{ 0, yell_keys.size() - 1 };
+			auto yell_index{ yell_rng() };
+			PTGN_ASSERT(yell_index < yell_keys.size());
+			yell_key = yell_keys[yell_index];
+		}
+		PTGN_ASSERT(game.sound.Has(yell_key));
+		game.sound.Get(yell_key).Play(-1);
+	}
+
+	void CreateNeighbor(milliseconds scene_duration) {
+		neighbor = manager.CreateEntity();
+
+		V2_int neighbor_animation_count{ 4, 1 };
+
+		Texture neighbor_texture{ "resources/entity/neighbor.png" };
+
+		// Must be added before AnimationComponent as it pauses the animation immediately.
+		auto& spritesheet =
+			neighbor.Add<SpriteSheet>(neighbor_texture, V2_int{}, neighbor_animation_count);
+
+		V2_float neighbor_start_pos{ neighbor_camera_pos.x,
+									 neighbor_camera_pos.y + spritesheet.source_size.y };
+
+		auto& ppos = neighbor.Add<Position>(neighbor_start_pos);
+		neighbor.Add<Velocity>(V2_float{}, V2_float{ 700.0f });
+		neighbor.Add<Acceleration>(V2_float{}, V2_float{ 1200.0f });
+		neighbor.Add<Origin>(Origin::CenterBottom);
+		neighbor.Add<Flip>(Flip::None);
+		neighbor.Add<Human>();
+		neighbor.Add<TintColor>(color::White);
+
+		milliseconds animation_duration{ 400 };
+
+		TweenConfig animation_config;
+		animation_config.repeat = -1;
+
+		animation_config.on_pause = [&](auto& t, auto v) {
+			neighbor.Get<AnimationComponent>().column = 0;
+		};
+		animation_config.on_update = [&](auto& t, auto v) {
+			neighbor.Get<AnimationComponent>().column = static_cast<int>(std::floorf(v));
+		};
+		animation_config.on_repeat = [&](auto& t, auto v) {
+			neighbor.Get<AnimationComponent>().column = 0;
+		};
+
+		auto tween = game.tween.Load(
+			Hash("neighbor_movement_animation"), 0.0f,
+			static_cast<float>(neighbor_animation_count.x), animation_duration, animation_config
+		);
+		tween.Start();
+
+		auto& anim = neighbor.Add<AnimationComponent>(
+			Hash("neighbor_movement_animation"), neighbor_animation_count.x, animation_duration
+		);
+
+		TweenConfig neighbor_scene_config;
+
+		V2_float neighbot_walk_start_pos = ppos.p;
+
+		std::size_t anger_key{ neighbor.GetId() + Hash("anger") };
+
+		duration<float, milliseconds::period> bubble_pop_duration{ 300 };
+
+		float yell_bubble_offset{ 2.0f };
+
+		auto neighbor_complain_bubble =
+			[=](BubbleAnimation anger, duration<float, milliseconds::period> bubble_hold_duration) {
+				SpawnBubbleAnimation(
+					neighbor, anger, anger_key, bubble_pop_duration,
+					bubble_hold_duration + bubble_pop_duration,
+					[=](Tween& tw, float f) { neighbor.Get<AngerComponent>().yelling = false; },
+					[=]() {
+						V2_float pos =
+							neighbor.Get<Position>().p -
+							V2_float{ 0.0f, neighbor.Get<Size>().s.y + yell_bubble_offset };
+						return pos;
+					},
+					[=]() {
+						auto& b{ neighbor.Get<AngerComponent>() };
+						if (!b.yelling) {
+							// TODO: Add a check that this only plays once upon hold start.
+							NeighborYell();
+							b.yelling = true;
+						}
+					},
+					[=](auto& tw, float f) {
+						auto& b{ neighbor.Get<AngerComponent>() };
+						auto new_bubble =
+							static_cast<BubbleAnimation>(static_cast<int>(b.bubble) + 1);
+						if (new_bubble != BubbleAnimation::AngerStop) {
+							b.bubble = new_bubble;
+						}
+					}
+				);
+			};
+
+		const float anger_bubble_count{ 5.0f };
+
+		neighbor.Add<AngerComponent>(BubbleAnimation::Anger0);
+
+		neighbor_scene_config.on_update = [=](auto& tw, auto f) {
+			float walk_frac{ 0.2f };
+			float bubble_frac{ 1.0f - walk_frac };
+			auto bubble_duration{ bubble_frac * (scene_duration - milliseconds{ 100 }) /
+								  (anger_bubble_count + 1) };
+			float walk_progress = std::clamp(f / walk_frac, 0.0f, 1.0f);
+			auto& walk_anim		= neighbor.Get<AnimationComponent>();
+			if (walk_progress < 1.0f) {
+				walk_anim.Resume();
+				neighbor.Get<Position>().p =
+					Lerp(neighbot_walk_start_pos, neighbor_walk_end_pos, walk_progress);
 			} else {
+				walk_anim.Pause();
+				neighbor.Get<TintColor>().tint = color::Red;
+				neighbor_complain_bubble(neighbor.Get<AngerComponent>().bubble, bubble_duration);
+			}
+		};
+
+		auto neighbor_scene = game.tween.Load(
+			Hash("neighbor_animation"), 0.0f, 1.0f, scene_duration, neighbor_scene_config
+		);
+		neighbor_scene.Start();
+
+		V2_int size{ tile_size.x, 2 * tile_size.y };
+
+		auto& s = neighbor.Add<Size>(size);
+		V2_float hitbox_size{ 8, 8 };
+		neighbor.Add<Hitbox>(neighbor, hitbox_size, V2_float{ 0.0f, 0.0f });
+		neighbor.Add<ZIndex>(1.0f);
+
+		manager.Refresh();
+	}
+
+	void BackToMenu();
+
+	void StartNeighborCutscene() {
+		TweenConfig config;
+		// Starting point for camera pan.
+		auto player_pos = player.Get<Position>().p;
+
+		player_can_move = false;
+
+		game.tween.Get(Hash("player_movement_animation")).Pause();
+		player.Remove<Velocity>();
+		player.Remove<Acceleration>();
+		player.Get<AnimationComponent>().column = 0;
+		player.Get<SpriteSheet>().row			= 0;
+		neighbor_camera_pos.y					= world_bounds.y;
+		// player_camera.SetClampBounds({});
+
+		config.on_update = [=](auto& tw, auto f) {
+			// how far into the tween these things happen:
+			const float shift_frac{ 0.2f };			 // move cam to neighbor.
+			const float backshift_frac{ 0.8f };		 // move cam back to player.
+			const float neighbor_move_start{ 0.1f }; // spawn and start moving neighbor.
+			if (f > neighbor_move_start && neighbor == ecs::Entity{}) {
+				float scene_frac{ backshift_frac - neighbor_move_start };
+				PTGN_ASSERT(scene_frac >= 0.01f);
+				CreateNeighbor(
+					std::chrono::duration_cast<milliseconds>(tw.GetDuration() * scene_frac)
+				);
+				// TODO: Neighbor complaint stuff here.
+			}
+			if (f <= shift_frac || f >= backshift_frac) {
 				float shift_progress = std::clamp(f / shift_frac, 0.0f, 1.0f);
 				V2_float start		 = player_pos;
-				V2_float end		 = neighbor_pos;
+				V2_float end		 = neighbor_camera_pos;
 				// Camera moving back and then forth between player and neighbor.
 				if (f >= backshift_frac) {
 					shift_progress =
 						std::clamp((f - backshift_frac) / (1.0f - backshift_frac), 0.0f, 1.0f);
-					start = neighbor_pos;
+					start = neighbor_camera_pos;
 					end	  = player.Get<Position>().p;
 				}
 				V2_float pos = Lerp(start, end, shift_progress);
 				player_camera.SetPosition(pos);
-				PTGN_LOG("Shift progress: ", shift_progress);
 			}
 		};
+		config.on_complete = [=](auto& tw, float v) {
+			auto& fade							 = game.tween.Get(Hash("fade_to_black"));
+			fade_text.Get<FadeComponent>().state = FadeState::Lose;
+			fade.Start();
+		};
+		config.on_stop = config.on_complete;
 		auto& t = game.tween.Load(Hash("neighbor_cutscene"), 0.0f, 1.0f, seconds{ 10 }, config);
 		t.Start();
 	}
@@ -1258,12 +1895,8 @@ public:
 
 		float bark_progress = std::clamp(bark_count / bark_threshold, 0.0f, 1.0f);
 
-		static bool trigger_neighbor = false;
-		if (bark_progress >= 1.0f) {
-			if (!trigger_neighbor) {
-				trigger_neighbor = true;
-				StartNeighborCutscene();
-			}
+		if (bark_progress >= 1.0f && neighbor == ecs::Entity{} && player.Has<Velocity>()) {
+			StartNeighborCutscene();
 		}
 
 		// TODO: If bark_progress > 0.8f (etc) give a warning to player.
@@ -1306,40 +1939,105 @@ public:
 		}
 	}
 
+	Texture win{ "resources/ui/win.png" };
+	Texture lose{ "resources/ui/lose.png" };
+
+	void DrawFadeEntity() {
+		PTGN_ASSERT(fade_entity.Has<TintColor>());
+		game.renderer.DrawRectangleFilled(
+			{ {}, game.window.GetSize(), Origin::TopLeft }, fade_entity.Get<TintColor>().tint
+		);
+		auto fade_state = fade_text.Get<FadeComponent>().state;
+		if (fade_state != FadeState::None) {
+			Texture t = lose;
+			if (fade_state == FadeState::Win) {
+				t = win;
+			}
+			auto& cam = game.camera.GetPrimary();
+			game.renderer.DrawTexture(
+				t, { cam.GetPosition().x, cam.GetPosition().y }, cam.GetSize(), {}, {},
+				Origin::Center, Flip::None, 0.0f, {}, 1.0f, fade_text.Get<TintColor>().tint
+			);
+		}
+	}
+
 	void Draw() {
 		// For debugging purposes:
 		if (draw_hitboxes) {
 			DrawWalls();
 		}
 
-		DrawPlayer();
+		DrawHumans();
 		DrawDogs();
 		DrawItems();
 
-		if (game.input.KeyDown(Key::F)) {
-			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-				d.SpawnRequestAnimation(DogRequest::Food);
+		for (auto [e, d] : manager.EntitiesWith<Dog>()) {
+			if (d.spawn_thingy) {
+				d.SpawnRequestAnimation(e, d.req);
+				d.spawn_thingy = false;
+			}
+			if (IsRequest(d.request) && !d.patience.IsRunning()) {
+				d.patience.Start();
+			}
+			if (d.patience.ElapsedPercentage(d.patience_duration) >= 1.0f) {
+				d.Bark(e);
+				bark_count++;
+				d.patience.Start();
+			}
+			auto& h	 = e.Get<Hitbox>();
+			auto& ph = player.Get<Hitbox>();
+			Rectangle<float> dog_rect{ h.GetPosition(), h.size, e.Get<Origin>() };
+			Rectangle<float> player_rect{ ph.GetPosition(), ph.size, player.Get<Origin>() };
+			if (game.collision.overlap.RectangleRectangle(player_rect, dog_rect) &&
+				player.Has<HandComponent>()) {
+				ecs::Entity item{ player.Get<HandComponent>().current_item };
+
+				auto reset_patience_request = [&]() {
+					d.patience.Reset();
+					d.patience.Stop();
+					d.request = BubbleAnimation::None;
+					PTGN_INFO("Resetting dog patience!");
+				};
+
+				if (item != ecs::Entity{}) {
+					if (item.Has<ItemComponent>()) {
+						auto& i = item.Get<ItemComponent>();
+
+						if (d.request == i.type) {
+							switch (i.type) {
+								case BubbleAnimation::Food: {
+									reset_patience_request();
+									break;
+								}
+								case BubbleAnimation::Bone: {
+									reset_patience_request();
+									break;
+								}
+								case BubbleAnimation::Cleanup: {
+									reset_patience_request();
+									break;
+								}
+								case BubbleAnimation::Toy: {
+									reset_patience_request();
+									break;
+								}
+								case BubbleAnimation::Outside: {
+									reset_patience_request();
+									break;
+								}
+							}
+						}
+					}
+				} else if (d.request == BubbleAnimation::Pet) {
+					reset_patience_request();
+				}
 			}
 		}
-		if (game.input.KeyDown(Key::O)) {
-			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-				d.SpawnRequestAnimation(DogRequest::Outside);
-			}
-		}
-		if (game.input.KeyDown(Key::P)) {
-			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-				d.SpawnRequestAnimation(DogRequest::Pet);
-			}
-		}
-		if (game.input.KeyDown(Key::C)) {
-			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-				d.SpawnRequestAnimation(DogRequest::Cleanup);
-			}
-		}
-		if (game.input.KeyDown(Key::T)) {
-			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-				d.SpawnRequestAnimation(DogRequest::Toy);
-			}
+
+		if (bark_timer.ElapsedPercentage(bark_reset_time) >= 1.0f) {
+			bark_count--;
+			bark_timer.Reset();
+			bark_timer.Start();
 		}
 
 		// TODO: Move out of here.
@@ -1347,74 +2045,108 @@ public:
 		if (game.input.KeyDown(Key::B)) {
 			bark_count += 30.0f;
 			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-				d.Bark();
+				d.Bark(e);
 			}
 		}
 
 		DrawUI();
+
+		DrawFadeEntity();
 	}
 };
 
-class MainMenu : public Scene {
+struct TextButton {
+	TextButton(const std::shared_ptr<Button>& button, const Text& text) :
+		button{ button }, text{ text } {}
+
+	std::shared_ptr<Button> button;
+	Text text;
+};
+
+const int button_y_offset{ 14 };
+const V2_int button_size{ 250, 50 };
+const V2_int first_button_coordinate{ 250, 220 };
+
+TextButton CreateMenuButton(
+	const std::string& content, const Color& text_color, const ButtonActivateFunction& f,
+	const Color& color, const Color& hover_color
+) {
+	ColorButton b;
+	b.SetOnActivate(f);
+	b.SetColor(color);
+	b.SetHoverColor(hover_color);
+	Text text{ Hash("menu_font"), content, color };
+	return TextButton{ std::make_shared<ColorButton>(b), text };
+}
+
+class LevelSelect : public Scene {
 public:
-	struct TextButton {
-		TextButton(const std::shared_ptr<Button>& button, const Text& text) :
-			button{ button }, text{ text } {}
-
-		std::shared_ptr<Button> button;
-		Text text;
-	};
-
 	std::vector<TextButton> buttons;
 
-	Texture background;
+	bool fade_in_on_init{ false };
 
-	MainMenu() {}
+	LevelSelect(bool f = false) : fade_in_on_init{ f } {}
+
+	void StartGame(Difficulty difficulty) {
+		game.scene.RemoveActive(Hash("level_select"));
+		game.scene.Load<GameScene>(Hash("game"), difficulty);
+		game.scene.SetActive(Hash("game"));
+	}
+
+	ecs::Manager manager;
+
+	ecs::Entity fade_entity;
+	TweenConfig fade_to_black_config_select;
+	OrthographicCamera camera;
 
 	void Init() final {
-		game.scene.Load<GameScene>(Hash("game"));
+		camera.SetSizeToWindow();
+		if (fade_in_on_init) {
+			fade_entity = manager.CreateEntity();
+			fade_entity.Add<TintColor>(Color{ 0, 0, 0, 255 });
 
-		const int button_y_offset{ 14 };
-		const V2_int button_size{ 192, 48 };
-		const V2_int first_button_coordinate{ 161, 193 };
+			fade_to_black_config_select.on_update = [=](auto& tw, float f) {
+				fade_entity.Get<TintColor>().tint.a =
+					static_cast<std::uint8_t>((1.0f - f) * 255.0f);
+				// PTGN_LOG("Update Tint: ", fade_entity.Get<TintColor>().tint, ", f: ", f);
+			};
+			fade_to_black_config_select.on_complete = [=](auto& tw, float f) {
+				fade_entity.Get<TintColor>().tint.a = 0;
+				// PTGN_LOG("Complete Tint: ", fade_entity.Get<TintColor>().tint, ", f: ", f);
+			};
+			fade_to_black_config_select.on_stop = fade_to_black_config_select.on_complete;
 
-		Font font{ "resources/font/retro_gaming.ttf", button_size.y };
+			milliseconds fade_duration{ 500 };
 
-		auto add_solid_button = [&](const std::string& content, const Color& text_color,
-									const ButtonActivateFunction& f, const Color& color,
-									const Color& hover_color) {
-			ColorButton b;
-			b.SetOnActivate(f);
-			b.SetColor(color);
-			b.SetHoverColor(hover_color);
-			Text text{ font, content, color };
-			buttons.emplace_back(std::make_shared<ColorButton>(b), text);
-		};
+			game.tween
+				.Load(
+					Hash("fade_to_black_level_select"), 0.0f, 1.0f, fade_duration,
+					fade_to_black_config_select
+				)
+				.Start();
 
-		add_solid_button(
-			"Play", color::Blue,
+			// TODO: Add fade in.
+			fade_in_on_init = false;
+		}
+		buttons.clear();
+		buttons.push_back(CreateMenuButton(
+			"Easy", color::Blue, [&]() { StartGame(Difficulty::Easy); }, color::Blue, color::Black
+		));
+		buttons.push_back(CreateMenuButton(
+			"Medium", color::Green, [&]() { StartGame(Difficulty::Medium); }, color::Gold,
+			color::Black
+		));
+		buttons.push_back(CreateMenuButton(
+			"Hard", color::Red, [&]() { StartGame(Difficulty::Hard); }, color::Red, color::Black
+		));
+		buttons.push_back(CreateMenuButton(
+			"Back", color::Black,
 			[]() {
-				game.scene.Unload(Hash("main_menu"));
-				game.scene.SetActive(Hash("game"));
+				game.scene.RemoveActive(Hash("level_select"));
+				game.scene.SetActive(Hash("main_menu"));
 			},
-			color::Blue, color::Black
-		);
-		add_solid_button(
-			"Instructions", color::Green,
-			[]() {
-				game.scene.Unload(Hash("main_menu"));
-				game.scene.SetActive(Hash("game"));
-			},
-			color::Green, color::Black
-		);
-		add_solid_button(
-			"Settings", color::Red,
-			[]() {
-				game.scene.Unload(Hash("main_menu"));
-				game.scene.SetActive(Hash("game"));
-			},
-			color::Red, color::Black
-		);
+			color::LightGrey, color::Black
+		));
 
 		for (int i = 0; i < (int)buttons.size(); i++) {
 			buttons[i].button->SetRectangle({ V2_int{ first_button_coordinate.x,
@@ -1423,19 +2155,103 @@ public:
 											  button_size, Origin::CenterTop });
 			buttons[i].button->SubscribeToMouseEvents();
 		}
+	}
 
-		background = Texture{ "resources/ui/background.png" };
+	void Shutdown() final {
+		for (int i = 0; i < (int)buttons.size(); i++) {
+			buttons[i].button->UnsubscribeFromMouseEvents();
+		}
+		manager.Clear();
 	}
 
 	void Update() final {
-		game.renderer.DrawTexture(background, game.window.GetCenter(), resolution);
+		game.scene.Get(Hash("level_select"))->camera.SetPrimary(camera);
+
+		game.renderer.DrawTexture(
+			game.texture.Get(Hash("menu_background")), game.window.GetCenter(), resolution
+		);
 		for (std::size_t i = 0; i < buttons.size(); i++) {
-			buttons[i].button->DrawHollow(3.0f);
-			buttons[i].text.Draw(buttons[i].button->GetRectangle());
+			buttons[i].button->DrawHollow(6.0f);
+			auto rect = buttons[i].button->GetRectangle();
+			rect.size.x =
+				buttons[i].text.GetSize(Hash("menu_font"), buttons[i].text.GetContent()).x * 0.5f;
+			buttons[i].text.Draw(rect);
+		}
+
+		if (fade_entity.IsAlive() && fade_entity.Has<TintColor>()) {
+			game.renderer.DrawRectangleFilled(
+				{ {}, game.window.GetSize(), Origin::TopLeft }, fade_entity.Get<TintColor>().tint
+			);
+		}
+	}
+};
+
+void GameScene::BackToMenu() {
+	game.scene.Unload(Hash("game"));
+	game.scene.Get<LevelSelect>(Hash("level_select"))->fade_in_on_init = true;
+	game.scene.SetActive(Hash("level_select"));
+}
+
+class MainMenu : public Scene {
+public:
+	std::vector<TextButton> buttons;
+
+	MainMenu() {
+		// TODO: If has.
+		game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
+		game.texture.Load(Hash("menu_background"), "resources/ui/background.png");
+		game.music.Load(Hash("background_music"), "resources/sound/background_music.ogg").Play(-1);
+		game.scene.Load<LevelSelect>(Hash("level_select"));
+	}
+
+	void Init() final {
+		buttons.clear();
+		buttons.push_back(CreateMenuButton(
+			"Play", color::Blue,
+			[]() {
+				game.scene.RemoveActive(Hash("main_menu"));
+				game.scene.SetActive(Hash("level_select"));
+			},
+			color::Blue, color::Black
+		));
+		// buttons.push_back(CreateMenuButton(
+		//	"Settings", color::Red,
+		//	[]() {
+		//		/*game.scene.RemoveActive(Hash("main_menu"));
+		//		game.scene.SetActive(Hash("game"));*/
+		//	},
+		//	color::Red, color::Black
+		//));
+
+		for (int i = 0; i < (int)buttons.size(); i++) {
+			buttons[i].button->SetRectangle({ V2_int{ first_button_coordinate.x,
+													  first_button_coordinate.y +
+														  i * (button_size.y + button_y_offset) },
+											  button_size, Origin::CenterTop });
+			buttons[i].button->SubscribeToMouseEvents();
+		}
+	}
+
+	void Shutdown() final {
+		for (int i = 0; i < (int)buttons.size(); i++) {
+			buttons[i].button->UnsubscribeFromMouseEvents();
+		}
+	}
+
+	void Update() final {
+		game.renderer.DrawTexture(
+			game.texture.Get(Hash("menu_background")), game.window.GetCenter(), resolution
+		);
+		for (std::size_t i = 0; i < buttons.size(); i++) {
+			buttons[i].button->DrawHollow(7.0f);
+			auto rect = buttons[i].button->GetRectangle();
+			rect.size.x =
+				buttons[i].text.GetSize(Hash("menu_font"), buttons[i].text.GetContent()).x * 0.5f;
+			buttons[i].text.Draw(rect);
 		}
 		// TODO: Make this a texture and global (perhaps run in the start scene?).
 		// Draw Mouse Cursor.
-		game.renderer.DrawCircleFilled(game.input.GetMousePosition(), 5.0f, color::Red);
+		// game.renderer.DrawCircleFilled(game.input.GetMousePosition(), 5.0f, color::Red);
 	}
 };
 
