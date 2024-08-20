@@ -4,8 +4,7 @@ using namespace ptgn;
 
 constexpr const V2_int resolution{ 960, 540 };
 constexpr const V2_int center{ resolution / 2 };
-constexpr const V2_float scale{ 2.0f, 2.0f };
-constexpr const bool draw_hitboxes{ false };
+constexpr const bool draw_hitboxes{ true };
 
 struct WallComponent {};
 
@@ -205,6 +204,26 @@ auto GetWalls(ecs::Manager& manager) {
 	return manager.EntitiesWith<Position, Hitbox, Origin, DynamicCollisionShape, WallComponent>();
 }
 
+void ResolveStaticWallCollisions(ecs::Entity obj) {
+	auto& hitbox	  = obj.Get<Hitbox>();
+	bool intersecting = false;
+	IntersectCollision max;
+	Rectangle<float> rect{ hitbox.GetPosition(), hitbox.size, obj.Get<Origin>() };
+	for (auto [e, p, h, o, s, w] : GetWalls(obj.GetManager())) {
+		Rectangle<float> r{ h.GetPosition(), h.size, o };
+		IntersectCollision c;
+		if (game.collision.intersect.RectangleRectangle(rect, r, c)) {
+			intersecting = true;
+			if (c.depth > max.depth) {
+				max = c;
+			}
+		}
+	}
+	if (intersecting) {
+		obj.Get<Position>().p += max.depth * max.normal;
+	}
+}
+
 enum class DogRequest {
 	None,
 	Food,
@@ -257,8 +276,8 @@ struct Dog {
 						  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } };
 			// TODO: Move this to draw functions and use an entity instead.
 			game.renderer.DrawTexture(
-				pos, source_size * scale, t, source_pos, source_size, 0.0f, { 0.5f, 0.5f }, flip,
-				dog.Get<Origin>(), 0.8f
+				t, pos, source_size, source_pos, source_size, dog.Get<Origin>(), flip, 0.0f, {},
+				0.8f
 			);
 		};
 		auto& tween = game.tween.Load(bark_tween_key, 0.0f, 1.0f, milliseconds{ 135 }, config);
@@ -319,8 +338,7 @@ struct Dog {
 			// Origin::BottomLeft) };
 			Origin o{ dog.Get<Origin>() };
 			game.renderer.DrawTexture(
-				pos, source_size * scale, t, source_pos, source_size, 0.0f, { 0.5f, 0.5f }, flip, o,
-				0.9f
+				t, pos, source_size, source_pos, source_size, o, flip, 0.0f, {}, 0.9f
 			);
 		};
 
@@ -357,7 +375,8 @@ struct Dog {
 		} else {
 			// dog.Get<SpriteSheet>().row = 0:
 			dog.Get<Position>().p = Lerp(start, target, progress) - dog.Get<Hitbox>().offset;
-			ApplyBounds(dog, game.texture.Get(Hash("house_background")).GetSize() * scale);
+			ApplyBounds(dog, game.texture.Get(Hash("house_background")).GetSize());
+			ResolveStaticWallCollisions(dog);
 			if (draw_hitboxes) {
 				game.renderer.DrawLine(start, target, color::Purple, 5.0f);
 			}
@@ -371,7 +390,7 @@ struct Dog {
 			start  = dog.Get<Hitbox>().GetPosition();
 			target = start;
 		}
-		ResolveStaticWallCollisions();
+		ResolveStaticWallCollisions(dog);
 		// Reset lingering state.
 		lingering = false;
 		SetNewTarget();
@@ -379,30 +398,10 @@ struct Dog {
 		dog.Get<AnimationComponent>().column = 0;
 	}
 
-	void ResolveStaticWallCollisions() {
-		auto& hitbox	  = dog.Get<Hitbox>();
-		bool intersecting = false;
-		IntersectCollision max;
-		Rectangle<float> dog_rect{ hitbox.GetPosition(), hitbox.size, dog.Get<Origin>() };
-		for (auto [e, p, h, o, s, w] : GetWalls(dog.GetManager())) {
-			Rectangle<float> r{ h.GetPosition(), h.size, o };
-			IntersectCollision c;
-			if (game.collision.intersect.RectangleRectangle(dog_rect, r, c)) {
-				intersecting = true;
-				if (c.depth > max.depth) {
-					max = c;
-				}
-			}
-		}
-		if (intersecting) {
-			dog.Get<Position>().p += max.depth * max.normal;
-		}
-	}
-
 	void SetNewTarget() {
 		start = target;
 		static V2_float min{ 0.0f, 0.0f };
-		static V2_float max = game.texture.Get(Hash("house_background")).GetSize() * scale;
+		static V2_float max = game.texture.Get(Hash("house_background")).GetSize();
 
 		static float max_length{ (max - min).MagnitudeSquared() };
 		PTGN_ASSERT(max_length != 0.0f);
@@ -512,7 +511,7 @@ struct Dog {
 
 	bool whined{ false };
 
-	V2_float request_offset{ -19, 19 };
+	V2_float request_offset{ -11, 11 };
 
 	DogRequest request{ DogRequest::None };
 
@@ -554,8 +553,8 @@ class GameScene : public Scene {
 public:
 	ecs::Manager manager;
 
-	V2_int tile_size{ V2_int{ 16, 16 } * scale };
-	V2_int grid_size{ V2_int{ 60, 34 } / scale };
+	V2_int tile_size{ V2_int{ 16, 16 } };
+	V2_int grid_size{ V2_int{ 60, 34 } };
 
 	Key item_interaction_key{ Key::E };
 
@@ -596,7 +595,7 @@ public:
 		load_request(DogRequest::Pet, "pet");
 
 		house_background = game.texture.Load(Hash("house_background"), "resources/level/house.png");
-		world_bounds	 = house_background.GetSize() * scale;
+		world_bounds	 = house_background.GetSize();
 		// TODO: Populate with actual barks.
 		game.sound.Load(Hash("vizsla_bark1"), "resources/sound/random_bark.ogg");
 		game.sound.Load(Hash("great_dane_bark1"), "resources/sound/random_bark.ogg");
@@ -613,8 +612,8 @@ public:
 		player = manager.CreateEntity();
 
 		auto& ppos = player.Add<Position>(V2_float{ 215, 290 });
-		player.Add<Velocity>(V2_float{}, V2_float{ 1500.0f });
-		player.Add<Acceleration>(V2_float{}, V2_float{ 2400.0f });
+		player.Add<Velocity>(V2_float{}, V2_float{ 700.0f });
+		player.Add<Acceleration>(V2_float{}, V2_float{ 1200.0f });
 		player.Add<Origin>(Origin::CenterBottom);
 		player.Add<Flip>(Flip::None);
 		player.Add<Direction>(V2_int{ 0, 1 });
@@ -655,7 +654,7 @@ public:
 		V2_int size{ tile_size.x, 2 * tile_size.y };
 
 		auto& s = player.Add<Size>(size);
-		V2_float hitbox_size{ size * V2_float{ 0.75f, 0.28f } };
+		V2_float hitbox_size{ 8, 8 };
 		player.Add<Hitbox>(player, hitbox_size, V2_float{ 0.0f, 0.0f });
 		player.Add<HandComponent>(8.0f, V2_float{ 8.0f, -s.s.y * 0.3f });
 		player.Add<GridComponent>(ppos.p / grid_size);
@@ -678,7 +677,7 @@ public:
 
 		V2_int texture_size{ t.GetSize() / animation_count };
 
-		V2_float size{ scale * texture_size };
+		V2_float size{ texture_size };
 		TweenConfig tween_config;
 		tween_config.repeat = -1;
 
@@ -699,8 +698,8 @@ public:
 		dog.Add<SpriteSheet>(t, V2_int{}, animation_count);
 		dog.Add<SortByZ>();
 		dog.Add<ZIndex>(0.0f);
-		dog.Add<Velocity>(V2_float{}, V2_float{ 1500.0f });
-		dog.Add<Acceleration>(V2_float{}, V2_float{ 2400.0f });
+		dog.Add<Velocity>(V2_float{}, V2_float{ 700.0f });
+		dog.Add<Acceleration>(V2_float{}, V2_float{ 1200.0f });
 		dog.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
 		dog.Add<Flip>(Flip::None);
 		dog.Add<AnimationComponent>(Hash(dog), animation_count.x, milliseconds{ 2000 });
@@ -725,7 +724,7 @@ public:
 
 		auto& i			= item.Add<ItemComponent>();
 		i.weight_factor = weight_factor;
-		V2_float size{ scale * texture_size };
+		V2_float size{ texture_size };
 		item.Add<Size>(size);
 		item.Add<PickupHitbox>(item, size * hitbox_scale);
 		item.Add<Hitbox>(item, size);
@@ -734,8 +733,8 @@ public:
 		item.Add<SpriteSheet>(t, V2_int{}, V2_int{});
 		item.Add<SortByZ>();
 		item.Add<ZIndex>(0.0f);
-		item.Add<Velocity>(V2_float{}, V2_float{ 1500.0f });
-		item.Add<Acceleration>(V2_float{}, V2_float{ 3000.0f });
+		item.Add<Velocity>(V2_float{}, V2_float{ 700.0f });
+		item.Add<Acceleration>(V2_float{}, V2_float{ 1500.0f });
 		item.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
 
 		manager.Refresh();
@@ -760,25 +759,23 @@ public:
 
 	void CreateVizsla(const V2_float& pos) {
 		auto e = CreateDog(
-			pos, "resources/dog/vizsla.png", V2_float{ 22, 7 } * scale, V2_float{ -3, 0 },
-			V2_int{ 6, 1 }, { Hash("vizsla_bark1") }, Hash("vizsla_whine"),
-			V2_float{ 8, 17 } * scale
+			pos, "resources/dog/vizsla.png", V2_float{ 22, 7 }, V2_float{ -3, 0 }, V2_int{ 6, 1 },
+			{ Hash("vizsla_bark1") }, Hash("vizsla_whine"), V2_float{ 8, 17 }
 		);
 	}
 
 	void CreateGreatDane(const V2_float& pos) {
 		CreateDog(
-			pos, "resources/dog/great_dane.png", V2_float{ 34, 8 } * scale, V2_float{ -4, 0 },
+			pos, "resources/dog/great_dane.png", V2_float{ 34, 8 }, V2_float{ -4, 0 },
 			V2_int{ 6, 1 }, { Hash("great_dane_bark1") }, Hash("great_dane_whine"),
-			V2_float{ 11, 24 } * scale
+			V2_float{ 11, 24 }
 		);
 	}
 
 	void CreateMaltese(const V2_float& pos) {
 		CreateDog(
-			pos, "resources/dog/maltese.png", V2_float{ 11, 6 } * scale, V2_float{ -2, 0 },
-			V2_int{ 4, 1 }, { Hash("maltese_bark1") }, Hash("maltese_whine"),
-			V2_float{ 6, 5 } * scale
+			pos, "resources/dog/maltese.png", V2_float{ 11, 6 }, V2_float{ -2, 0 }, V2_int{ 4, 1 },
+			{ Hash("maltese_bark1") }, Hash("maltese_whine"), V2_float{ 6, 5 }
 		);
 	}
 
@@ -786,18 +783,21 @@ public:
 		path p{ "resources/dog/dachshund_" + suffix + ".png" };
 		PTGN_ASSERT(FileExists(p), "Could not find specified dachshund type");
 		CreateDog(
-			pos, p, V2_float{ 14, 5 } * scale, V2_float{ -3, 0 }, V2_int{ 4, 1 },
-			{ Hash("dachshund_bark1") }, Hash("dachshund_whine"), V2_float{ 7, 3 } * scale
+			pos, p, V2_float{ 14, 5 }, V2_float{ -3, 0 }, V2_int{ 4, 1 },
+			{ Hash("dachshund_bark1") }, Hash("dachshund_whine"), V2_float{ 7, 3 }
 		);
 	}
 
 	void Init() final {
 		CreatePlayer();
 
-		player_camera = game.camera.Load(Hash("player_cam"));
-		player_camera.SetSizeToWindow();
-		game.camera.SetPrimary(Hash("player_cam"));
+		player_camera = game.camera.Load(Hash("player_camera"));
+		// player_camera.SetSizeToWindow();
+		player_camera.SetSize(game.window.GetSize() / 2.0f);
+		game.camera.SetPrimary(Hash("player_camera"));
 		player_camera.SetClampBounds({ {}, world_bounds, Origin::TopLeft });
+
+		player_camera.SetPosition(player.Get<Position>().p);
 
 		/*
 		camera_motion = game.tween.Load(Hash("camera_tween"), 0.0f, 800.0f, seconds{ 10 });
@@ -808,25 +808,23 @@ public:
 
 		level.ForEachPixel([&](const V2_int& cell, const Color& color) {
 			if (color == color::Black) {
-				CreateWall(V2_int{ 8, 8 } * scale, cell);
+				CreateWall(V2_int{ 8, 8 }, cell);
 			}
 		});
 
-		bowl	 = CreateItem({ 310, 300 }, "resources/entity/bowl.png", scale.x, 0.7f);
-		dog_toy1 = CreateItem({ 600, 220 }, "resources/entity/dog_toy1.png", scale.x, 0.9f);
-		CreateItem({ 500, 230 }, "resources/entity/dog_toy2.png", scale.x, 1.0f);
-		CreateItem({ 220, 280 }, "resources/entity/dog_toy2.png", scale.x, 1.0f);
+		bowl	 = CreateItem({ 310, 300 }, "resources/entity/bowl.png", 1.0f, 0.7f);
+		dog_toy1 = CreateItem({ 600, 220 }, "resources/entity/dog_toy1.png", 1.0f, 0.9f);
+		CreateItem({ 500, 230 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f);
+		CreateItem({ 220, 280 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f);
 
-		CreateVizsla({ 300, 300 });
+		CreateGreatDane({ 514 / 2, 232 / 2 });
 
-		CreateGreatDane({ 514, 232 });
+		/*CreateVizsla({ 300, 300 });
 
 		CreateGreatDane({ 270 * 2, 385 * 2 });
-
 		CreateMaltese({ 490, 232 });
-
 		CreateDachshund({ 600, 232 }, "purple");
-		CreateDachshund({ 550, 232 }, "purple");
+		CreateDachshund({ 550, 232 }, "purple");*/
 
 		// TODO: Move elsewhere, perhaps react to some event.
 		return_timer.Start();
@@ -934,9 +932,11 @@ public:
 			DynamicCollisionResponse::Slide
 		);
 		position += adjust;
+
 		if (reset_velocity && !adjust.IsZero()) {
 			entity.Get<Velocity>().current = {};
 		}
+		ResolveStaticWallCollisions(entity);
 	}
 
 	void UpdatePhysics(float dt) {
@@ -1001,16 +1001,17 @@ public:
 				auto& h_item{ hand.current_item.Get<Hitbox>() };
 				auto& o_item{ hand.current_item.Get<Origin>() };
 
-				hand.current_item.Get<Position>().p.y -= hand.offset.y;
+				auto h_pos{ h_item.GetPosition() };
+				Rectangle<float> r_item{ { h_pos.x - hand.offset.y, h_pos.y },
+										 h_item.size,
+										 o_item };
 
 				// If item is not in the wall, throw it, otherwise push it out of the wall.
-
-				Rectangle<float> r_item{ h_item.GetPosition(), h_item.size, o_item };
-
 				bool wall{ false };
 				IntersectCollision max;
 				for (auto [e, p, h, o, s, w] : GetWalls(manager)) {
 					Rectangle<float> r{ h.GetPosition(), h.size, o };
+					r_item = { h_pos, h_item.size, o_item };
 					IntersectCollision c;
 					if (game.collision.intersect.RectangleRectangle(r_item, r, c)) {
 						wall = true;
@@ -1040,7 +1041,7 @@ public:
 			}
 		}
 		if (hand.HasItem()) {
-			hand.current_item.Get<Position>().p = circle.center;
+			hand.current_item.Get<Position>().p = player.Get<Hitbox>().GetPosition();
 			if (player.Get<Direction>().dir.y == -1) {
 				player.Get<ZIndex>().z_index			= 0.1f;
 				hand.current_item.Get<ZIndex>().z_index = 0.0f;
@@ -1097,9 +1098,7 @@ public:
 	void DrawWalls() {
 		for (auto [e, p, s, h, origin, w] :
 			 manager.EntitiesWith<Position, Size, Hitbox, Origin, WallComponent>()) {
-			game.renderer.DrawRectangleHollow(
-				p.p, h.size, h.color, 0.0f, { 0.5f, 0.5f }, 1.0f, origin
-			);
+			game.renderer.DrawRectangleHollow(p.p, h.size, h.color, origin, 1.0f);
 		}
 	}
 
@@ -1107,13 +1106,16 @@ public:
 		for (auto [e, p, s, h, o, ss, item] :
 			 manager.EntitiesWith<Position, Size, Hitbox, Origin, SpriteSheet, ItemComponent>()) {
 			if (draw_hitboxes) {
-				game.renderer.DrawRectangleHollow(
-					p.p + h.offset, h.size, h.color, 0.0f, {}, 1.0f, o
-				);
+				game.renderer.DrawRectangleHollow(p.p + h.offset, h.size, h.color, o, 1.0f);
+			}
+			V2_float offset;
+			if (item.held) {
+				auto& hand{ player.Get<HandComponent>() };
+				offset = { player.Get<Direction>().dir.x * hand.offset.x, hand.offset.y };
 			}
 			game.renderer.DrawTexture(
-				p.p, s.s, ss.texture, ss.source_pos, ss.source_size, 0.0f, { 0.5f, 0.5f },
-				Flip::None, Origin::Center, e.Has<ZIndex>() ? e.Get<ZIndex>().z_index : 0.0f
+				ss.texture, p.p + offset, s.s, ss.source_pos, ss.source_size, Origin::Center,
+				Flip::None, 0.0f, {}, e.Has<ZIndex>() ? e.Get<ZIndex>().z_index : 0.0f
 			);
 		}
 	}
@@ -1122,14 +1124,11 @@ public:
 		for (auto [e, p, s, h, o, ss, dog] :
 			 manager.EntitiesWith<Position, Size, Hitbox, Origin, SpriteSheet, Dog>()) {
 			if (draw_hitboxes) {
-				game.renderer.DrawRectangleHollow(
-					p.p + h.offset, h.size, h.color, 0.0f, {}, 1.0f, o
-				);
+				game.renderer.DrawRectangleHollow(p.p + h.offset, h.size, h.color, o, 1.0f);
 			}
 			game.renderer.DrawTexture(
-				p.p, s.s, ss.texture, ss.source_pos, ss.source_size, 0.0f, { 0.5f, 0.5f },
-				e.Get<Flip>(), o, e.Has<ZIndex>() ? e.Get<ZIndex>().z_index : 0.0f,
-				1.0f //, Color{ 255, 255, 255, 30 }
+				ss.texture, p.p, s.s, ss.source_pos, ss.source_size, o, e.Get<Flip>(), 0.0f, {},
+				e.Has<ZIndex>() ? e.Get<ZIndex>().z_index : 0.0f //, Color{ 255, 255, 255, 30 }
 			);
 			if (draw_hitboxes) {
 				game.renderer.DrawLine(dog.start, dog.target, color::Red, 3.0f);
@@ -1150,31 +1149,28 @@ public:
 		if (draw_hitboxes) {
 			game.renderer.DrawCircleHollow(hand.GetPosition(player), hand.radius, hitbox.color);
 			game.renderer.DrawRectangleHollow(
-				pos + hitbox.offset, hitbox.size, color::Blue, 0.0f, { 0.5f, 0.5f }, 1.0f, origin
+				pos + hitbox.offset, hitbox.size, color::Blue, origin, 1.0f
 			);
 		}
 		game.renderer.DrawTexture(
-			pos, size, t.texture, t.source_pos, t.source_size, 0.0f, { 0.5f, 0.5f }, flip, origin,
+			t.texture, pos, size, t.source_pos, t.source_size, origin, flip, 0.0f, { 0.5f, 0.5f },
 			player.Has<ZIndex>() ? player.Get<ZIndex>().z_index : 0.0f
 		);
 	}
 
 	void DrawBackground() {
 		game.renderer.DrawTexture(
-			{}, house_background.GetSize() * scale, house_background, {}, {}, 0.0f, { 0.5f, 0.5f },
-			Flip::None, Origin::TopLeft
+			house_background, {}, house_background.GetSize(), {}, {}, Origin::TopLeft
 		);
 	}
 
 	void DrawProgressBar() {
-		auto& p{ camera.GetPrimary().GetPosition() };
-		auto& s{ camera.GetPrimary().GetSize() };
+		V2_float cs{ game.camera.GetPrimary().GetSize() };
 		float y_offset{ 12.0f };
-		V2_float bar_pos{ p.x, p.y - s.y / 2.0f + y_offset };
 		V2_float bar_size{ progress_bar_texture.GetSize() };
+		V2_float bar_pos{ cs.x / 2.0f, y_offset };
 		game.renderer.DrawTexture(
-			bar_pos, bar_size, progress_bar_texture, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None,
-			Origin::CenterTop
+			progress_bar_texture, bar_pos, bar_size, {}, {}, Origin::CenterTop
 		);
 		V2_float car_size{ progress_car_texture.GetSize() };
 		V2_float start{ bar_pos.x - bar_size.x / 2.0f + car_size.x / 2,
@@ -1188,14 +1184,21 @@ public:
 			// Trigger wife return event.
 		}
 		V2_float car_pos{ Lerp(start, end, elapsed) };
-		game.renderer.DrawTexture(
-			car_pos, car_size, progress_car_texture, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None,
-			Origin::Center
-		);
+		game.renderer.DrawTexture(progress_car_texture, car_pos, car_size, {}, {}, Origin::Center);
 	}
 
 	void DrawUI() {
+		game.renderer.Flush();
+		OrthographicCamera c;
+		c.SetSizeToWindow();
+		game.camera.SetPrimary(c);
+
+		// Draw UI here...
+
 		DrawProgressBar();
+		game.renderer.Flush();
+
+		game.camera.SetPrimary(Hash("player_camera"));
 	}
 
 	void Draw() {
@@ -1319,7 +1322,7 @@ public:
 	}
 
 	void Update() final {
-		game.renderer.DrawTexture(game.window.GetCenter(), resolution, background);
+		game.renderer.DrawTexture(background, game.window.GetCenter(), resolution);
 		for (std::size_t i = 0; i < buttons.size(); i++) {
 			buttons[i].button->DrawHollow(3.0f);
 			buttons[i].text.Draw(buttons[i].button->GetRectangle());
