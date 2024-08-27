@@ -284,6 +284,7 @@ bool IsRequest(BubbleAnimation anim) {
 		case BubbleAnimation::Pet:	   return true;
 		case BubbleAnimation::Toy:	   return true;
 		case BubbleAnimation::Outside: return true;
+		default:					   return false;
 	}
 	return false;
 }
@@ -2063,6 +2064,7 @@ public:
 									reset_patience_request();
 									break;
 								}
+								default: break;
 							}
 						}
 					}
