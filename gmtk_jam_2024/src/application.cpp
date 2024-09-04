@@ -65,13 +65,13 @@ struct SpriteSheet {
 		texture{ texture },
 		source_pos{ source_pos },
 		animation_count{ animation_count },
-		source_size{ [&]() {
+		source_size{ std::invoke([&]() {
 			if (animation_count.IsZero()) {
 				return V2_int{};
 			}
 			PTGN_ASSERT(animation_count.x != 0 && animation_count.y != 0);
 			return texture.GetSize() / animation_count;
-		}() }
+		}) }
 
 	{}
 
@@ -286,7 +286,6 @@ bool IsRequest(BubbleAnimation anim) {
 		case BubbleAnimation::Outside: return true;
 		default:					   return false;
 	}
-	return false;
 }
 
 struct AngerComponent {
