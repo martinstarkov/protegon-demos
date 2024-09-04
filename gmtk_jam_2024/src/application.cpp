@@ -296,59 +296,59 @@ struct AngerComponent {
 	BubbleAnimation bubble;
 };
 
-void SpawnBubbleAnimation(
+static void SpawnBubbleAnimation(
 	ecs::Entity entity, BubbleAnimation bubble_type, std::size_t bubble_tween_key,
-	duration<float, milliseconds::period> popup_duration,
-	duration<float, milliseconds::period> total_duration,
-	const std::function<void(Tween& tw, float f)>& start_callback,
-	const std::function<V2_float()>& get_pos_callback,
-	const std::function<void()>& hold_start_callback,
-	const std::function<void(Tween& tw, float f)>& complete_callback
+	milliseconds popup_duration, milliseconds total_duration, const TweenCallback& start_callback,
+	const std::function<V2_float()>& get_pos_callback, const TweenCallback& hold_start_callback,
+	const TweenCallback& complete_callback
 ) {
 	if (game.tween.Has(bubble_tween_key)) {
 		// Already in the middle of an animation.
 		return;
 	}
 
-	float start_hold_threshold{ popup_duration / total_duration };
+	const int request_animation_count{ 4 };
+	const int hold_frame{ request_animation_count - 1 };
+	std::size_t bubble_texture_key{ Hash("bubble") + static_cast<std::size_t>(bubble_type) };
 
-	TweenConfig config;
+	game.tween.Load(bubble_tween_key)
+		.During(popup_duration)
+		.OnStart(start_callback)
+		.OnUpdate([=](auto& tw, auto f) {
+			Texture t{ game.texture.Get(bubble_texture_key) };
+			V2_float source_size{ t.GetSize() /
+								  V2_float{ static_cast<float>(request_animation_count), 1.0f } };
 
-	config.on_start	   = start_callback;
-	config.on_complete = complete_callback;
-	config.on_stop	   = complete_callback;
+			float column = std::floorf(f * hold_frame);
 
-	config.on_update = [=](auto& tw, auto f) {
-		std::size_t bubble_texture_key{ Hash("bubble") + static_cast<std::size_t>(bubble_type) };
-		const int request_animation_count{ 4 };
-		Texture t{ game.texture.Get(bubble_texture_key) };
-		V2_float source_size{ t.GetSize() / V2_float{ request_animation_count, 1 } };
+			V2_float source_pos = { column * source_size.x, 0.0f };
 
-		const int hold_frame{ request_animation_count - 1 };
+			// TODO: Move this to draw functions and use an entity instead.
+			game.renderer.DrawTexture(
+				t, get_pos_callback(), source_size, source_pos, source_size, entity.Get<Origin>(),
+				entity.Get<Flip>(), 0.0f, {}, 1.0f
+			);
+		})
+		.During(total_duration - popup_duration)
+		.OnStart(hold_start_callback)
+		.OnUpdate([=](auto& tw, auto f) {
+			Texture t{ game.texture.Get(bubble_texture_key) };
+			V2_float source_size{ t.GetSize() /
+								  V2_float{ static_cast<float>(request_animation_count), 1.0f } };
 
-		float column = 0.0f;
+			float column = static_cast<float>(hold_frame);
 
-		if (f >= start_hold_threshold) {
-			hold_start_callback();
-			column = hold_frame;
-		} else {
-			column = std::floorf(f / start_hold_threshold * hold_frame);
-		}
+			V2_float source_pos = { column * source_size.x, 0.0f };
 
-		V2_float source_pos = { column * source_size.x, 0.0f };
-
-		// TODO: Move this to draw functions and use an entity instead.
-		game.renderer.DrawTexture(
-			t, get_pos_callback(), source_size, source_pos, source_size, entity.Get<Origin>(),
-			entity.Get<Flip>(), 0.0f, {}, 1.0f
-		);
-	};
-
-	auto& tween = game.tween.Load(
-		bubble_tween_key, 0.0f, 1.0f, std::chrono::duration_cast<milliseconds>(total_duration),
-		config
-	);
-	tween.Start();
+			// TODO: Move this to draw functions and use an entity instead.
+			game.renderer.DrawTexture(
+				t, get_pos_callback(), source_size, source_pos, source_size, entity.Get<Origin>(),
+				entity.Get<Flip>(), 0.0f, {}, 1.0f
+			);
+		})
+		.OnComplete(complete_callback)
+		.OnStop(complete_callback)
+		.Start();
 }
 
 struct Dog {
@@ -418,30 +418,27 @@ struct Dog {
 			// Already in the middle of a bark animation.
 			return;
 		}
-		TweenConfig config;
-		// TODO: Consider using an entity.
-		// auto bark_anim = dog.GetManager().CreateEntity();
-		// bark_anim.Add<AnimationComponent>();
-		config.on_update = [=](Tween& tw, float f) {
-			std::size_t bark_texture_key{ Hash("bark") };
-			const int count{ 6 };
-			float column = std::floorf(f * (count - 1));
-			Texture t{ game.texture.Get(bark_texture_key) };
-			V2_float source_size{ t.GetSize() / V2_float{ count, 1 } };
-			V2_float source_pos = { column * source_size.x, 0.0f };
-			auto& h{ e.Get<Hitbox>() };
-			auto flip{ e.Get<Flip>() };
-			float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
-			auto offset = GetOffsetFromCenter(h.size, e.Get<Origin>());
-			V2_float pos{ e.Get<Position>().p + offset +
-						  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } };
-			// TODO: Move this to draw functions and use an entity instead.
-			game.renderer.DrawTexture(
-				t, pos, source_size, source_pos, source_size, e.Get<Origin>(), flip, 0.0f, {}, 0.8f
-			);
-		};
-		auto& tween = game.tween.Load(bark_tween_key, 0.0f, 1.0f, milliseconds{ 135 }, config);
-		tween.Start();
+		game.tween.Load(bark_tween_key, milliseconds{ 135 })
+			.OnUpdate([=](Tween& tw, float f) {
+				std::size_t bark_texture_key{ Hash("bark") };
+				const int count{ 6 };
+				float column = std::floorf(f * (count - 1));
+				Texture t{ game.texture.Get(bark_texture_key) };
+				V2_float source_size{ t.GetSize() / V2_float{ count, 1 } };
+				V2_float source_pos = { column * source_size.x, 0.0f };
+				auto& h{ e.Get<Hitbox>() };
+				auto flip{ e.Get<Flip>() };
+				float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
+				auto offset = GetOffsetFromCenter(h.size, e.Get<Origin>());
+				V2_float pos{ e.Get<Position>().p + offset +
+							  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } };
+				// TODO: Move this to draw functions and use an entity instead.
+				game.renderer.DrawTexture(
+					t, pos, source_size, source_pos, source_size, e.Get<Origin>(), flip, 0.0f, {},
+					0.8f
+				);
+			})
+			.Start();
 	}
 
 	void Bark(ecs::Entity e) {
@@ -625,11 +622,11 @@ struct Dog {
 		}
 	}
 
-	void Pause() {
+	void Pause() const {
 		game.tween.Get(walk).Pause();
 	}
 
-	void Resume() {
+	void Resume() const {
 		game.tween.Get(walk).Resume();
 	}
 
@@ -644,8 +641,8 @@ struct Dog {
 
 	// Pixels from corner of hitbox that the mouth of the dog is.
 	V2_float bark_offset;
-	duration<float, seconds::period> request_animation_hold_duration{ 7 };
-	duration<float, milliseconds::period> request_animation_popup_duration{ 200 };
+	seconds request_animation_hold_duration{ 7 };
+	milliseconds request_animation_popup_duration{ 200 };
 
 	float max_walk_distance{ 300.0f };
 	float run_factor{ 5.0f };
@@ -820,24 +817,15 @@ public:
 
 		milliseconds animation_duration{ 400 };
 
-		TweenConfig animation_config;
-		animation_config.repeat = -1;
-
-		animation_config.on_pause = [=](auto& t, auto v) {
-			player.Get<AnimationComponent>().column = 0;
-		};
-		animation_config.on_update = [=](auto& t, auto v) {
-			player.Get<AnimationComponent>().column = static_cast<int>(std::floorf(v));
-		};
-		animation_config.on_repeat = [=](auto& t, auto v) {
-			player.Get<AnimationComponent>().column = 0;
-		};
-
-		auto tween = game.tween.Load(
-			Hash("player_movement_animation"), 0.0f, static_cast<float>(player_animation_count.x),
-			animation_duration, animation_config
-		);
-		tween.Start();
+		game.tween.Load(Hash("player_movement_animation"), animation_duration)
+			.OnPause([=](auto& t, auto v) { player.Get<AnimationComponent>().column = 0; })
+			.OnUpdate([=](auto& t, auto v) {
+				player.Get<AnimationComponent>().column =
+					static_cast<int>(std::floorf(v * player_animation_count.x));
+			})
+			.Repeat(-1)
+			.OnRepeat([=](auto& t, auto v) { player.Get<AnimationComponent>().column = 0; })
+			.Start();
 
 		auto& anim = player.Add<AnimationComponent>(
 			Hash("player_movement_animation"), player_animation_count.x, animation_duration
@@ -871,22 +859,21 @@ public:
 
 		V2_float size{ texture_size };
 
-		TweenConfig tween_config;
-		tween_config.repeat = -1;
-
 		auto start_walk = [=](Tween& tw, float f) mutable {
 			dog.Get<Dog>().StartWalk(dog);
 		};
 
-		tween_config.on_pause = [=](Tween& tw, float f) mutable {
-			dog.Get<AnimationComponent>().column = 0;
-		};
-		tween_config.on_start  = start_walk;
-		tween_config.on_resume = start_walk;
-		tween_config.on_repeat = start_walk;
-		tween_config.on_update = [=](Tween& tw, float f) mutable {
-			dog.Get<Dog>().Update(dog, f);
-		};
+		auto& tween =
+			game.tween.Load(Hash(dog), seconds{ 1 })
+				.Repeat(-1)
+				.OnPause([=](Tween& tw, float f) mutable {
+					dog.Get<AnimationComponent>().column = 0;
+				})
+				.OnStart(start_walk)
+				.OnResume(start_walk)
+				.OnRepeat(start_walk)
+				.OnUpdate([=](Tween& tw, float f) mutable { dog.Get<Dog>().Update(dog, f); });
+
 		dog.Add<Position>(pos);
 		dog.Add<Size>(size);
 		dog.Add<SpriteSheet>(t, V2_int{}, animation_count);
@@ -904,8 +891,6 @@ public:
 		dog.Add<Flip>(Flip::None);
 
 		manager.Refresh();
-
-		auto& tween = game.tween.Load(Hash(dog), 0.0f, 1.0f, seconds{ 1 }, tween_config);
 		tween.Start();
 
 		return dog;
@@ -1041,91 +1026,75 @@ public:
 
 		milliseconds animation_duration{ 200 };
 
-		TweenConfig animation_config;
-		animation_config.repeat = -1;
-
-		animation_config.on_pause = [=](auto& t, auto v) {
-			daughter.Get<AnimationComponent>().column = 0;
-		};
-		animation_config.on_update = [=](auto& t, auto v) {
-			daughter.Get<AnimationComponent>().column = static_cast<int>(std::floorf(v));
-		};
-		animation_config.on_repeat = [=](auto& t, auto v) {
-			daughter.Get<AnimationComponent>().column = 0;
-		};
-
-		auto tween = game.tween.Load(
-			Hash("daughter_movement_animation"), 0.0f,
-			static_cast<float>(daughter_animation_count.x), animation_duration, animation_config
-		);
-		tween.Start();
+		game.tween.Load(Hash("daughter_movement_animation"), animation_duration)
+			.Repeat(-1)
+			.OnPause([=](auto& t, auto v) { daughter.Get<AnimationComponent>().column = 0; })
+			.OnUpdate([=](auto& t, auto v) {
+				daughter.Get<AnimationComponent>().column =
+					static_cast<int>(std::floorf(v * daughter_animation_count.x));
+			})
+			.OnRepeat([=](auto& t, auto v) { daughter.Get<AnimationComponent>().column = 0; })
+			.Start();
 
 		auto& anim = daughter.Add<AnimationComponent>(
 			Hash("daughter_movement_animation"), daughter_animation_count.x, animation_duration
 		);
 
-		TweenConfig daughter_scene_config;
-
-		daughter_scene_config.yoyo	 = true;
-		daughter_scene_config.repeat = -1;
-
 		V2_float neighbot_walk_start_pos = ppos.p;
 
 		std::size_t love_key{ daughter.GetId() + Hash("love") };
 
-		duration<float, milliseconds::period> bubble_pop_duration{ 300 };
+		milliseconds bubble_pop_duration{ 300 };
 
 		float love_bubble_offset{ 2.0f };
 
-		auto daughter_complain_bubble =
-			[=](BubbleAnimation anger, duration<float, milliseconds::period> bubble_hold_duration) {
-				SpawnBubbleAnimation(
-					daughter, anger, love_key, bubble_pop_duration,
-					bubble_hold_duration + bubble_pop_duration, [=](Tween& tw, float f) {},
-					[=]() {
-						V2_float pos =
-							daughter.Get<Position>().p -
-							V2_float{ 0.0f, daughter.Get<Size>().s.y + love_bubble_offset };
-						return pos;
-					},
-					[=]() {},
-					[=](auto& tw, float f) {
-						daughter.Get<AnimationComponent>().Resume();
-						// game.tween.Get(Hash("daughter_animation")).Resume();
-					}
-				);
-			};
+		auto daughter_complain_bubble = [=](BubbleAnimation anger,
+											milliseconds bubble_hold_duration) {
+			SpawnBubbleAnimation(
+				daughter, anger, love_key, bubble_pop_duration,
+				bubble_hold_duration + bubble_pop_duration, [=](Tween& tw, float f) {},
+				[=]() {
+					V2_float pos = daughter.Get<Position>().p -
+								   V2_float{ 0.0f, daughter.Get<Size>().s.y + love_bubble_offset };
+					return pos;
+				},
+				[=]() {},
+				[=](auto& tw, float f) {
+					daughter.Get<AnimationComponent>().Resume();
+					// game.tween.Get(Hash("daughter_animation")).Resume();
+				}
+			);
+		};
 
 		const float anger_bubble_count{ 5.0f };
 
 		daughter.Add<AngerComponent>(BubbleAnimation::Love);
 
-		daughter_scene_config.on_update = [=](Tween& tw, auto f) {
-			V2_float start = neighbot_walk_start_pos;
-			V2_float end   = daughter_walk_end_pos;
+		game.tween.Load(Hash("daughter_animation"), daughter_spawn_rate)
+			.Yoyo()
+			.Repeat(-1)
+			.OnUpdate([=](Tween& tw, auto f) {
+				V2_float start = neighbot_walk_start_pos;
+				V2_float end   = daughter_walk_end_pos;
 
-			if (f > 0.5f) {
-				daughter.Get<SpriteSheet>().row = 0;
-				// daughter.Get<Flip>() = Flip::None;
-				end	  = neighbot_walk_start_pos;
-				start = daughter_walk_end_pos;
-				daughter.Get<AnimationComponent>().Resume();
-			} else {
-				daughter.Get<SpriteSheet>().row = 1;
-				//  daughter.Get<Flip>() = Flip::Vertical;
-				//   game.tween.Get(Hash("daughter_animation")).Pause();
-				daughter.Get<AnimationComponent>().Pause();
-				daughter_complain_bubble(
-					daughter.Get<AngerComponent>().bubble, milliseconds{ 2000 }
-				);
-			}
-			daughter.Get<Position>().p = Lerp(start, end, (1.0f - f));
-		};
-
-		auto daughter_scene = game.tween.Load(
-			Hash("daughter_animation"), 0.0f, 1.0f, daughter_spawn_rate, daughter_scene_config
-		);
-		daughter_scene.Start();
+				if (f > 0.5f) {
+					daughter.Get<SpriteSheet>().row = 0;
+					// daughter.Get<Flip>() = Flip::None;
+					end	  = neighbot_walk_start_pos;
+					start = daughter_walk_end_pos;
+					daughter.Get<AnimationComponent>().Resume();
+				} else {
+					daughter.Get<SpriteSheet>().row = 1;
+					//  daughter.Get<Flip>() = Flip::Vertical;
+					//   game.tween.Get(Hash("daughter_animation")).Pause();
+					daughter.Get<AnimationComponent>().Pause();
+					daughter_complain_bubble(
+						daughter.Get<AngerComponent>().bubble, milliseconds{ 2000 }
+					);
+				}
+				daughter.Get<Position>().p = Lerp(start, end, (1.0f - f));
+			})
+			.Start();
 
 		V2_int size{ tile_size.x, 26 };
 
@@ -1210,40 +1179,34 @@ public:
 		fade_text.Add<TintColor>(Color{ 255, 255, 255, 0 });
 		fade_text.Add<FadeComponent>(FadeState::None);
 
-		TweenConfig fade_to_black_config;
-
-		fade_to_black_config.on_update = [=](auto& tw, auto f) {
-			fade_entity.Get<TintColor>().tint.a = static_cast<std::uint8_t>(f * 255.0f);
-		};
-
 		milliseconds background_fade_duration{ 500 };
 		seconds text_fade_duration{ 3 };
 
-		fade_to_black_config.on_complete = [=](auto& tw, auto f1) {
-			TweenConfig text_config;
-			text_config.ease	 = TweenEase::Linear;
-			text_config.on_start = [=](auto& tw2, float f2) {
-				game.sound.Get(Hash("door_close")).Play(-1);
-			};
-			text_config.on_update = [=](Tween& tw2, float f2) {
-				if (f2 > 0.5) {
-					f2 = 1.0f - f2;
-				}
-				fade_text.Get<TintColor>().tint.a = static_cast<std::uint8_t>(f2 / 0.5 * 255.0f);
-			};
-			text_config.on_complete = [=](auto& tw2, auto f2) {
-				BackToMenu();
-			};
-			text_config.on_stop = text_config.on_complete;
-			auto& text_fade_tween =
-				game.tween.Load(Hash("fade_text"), 0.0f, 1.0f, text_fade_duration, text_config);
-			text_fade_tween.Start();
+		auto tint_change = [=](float f) {
+			fade_text.Get<TintColor>().tint.a = static_cast<std::uint8_t>(f * 255.0f);
 		};
-		fade_to_black_config.on_stop = fade_to_black_config.on_complete;
 
-		game.tween.Load(
-			Hash("fade_to_black"), 0.0f, 1.0f, background_fade_duration, fade_to_black_config
-		);
+		auto completed = [=]() {
+			BackToMenu();
+		};
+
+		game.tween
+			.Load(Hash("fade_to_black"))
+
+			.During(background_fade_duration)
+			.OnUpdate([=](float f) {
+				fade_entity.Get<TintColor>().tint.a = static_cast<std::uint8_t>(f * 255.0f);
+			})
+
+			.During(text_fade_duration / 2)
+			.OnStart([]() { game.sound.Get(Hash("door_close")).Play(-1); })
+			.OnUpdate(tint_change)
+
+			.During(text_fade_duration / 2)
+			.Reverse()
+			.OnUpdate(tint_change)
+			.OnComplete(completed)
+			.OnStop(completed);
 
 		// TODO: Move elsewhere, perhaps react to some event.
 		return_timer.Start();
@@ -1646,39 +1609,38 @@ public:
 		player.Get<AnimationComponent>().column = 0;
 		player.Get<SpriteSheet>().row			= 0;
 
-		TweenConfig config;
-		config.on_start = [](auto& tw, auto f) {
-			game.sound.Get(Hash("door_open")).Play(-1);
-		};
-		milliseconds wife_return_duration{ 3000 };
-		duration<float, milliseconds::period> love_popup_dur{ 400 };
-		duration<float, milliseconds::period> love_duration{ wife_return_duration };
+		milliseconds wife_sound_duration{ 600 };
+		milliseconds wife_return_duration{ 2400 };
+		milliseconds love_popup_dur{ 400 };
+		milliseconds love_duration{ wife_return_duration };
 
-		config.on_update = [=](auto& tw, auto f) {
-			if (f > 0.2f && !player.Get<Wife>().voice_heard) {
-				player.Get<Wife>().voice_heard = true;
+		game.tween.Load(Hash("wife_return_tween"))
+			.During(wife_sound_duration)
+			.OnStart([]() { game.sound.Get(Hash("door_open")).Play(-1); })
+			.During(wife_return_duration)
+			.OnUpdate([=](auto& tw, auto f) {
+				if (!player.Get<Wife>().voice_heard) {
+					player.Get<Wife>().voice_heard = true;
 
-				SpawnBubbleAnimation(
-					player, BubbleAnimation::Love, Hash(player) + Hash("bubble"), love_popup_dur,
-					love_duration, [=](Tween& tw, float f) {},
-					[=]() {
-						V2_float pos = player.Get<Position>().p -
-									   V2_float{ 0.0f, player.Get<Size>().s.y + 1.0f };
-						return pos;
-					},
-					[=]() {}, [=](auto& tw, float f) {}
-				);
+					SpawnBubbleAnimation(
+						player, BubbleAnimation::Love, Hash(player) + Hash("bubble"),
+						love_popup_dur, love_duration, [=]() {},
+						[=]() {
+							V2_float pos = player.Get<Position>().p -
+										   V2_float{ 0.0f, player.Get<Size>().s.y + 1.0f };
+							return pos;
+						},
+						[=]() {}, [=]() {}
+					);
 
-				game.sound.Get(Hash("wife_arrives")).Play(-1);
-			}
-		};
-		config.on_complete = [=](auto& tw, auto f) {
-			fade_text.Get<FadeComponent>().state = FadeState::Win;
-			game.tween.Get(Hash("fade_to_black")).Start();
-		};
-		auto& wife_tween =
-			game.tween.Load(Hash("wife_return_tween"), 0.0f, 1.0f, wife_return_duration, config);
-		wife_tween.Start();
+					game.sound.Get(Hash("wife_arrives")).Play(-1);
+				}
+			})
+			.OnComplete([=]() {
+				fade_text.Get<FadeComponent>().state = FadeState::Win;
+				game.tween.Get(Hash("fade_to_black")).Start();
+			})
+			.Start();
 	}
 
 	void DrawProgressBar() {
@@ -1766,96 +1728,85 @@ public:
 
 		milliseconds animation_duration{ 400 };
 
-		TweenConfig animation_config;
-		animation_config.repeat = -1;
-
-		animation_config.on_pause = [=](auto& t, auto v) {
-			neighbor.Get<AnimationComponent>().column = 0;
-		};
-		animation_config.on_update = [=](auto& t, auto v) {
-			neighbor.Get<AnimationComponent>().column = static_cast<int>(std::floorf(v));
-		};
-		animation_config.on_repeat = [=](auto& t, auto v) {
-			neighbor.Get<AnimationComponent>().column = 0;
-		};
-
-		auto tween = game.tween.Load(
-			Hash("neighbor_movement_animation"), 0.0f,
-			static_cast<float>(neighbor_animation_count.x), animation_duration, animation_config
-		);
-		tween.Start();
+		game.tween.Load(Hash("neighbor_movement_animation"), animation_duration)
+			.Repeat(-1)
+			.OnPause([=]() { neighbor.Get<AnimationComponent>().column = 0; })
+			.OnUpdate([=](float v) {
+				neighbor.Get<AnimationComponent>().column =
+					static_cast<int>(std::floorf(neighbor_animation_count.x * v));
+			})
+			.OnRepeat([=]() { neighbor.Get<AnimationComponent>().column = 0; })
+			.Start();
 
 		auto& anim = neighbor.Add<AnimationComponent>(
 			Hash("neighbor_movement_animation"), neighbor_animation_count.x, animation_duration
 		);
 
-		TweenConfig neighbor_scene_config;
-
 		V2_float neighbot_walk_start_pos = ppos.p;
 
 		std::size_t anger_key{ neighbor.GetId() + Hash("anger") };
 
-		duration<float, milliseconds::period> bubble_pop_duration{ 300 };
+		milliseconds bubble_pop_duration{ 300 };
 
 		float yell_bubble_offset{ 2.0f };
 
-		auto neighbor_complain_bubble =
-			[=](BubbleAnimation anger, duration<float, milliseconds::period> bubble_hold_duration) {
-				SpawnBubbleAnimation(
-					neighbor, anger, anger_key, bubble_pop_duration,
-					bubble_hold_duration + bubble_pop_duration,
-					[=](Tween& tw, float f) { neighbor.Get<AngerComponent>().yelling = false; },
-					[=]() {
-						V2_float pos =
-							neighbor.Get<Position>().p -
-							V2_float{ 0.0f, neighbor.Get<Size>().s.y + yell_bubble_offset };
-						return pos;
-					},
-					[=]() {
-						auto& b{ neighbor.Get<AngerComponent>() };
-						if (!b.yelling) {
-							// TODO: Add a check that this only plays once upon hold start.
-							NeighborYell();
-							b.yelling = true;
-						}
-					},
-					[=](auto& tw, float f) {
-						auto& b{ neighbor.Get<AngerComponent>() };
-						auto new_bubble =
-							static_cast<BubbleAnimation>(static_cast<int>(b.bubble) + 1);
-						if (new_bubble != BubbleAnimation::AngerStop) {
-							b.bubble = new_bubble;
-						}
+		auto neighbor_complain_bubble = [=](BubbleAnimation anger,
+											milliseconds bubble_hold_duration) {
+			SpawnBubbleAnimation(
+				neighbor, anger, anger_key, bubble_pop_duration,
+				bubble_hold_duration + bubble_pop_duration,
+				[=]() { neighbor.Get<AngerComponent>().yelling = false; },
+				[=]() {
+					V2_float pos = neighbor.Get<Position>().p -
+								   V2_float{ 0.0f, neighbor.Get<Size>().s.y + yell_bubble_offset };
+					return pos;
+				},
+				[=]() {
+					auto& b{ neighbor.Get<AngerComponent>() };
+					if (!b.yelling) {
+						// TODO: Add a check that this only plays once upon hold start.
+						NeighborYell();
+						b.yelling = true;
 					}
-				);
-			};
+				},
+				[=]() {
+					auto& b{ neighbor.Get<AngerComponent>() };
+					auto new_bubble = static_cast<BubbleAnimation>(static_cast<int>(b.bubble) + 1);
+					if (new_bubble != BubbleAnimation::AngerStop) {
+						b.bubble = new_bubble;
+					}
+				}
+			);
+		};
 
 		const float anger_bubble_count{ 5.0f };
 
 		neighbor.Add<AngerComponent>(BubbleAnimation::Anger0);
 
-		neighbor_scene_config.on_update = [=](auto& tw, auto f) {
-			float walk_frac{ 0.2f };
-			float bubble_frac{ 1.0f - walk_frac };
-			auto bubble_duration{ bubble_frac * (scene_duration - milliseconds{ 100 }) /
-								  (anger_bubble_count + 1) };
-			float walk_progress = std::clamp(f / walk_frac, 0.0f, 1.0f);
-			auto& walk_anim		= neighbor.Get<AnimationComponent>();
-			if (walk_progress < 1.0f) {
-				walk_anim.Resume();
-				neighbor.Get<Position>().p =
-					Lerp(neighbot_walk_start_pos, neighbor_walk_end_pos, walk_progress);
-			} else {
-				walk_anim.Pause();
-				neighbor.Get<TintColor>().tint = color::Red;
-				neighbor_complain_bubble(neighbor.Get<AngerComponent>().bubble, bubble_duration);
-			}
-		};
+		float walk_frac{ 0.2f };
+		float bubble_frac{ 1.0f - walk_frac };
+		auto bubble_duration{ bubble_frac * (scene_duration - milliseconds{ 100 }) /
+							  (anger_bubble_count + 1) };
 
-		auto neighbor_scene = game.tween.Load(
-			Hash("neighbor_animation"), 0.0f, 1.0f, scene_duration, neighbor_scene_config
-		);
-		neighbor_scene.Start();
+		game.tween.Load(Hash("neighbor_animation"))
+			.During(std::chrono::duration_cast<milliseconds>(walk_frac * scene_duration))
+			.OnUpdate([=](float f) {
+				neighbor.Get<AnimationComponent>().Resume();
+				neighbor.Get<Position>().p =
+					Lerp(neighbot_walk_start_pos, neighbor_walk_end_pos, f);
+			})
+			.During(std::chrono::duration_cast<milliseconds>(bubble_frac * scene_duration))
+			.OnStart([=]() {
+				neighbor.Get<AnimationComponent>().Pause();
+				neighbor.Get<TintColor>().tint = color::Red;
+			})
+			.OnUpdate([=]() {
+				neighbor_complain_bubble(
+					neighbor.Get<AngerComponent>().bubble,
+					std::chrono::duration_cast<milliseconds>(bubble_duration)
+				);
+			})
+			.Start();
 
 		V2_int size{ tile_size.x, 2 * tile_size.y };
 
@@ -1870,7 +1821,6 @@ public:
 	void BackToMenu();
 
 	void StartNeighborCutscene() {
-		TweenConfig config;
 		// Starting point for camera pan.
 		auto player_pos = player.Get<Position>().p;
 
@@ -1884,42 +1834,45 @@ public:
 		neighbor_camera_pos.y					= world_bounds.y;
 		// player_camera.SetClampBounds({});
 
-		config.on_update = [=](auto& tw, auto f) {
-			// how far into the tween these things happen:
-			const float shift_frac{ 0.2f };			 // move cam to neighbor.
-			const float backshift_frac{ 0.8f };		 // move cam back to player.
-			const float neighbor_move_start{ 0.1f }; // spawn and start moving neighbor.
-			if (f > neighbor_move_start && neighbor == ecs::Entity{}) {
-				float scene_frac{ backshift_frac - neighbor_move_start };
-				PTGN_ASSERT(scene_frac >= 0.01f);
-				CreateNeighbor(
-					std::chrono::duration_cast<milliseconds>(tw.GetDuration() * scene_frac)
-				);
-				// TODO: Neighbor complaint stuff here.
-			}
-			if (f <= shift_frac || f >= backshift_frac) {
-				float shift_progress = std::clamp(f / shift_frac, 0.0f, 1.0f);
-				V2_float start		 = player_pos;
-				V2_float end		 = neighbor_camera_pos;
-				// Camera moving back and then forth between player and neighbor.
-				if (f >= backshift_frac) {
-					shift_progress =
-						std::clamp((f - backshift_frac) / (1.0f - backshift_frac), 0.0f, 1.0f);
-					start = neighbor_camera_pos;
-					end	  = player.Get<Position>().p;
-				}
-				V2_float pos = Lerp(start, end, shift_progress);
-				player_camera.SetPosition(pos);
-			}
-		};
-		config.on_complete = [=](auto& tw, float v) {
+		auto completed = [=]() {
 			auto& fade							 = game.tween.Get(Hash("fade_to_black"));
 			fade_text.Get<FadeComponent>().state = FadeState::Lose;
 			fade.Start();
 		};
-		config.on_stop = config.on_complete;
-		auto& t = game.tween.Load(Hash("neighbor_cutscene"), 0.0f, 1.0f, seconds{ 10 }, config);
-		t.Start();
+
+		// TODO: Simplify using tween points.
+		game.tween.Load(Hash("neighbor_cutscene"), seconds{ 10 })
+			.OnUpdate([=](auto& tw, auto f) {
+				// how far into the tween these things happen:
+				const float shift_frac{ 0.2f };			 // move cam to neighbor.
+				const float backshift_frac{ 0.8f };		 // move cam back to player.
+				const float neighbor_move_start{ 0.1f }; // spawn and start moving neighbor.
+				if (f > neighbor_move_start && neighbor == ecs::Entity{}) {
+					float scene_frac{ backshift_frac - neighbor_move_start };
+					PTGN_ASSERT(scene_frac >= 0.01f);
+					CreateNeighbor(
+						std::chrono::duration_cast<milliseconds>(tw.GetDuration() * scene_frac)
+					);
+					// TODO: Neighbor complaint stuff here.
+				}
+				if (f <= shift_frac || f >= backshift_frac) {
+					float shift_progress = std::clamp(f / shift_frac, 0.0f, 1.0f);
+					V2_float start		 = player_pos;
+					V2_float end		 = neighbor_camera_pos;
+					// Camera moving back and then forth between player and neighbor.
+					if (f >= backshift_frac) {
+						shift_progress =
+							std::clamp((f - backshift_frac) / (1.0f - backshift_frac), 0.0f, 1.0f);
+						start = neighbor_camera_pos;
+						end	  = player.Get<Position>().p;
+					}
+					V2_float pos = Lerp(start, end, shift_progress);
+					player_camera.SetPosition(pos);
+				}
+			})
+			.OnComplete(completed)
+			.OnStop(completed)
+			.Start();
 	}
 
 	void DrawBarkometer() {
@@ -2133,7 +2086,6 @@ public:
 	ecs::Manager manager;
 
 	ecs::Entity fade_entity;
-	TweenConfig fade_to_black_config_select;
 	OrthographicCamera camera;
 
 	void Init() final {
