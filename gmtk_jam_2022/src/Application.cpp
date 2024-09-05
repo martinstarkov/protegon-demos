@@ -1,12 +1,12 @@
 #include "protegon/protegon.h"
 
-#include <queue>
-#include <vector>
-#include <unordered_map>
 #include <array>
 #include <numeric>
-#include <tuple>
+#include <queue>
 #include <string>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 using namespace ptgn;
 
@@ -249,7 +249,7 @@ public:
 	std::size_t current_moves = 0;
 	std::size_t best_moves = 1000000;
 	CustomGrid& grid;
-	Text text7{ *font::Get(Hash("1")), "Press 'i' to see instructions", color::GOLD };
+	Text text7{ font::Get(Hash("1")), "Press 'i' to see instructions", color::Gold };
 	Sound s_select{ "resources/sound/select_click.wav" };
 	Sound s_move{ "resources/sound/move_click.wav" };
 	Sound s_win{ "resources/sound/win.wav" };
@@ -278,11 +278,11 @@ public:
 		assert(pair.second.size() != 0 && "Could not find a valid starting positions, restart program");
 	}
 	void Update(float dt) final {
-		auto mouse = input::GetMousePosition();
-		if (input::KeyDown(Key::I)) {
+		auto mouse = game.input.GetMousePosition();
+		if (game.input.KeyDown(Key::I)) {
 			scene::SetActive(Hash("menu"));
 		}
-		if (input::KeyDown(Key::R) || game_over) {
+		if (game.input.KeyDown(Key::R) || game_over) {
 			if (turn > 0) {
 				s_loss.Play(-1, 0);
 				current_moves = 0;
@@ -295,7 +295,7 @@ public:
 					title += " | Lowest: ";
 					title += std::to_string(best_moves);
 				}
-				window::SetTitle(title.c_str());
+				game.window.SetTitle(title.c_str());
 			}
 			++turn;
 			grid.Clear();
@@ -337,7 +337,7 @@ public:
 				absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 			}
 
-			if (turn_allowed && input::KeyDown(Key::SPACE) && sequence.size() > 0) {
+			if (turn_allowed && game.input.KeyDown(Key::SPACE) && sequence.size() > 0) {
 				grid.AddTile(player_tile, Tile{ TileType::USED });
 				player_tile = absolute_sequence.back();
 				grid.AddTiles(absolute_sequence, Tile{ TileType::USED });
@@ -365,7 +365,7 @@ public:
 					title += " | Lowest: ";
 					title += std::to_string(best_moves);
 				}
-				window::SetTitle(title.c_str());
+				game.window.SetTitle(title.c_str());
 				//game_over = !CanWin(grid, player_tile, win_tile);
 			}
 
@@ -389,7 +389,7 @@ public:
 				auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
 				if (turn_allowed) {
 					t_choice.Draw({ pos, grid.GetTileSize() });
-					Text t{ Hash("0"), std::to_string(i + 1).c_str(), color::YELLOW };
+					Text t{ Hash("0"), std::to_string(i + 1).c_str(), color::Yellow };
 					t.Draw({ pos + (grid.GetTileSize() - dice_size) / 2, dice_size });
 				} else {
 					auto rotated = GetRotatedSequence(sequence, axis_direction.Angle<float>());
@@ -403,7 +403,7 @@ public:
 
 			//auto player_dice = 1;
 			t_dice.Draw({ grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize() }, { { 64 * (dice - 1), 0 }, { 64, 64 } });
-			//draw::SolidRectangle({ grid_top_left_offset + player_tile * grid.GetTileSize() + (grid.GetTileSize() - dice_size) / 2, dice_size }, color::GREY);
+			//draw::SolidRectangle({ grid_top_left_offset + player_tile * grid.GetTileSize() + (grid.GetTileSize() - dice_size) / 2, dice_size }, color::Grey);
 			auto s = grid.GetSize() * grid.GetTileSize();
 			text7.Draw({ { 32, 32 }, { s.x, 64 } });
 		}
@@ -413,20 +413,20 @@ public:
 class MenuScreen : public Scene {
 public:
 	CustomGrid grid{ { 20, 20 }, { 32, 32 } };
-	Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
-	Text text1{ Hash("1"), "'R' to restart if stuck", color::RED };
-	Text text2{ Hash("1"), "'Mouse' to choose direction", color::ORANGE };
-	Text text3{ Hash("1"), "'Spacebar' to confirm move", color::GOLD };
-	Text text4{ Hash("1"), "Green tile = Go over it to win", color::GREEN };
-	Text text5{ Hash("1"), "Grey tile = Cannot move in that direction", color::GREY };
-	Text text6{ Hash("1"), "Red tile = No longer usable tile", color::RED };
+	Text text0{ Hash("0"), "Stroll of the Dice", color::Cyan };
+	Text text1{ Hash("1"), "'R' to restart if stuck", color::Red };
+	Text text2{ Hash("1"), "'Mouse' to choose direction", color::Orange };
+	Text text3{ Hash("1"), "'Spacebar' to confirm move", color::Gold };
+	Text text4{ Hash("1"), "Green tile = Go over it to win", color::Green };
+	Text text5{ Hash("1"), "Grey tile = Cannot move in that direction", color::Grey };
+	Text text6{ Hash("1"), "Red tile = No longer usable tile", color::Red };
 	Texture button{ "resources/ui/button.png" };
 	MenuScreen() {
 		music::Load(Hash("music"), "resources/music/background.wav");
-		music::Get(Hash("music"))->Play(-1);
+		music::Get(Hash("music")).Play(-1);
 	}
 	virtual void Update(float dt) override final {
-		auto mouse = input::GetMousePosition();
+		auto mouse = game.input.GetMousePosition();
 		auto s = grid.GetSize() * grid.GetTileSize();
 		text0.Draw({ { 32, 32 }, { s.x, 64 } });
 		text1.Draw({ { 32, s.y }, { s.x, 64 } });
@@ -442,13 +442,13 @@ public:
 		V2_int play_text_size{ s.x - 16 - 16, 128 + 64 - 16 - 16 - 16 - 16 };
 		V2_int play_text_pos{ 32 + 16 + 16, 32 + 128 + 128 + 32 + 16 + 16 + 64 };
 
-		Color text_color = color::WHITE;
+		Color text_color = color::White;
 
 		bool hover = overlap::PointRectangle(mouse, Rectangle<int>{ play_pos, play_size });
 		if (hover) {
-			text_color = color::GOLD;
+			text_color = color::Gold;
 		}
-		if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
+		if ((hover && game.input.MouseDown(Mouse::LEFT)) || game.input.KeyDown(Key::SPACE)) {
 			scene::Load<DiceScene>(Hash("game"), grid);
 			scene::SetActive(Hash("game"));
 		}
@@ -459,8 +459,10 @@ public:
 	}
 };
 
-class DiceGame : public Engine {
-	void Create() final {
+class DiceGame : public Scene {
+public:
+	DiceGame() {
+		game.window.SetSize({ 704, 860 });
 		font::Load(Hash("0"), "resources/font/04B_30.ttf", 32);
 		font::Load(Hash("1"), "resources/font/retro_gaming.ttf", 32);
 		scene::Load<MenuScreen>(Hash("menu"));
@@ -472,7 +474,6 @@ class DiceGame : public Engine {
 };
 
 int main(int c, char** v) {
-	DiceGame game;
-	game.Construct("", V2_int{ 704, 860 });
+	ptgn::game::Start<DiceGame>();
 	return 0;
 }

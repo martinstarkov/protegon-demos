@@ -2,59 +2,117 @@
 
 using namespace ptgn;
 
-class Sandbox : public Engine {
-/*
-	Button button0{ Rectangle<int>{ { 5, 5 }, { 50, 50 } },
-		Texture{ "resources/ui/idle.png" },
-		Texture{ "resources/ui/hover.png" },
-		Texture{ "resources/ui/pressed.png" }, 
-	[&]() {
-		PrintLine(bye);
-	} };
-	Button button1{ Rectangle<int>{ { 60, 60 }, { 300, 300 } },
-		Texture{ "resources/ui/q0.png" },
-		Texture{ "resources/ui/q1.png" },
-		Texture{ "resources/ui/q2.png" }
-	};
-	std::string bye{ "bye" };
-	Button button2{ Rectangle<int>{ { 460, 460 }, { 30, 30 } },
-		Texture{ "resources/ui/idle.png" },
-		Texture{ "resources/ui/hover.png" },
-		Texture{ "resources/ui/pressed.png" }
-	};
-	ToggleButton button3{ Rectangle<int>{ { 390, 390 }, { 50, 50 } },
-		std::pair<Texture, Texture>{ Texture{ "resources/ui/idle.png" }, Texture{ "resources/ui/mute_grey.png" } },
-		std::pair<Texture, Texture>{ Texture{ "resources/ui/hover.png" }, Texture{ "resources/ui/mute_grey_hover.png" } },
-		std::pair<Texture, Texture>{ Texture{ "resources/ui/pressed.png" }, Texture{ "resources/ui/mute_grey_pressed.png" } },
-		[&]() {
-			 PrintLine("Toggling!");
-	    }
-	};
-	*/
-	void Create() final {
-	/*
-		button2.SetOnActivate([]() {
-			PrintLine("Hi!");
-		});
-*/
+struct RectangleComponent {
+	RectangleComponent(const V2_int& pos, const V2_int& size) : r{ pos, size } {}
+	Rectangle<float> r;
+};
+
+struct VelocityComponent {
+	VelocityComponent(const V2_float& velocity) : v{ velocity } {}
+	V2_float v;
+};
+
+
+class SandboxScene : public Scene {
+public:
+	Texture t;
+	RNG<int> rng_x{ 0, 1280 };
+	RNG<int> rng_y{ 0, 720 };
+	RNG<int> rng_xs{ 1, 32 };
+	RNG<int> rng_ys{ 1, 32 };
+	ecs::Manager manager;
+	RNG<int> move{ -1, 1 };
+	std::vector<Rectangle<float>> positions;
+	Timer timer;
+	V2_int w_size;
+	V2_int tile_size{ 8, 8 };
+	V2_int grid_size{ 40, 23 };
+
+	ecs::Entity moving;
+	ecs::Entity main_tl;
+	ecs::Entity main_tr;
+	ecs::Entity main_bl;
+	ecs::Entity main_br;
+
+	SandboxScene() {
+		game.window.SetColor(color::Black);
+
+		t = texture::Load(Hash("test"), "resources/tile/thick_nochoice.png");
+
+		V2_int resolution{ 1280, 720 };
+		V2_int minimum_resolution{ 640, 360 };
+		V2_float scale{ 4.0f, 4.0f };
+		bool fullscreen = false;
+		bool borderless = false;
+		bool resizeable = true;
+
+		game.window.SetupSize(resolution, minimum_resolution, fullscreen, borderless, resizeable, scale);
+
+		game.window.SetScale({ 4.0f, 4.0f });
+
+		//tileset::Create("h1", 4, 4, 44, 20, 32, 32)
+
+		moving = manager.CreateEntity();
+		main_tl = manager.CreateEntity();
+		main_tr = manager.CreateEntity();
+		main_bl = manager.CreateEntity();
+		main_br = manager.CreateEntity();
+
+		moving.Add<RectangleComponent>(tile_size * V2_int{ 0, (grid_size.y - 1) / 2 }, tile_size);
+		moving.Add<VelocityComponent>(V2_float{ 5.0f, 0.0f });
+
+		main_tl.Add<RectangleComponent>(scale * tile_size * V2_int{ 0, 0 },                             tile_size);
+		main_tr.Add<RectangleComponent>(tile_size * V2_int{ grid_size.x - 1, 0 },               tile_size);
+		main_bl.Add<RectangleComponent>(tile_size * V2_int{ 0, grid_size.y - 1 },               tile_size);
+		main_br.Add<RectangleComponent>(tile_size * V2_int{ grid_size.x - 1, grid_size.y - 1 }, tile_size);
+
+		manager.Refresh();
+
 	}
 	void Update(float dt) final {
-	/*
-		button0.Draw();
-		button1.GetRectangle().Draw(color::BLACK, 10);
-		button1.Draw();
-		button2.Draw();
-		button3.Draw();
-		if (input::KeyDown(Key::T)) {
-			button3.SetToggleStatus(!button3.GetToggleStatus());
-			button3.Activate();
-		}
-*/
+
+		V2_int size = game.window.GetResolution();
+		Rectangle<float> r{ {}, size };
+		r.DrawSolid(color::Grey);
+
+		auto r1 = main_tl.Get<RectangleComponent>().r;
+		auto r2 = main_tr.Get<RectangleComponent>().r;
+		auto r3 = main_bl.Get<RectangleComponent>().r;
+		auto r4 = main_br.Get<RectangleComponent>().r;
+
+		/*r1.pos *= scale;
+		r2.pos *= scale;
+		r3.pos *= scale;
+		r4.pos *= scale;
+
+		r1.size *= scale;
+		r2.size *= scale;
+		r3.size *= scale;
+		r4.size *= scale;*/
+
+		r1.DrawSolid(color::Red);
+		r2.DrawSolid(color::Red);
+		r3.DrawSolid(color::Red);
+		r4.DrawSolid(color::Red);
+
+		//Rectangle<float> rectangle{ { 0, 0 }, { 32, 32 } };
+
+		//rectangle.DrawSolid(color::Pink);
+
+		moving.Get<RectangleComponent>().r.pos += moving.Get<VelocityComponent>().v * dt;
+
+		auto r5 = moving.Get<RectangleComponent>().r;
+
+		/*r5.pos *= scale;
+		r5.size *= scale;*/
+
+		r5.DrawSolid(color::Blue);
+
+		//game.window.Test(r5);
 	}
 };
 
-int main(int c, char** v) {
-	Sandbox game;
-	game.Construct("sandbox", { 720, 720 });
+int main() {
+	ptgn::game::Start<SandboxScene>();
 	return 0;
 }
