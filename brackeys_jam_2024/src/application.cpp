@@ -17,12 +17,16 @@ struct Size {
 struct RigidBody {
 	V2_float velocity;
 	V2_float acceleration;
-	V2_float max_velocity;
+	float max_velocity{ 0.0f };
 };
 
 struct VehicleComponent {
 	float forward_thrust{ 0.0f };
 	float backward_thrust{ 0.0f };
+	float turn_speed{ 0.0f };
+};
+
+struct TornadoComponent {
 	float turn_speed{ 0.0f };
 };
 
@@ -35,7 +39,11 @@ public:
 	GameScene() {}
 
 	void Init() final {
-		CreatePlayer();
+		player = CreatePlayer();
+
+		CreateTornado(center + V2_float{ 200, 200 }, 100.0f);
+
+		manager.Refresh();
 	}
 
 	void Update(float dt) final {
@@ -43,32 +51,53 @@ public:
 
 		PlayerPhysics(dt);
 
+		SpinTornados(dt);
+
 		Draw();
 	}
 
 	void Draw() {
+		DrawTornados();
 		DrawPlayer();
 	}
 
 	// Init functions.
 
-	void CreatePlayer() {
-		player = manager.CreateEntity();
+	ecs::Entity CreatePlayer() {
+		ecs::Entity entity = manager.CreateEntity();
 
-		player.Add<Texture>(Texture{ "resources/entity/car.png" });
+		auto& texture = entity.Add<Texture>(Texture{ "resources/entity/car.png" });
 
-		auto& transform	   = player.Add<Transform>();
+		entity.Add<Size>(texture.GetSize());
+
+		auto& transform	   = entity.Add<Transform>();
 		transform.position = center;
 
-		player.Add<Size>(V2_float{ 16, 30 });
+		auto& rigid_body		= entity.Add<RigidBody>();
+		rigid_body.max_velocity = 100.0f;
 
-		auto& rigid_body		= player.Add<RigidBody>();
-		rigid_body.max_velocity = { 500.0f, 500.0f };
+		auto& vehicle			= entity.Add<VehicleComponent>();
+		vehicle.forward_thrust	= 3000.0f;
+		vehicle.backward_thrust = 1000.0f;
+		vehicle.turn_speed		= 1.5f;
 
-		auto& vehicle			= player.Add<VehicleComponent>();
-		vehicle.forward_thrust	= 300.0f;
-		vehicle.backward_thrust = 100.0f;
-		vehicle.turn_speed		= 10.0f;
+		return entity;
+	}
+
+	ecs::Entity CreateTornado(const V2_float& position, float turn_speed) {
+		ecs::Entity entity = manager.CreateEntity();
+		auto& texture	   = entity.Add<Texture>(Texture{ "resources/entity/tornado.png" });
+
+		auto& transform	   = entity.Add<Transform>();
+		transform.position = position;
+
+		entity.Add<Size>(texture.GetSize());
+
+		auto& tornado = entity.Add<TornadoComponent>();
+
+		tornado.turn_speed = 100.0f;
+
+		return entity;
 	}
 
 	// Update functions.
@@ -86,16 +115,16 @@ public:
 
 		V2_float thrust;
 
-		if (game.input.KeyDown(Key::W)) {
+		if (game.input.KeyPressed(Key::W)) {
 			thrust = unit_direction * vehicle.forward_thrust;
 		} else if (game.input.KeyDown(Key::S)) {
 			thrust = unit_direction * vehicle.backward_thrust;
 		}
 
-		if (game.input.KeyDown(Key::A)) {
+		if (game.input.KeyPressed(Key::D)) {
 			transform.rotation += vehicle.turn_speed * dt;
 		}
-		if (game.input.KeyDown(Key::D)) {
+		if (game.input.KeyPressed(Key::A)) {
 			transform.rotation -= vehicle.turn_speed * dt;
 		}
 
@@ -109,11 +138,29 @@ public:
 		auto& rigid_body = player.Get<RigidBody>();
 		auto& transform	 = player.Get<Transform>();
 
+		const float drag{ 0.95f };
+
 		rigid_body.velocity += rigid_body.acceleration * dt;
+
+		rigid_body.velocity *= drag;
+
+		rigid_body.velocity =
+			Clamp(rigid_body.velocity, -rigid_body.max_velocity, rigid_body.max_velocity);
 
 		transform.position += rigid_body.velocity * dt;
 
+		// Center camera on player.
+		camera.GetPrimary().SetPosition(transform.position);
+
 		rigid_body.acceleration = {};
+	}
+
+	void SpinTornados(float dt) {
+		auto tornados = manager.EntitiesWith<TornadoComponent, Transform>();
+
+		for (auto [e, tornado, transform] : tornados) {
+			transform.rotation += tornado.turn_speed * dt;
+		}
 	}
 
 	// Draw functions.
@@ -129,6 +176,17 @@ public:
 			player.Get<Texture>(), player_transform.position, player.Get<Size>().size, {}, {},
 			Origin::Center, Flip::None, player_transform.rotation
 		);
+	}
+
+	void DrawTornados() {
+		auto tornados = manager.EntitiesWith<TornadoComponent, Texture, Transform, Size>();
+
+		for (auto [e, tornado, texture, transform, size] : tornados) {
+			game.renderer.DrawTexture(
+				texture, transform.position, size.size, {}, {}, Origin::Center, Flip::None,
+				transform.rotation
+			);
+		}
 	}
 };
 
@@ -307,8 +365,11 @@ public:
 		game.renderer.SetClearColor(color::Silver);
 		game.window.SetSize(resolution);
 
-		std::size_t initial_scene{ Hash("main_menu") };
-		game.scene.Load<MainMenu>(initial_scene);
+		/*std::size_t initial_scene{ Hash("main_menu") };
+		game.scene.Load<MainMenu>(initial_scene);*/
+
+		std::size_t initial_scene{ Hash("game") };
+		game.scene.Load<GameScene>(initial_scene);
 		game.scene.SetActive(initial_scene);
 	}
 };
