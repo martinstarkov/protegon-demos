@@ -261,7 +261,7 @@ public:
 	const V2_float tile_size{ 32, 32 };
 	const V2_int grid_size{ 300, 300 };
 
-	const NoiseProperties noise_properties;
+	NoiseProperties noise_properties;
 	std::vector<float> noise_map;
 	const ValueNoise noise{ 256, 0 };
 
@@ -270,11 +270,17 @@ public:
 	GameScene() {}
 
 	void RestartGame() {
+		destroyed_tiles.clear();
 		manager.Reset();
 		Init();
 	}
 
 	void Init() final {
+		noise_properties.octaves	 = 6;
+		noise_properties.frequency	 = 0.01f;
+		noise_properties.bias		 = 1.2f;
+		noise_properties.persistence = 0.75f;
+
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
 		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
 		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
