@@ -1,3 +1,5 @@
+#include <unordered_set>
+
 #include "protegon/protegon.h"
 
 using namespace ptgn;
@@ -5,6 +7,36 @@ using namespace ptgn;
 constexpr const V2_int resolution{ 960, 540 };
 constexpr const V2_int center{ resolution / 2 };
 constexpr const bool draw_hitboxes{ true };
+
+enum class TileType {
+	Grass,
+	Dirt,
+	Corn,
+	None,
+};
+
+TileType GetTileType(float noise_value) {
+	if (noise_value < 0.0f) {
+		return TileType::None;
+	}
+
+	if (noise_value >= 0.0f && noise_value <= 0.5f) {
+		return TileType::Corn;
+	} else {
+		return TileType::Grass;
+	}
+	PTGN_ERROR("Unrecognized tile type");
+}
+
+std::size_t GetTileKey(TileType tile_type) {
+	switch (tile_type) {
+		case TileType::Grass: return Hash("grass");
+		case TileType::Corn:  return Hash("corn");
+		case TileType::Dirt:  return Hash("dirt");
+		case TileType::None:  PTGN_ERROR("Cannot return tile key for none type tile");
+		default:			  PTGN_ERROR("Unrecognized tile type");
+	}
+}
 
 struct Transform {
 	V2_float position;
@@ -185,7 +217,9 @@ struct Progress {
 		PTGN_ASSERT(dist <= data_radius);
 		PTGN_ASSERT(data_radius > escape_radius);
 		float range{ data_radius - escape_radius };
+
 		if (dist <= escape_radius) {
+			progress = 0.0f;
 			return;
 		}
 
@@ -224,12 +258,14 @@ public:
 
 	ecs::Entity player;
 
-	const V2_float pixel_size{ 32, 32 };
+	const V2_float tile_size{ 32, 32 };
 	const V2_int grid_size{ 300, 300 };
 
 	const NoiseProperties noise_properties;
 	std::vector<float> noise_map;
 	const ValueNoise noise{ 256, 0 };
+
+	std::unordered_set<V2_int> destroyed_tiles;
 
 	GameScene() {}
 
@@ -239,6 +275,10 @@ public:
 	}
 
 	void Init() final {
+		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
+		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
+		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
+
 		player = CreatePlayer();
 
 		CreateTornado(center + V2_float{ 200, 200 }, 50.0f);
@@ -400,6 +440,14 @@ public:
 		auto& primary{ camera.GetPrimary() };
 		primary.SetPosition(transform.position);
 
+		V2_int player_tile = transform.position / tile_size;
+
+		TileType tile_type = GetTileType(GetNoiseValue(player_tile));
+
+		if (tile_type == TileType::Corn) {
+			destroyed_tiles.insert(player_tile);
+		}
+
 		rigid_body.acceleration = {};
 	}
 
@@ -503,6 +551,30 @@ public:
 
 			transform.position += rigid_body.velocity * dt;
 
+			V2_int min{ (transform.position -
+						 V2_float{ tornado.escape_radius, tornado.escape_radius }) /
+						tile_size };
+			V2_int max{ (transform.position +
+						 V2_float{ tornado.escape_radius, tornado.escape_radius }) /
+						tile_size };
+
+			Circle<float> tornado_destruction{ transform.position, tornado.escape_radius };
+
+			PTGN_ASSERT(min.x <= max.x);
+			PTGN_ASSERT(min.y <= max.y);
+
+			// Destroy all tiles within escape radius of tornado
+			for (int i = min.x; i <= max.x; i++) {
+				for (int j = min.y; j <= max.y; j++) {
+					V2_int tile{ i, j };
+					Rectangle<float> tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
+					if (game.collision.overlap.CircleRectangle(tornado_destruction, tile_rect)) {
+						game.renderer.DrawRectangleFilled(tile_rect, color::Purple);
+						destroyed_tiles.insert(tile);
+					}
+				}
+			}
+
 			transform.rotation += tornado.turn_speed * dt;
 		}
 	}
@@ -545,19 +617,30 @@ public:
 		}
 	}
 
+	float GetNoiseValue(const V2_int& tile) {
+		int index{ tile.x + grid_size.x * tile.y };
+		if (index >= noise_map.size() || index < 0) {
+			return -1.0f;
+		}
+		float noise_value{ noise_map[index] };
+		PTGN_ASSERT(noise_value >= 0.0f);
+		PTGN_ASSERT(noise_value <= 1.0f);
+		return noise_value;
+	}
+
 	void DrawBackground() {
 		auto& primary{ camera.GetPrimary() };
 		Rectangle<float> camera_rect{ primary.GetRectangle() };
 
 		game.renderer.DrawRectangleHollow(camera_rect, color::Blue, 3.0f);
 
-		Rectangle<float> tile_rect{ {}, pixel_size, Origin::Center };
+		Rectangle<float> tile_rect{ {}, tile_size, Origin::TopLeft };
 
-		for (std::size_t i{ 0 }; i < grid_size.x; i++) {
-			for (std::size_t j{ 0 }; j < grid_size.y; j++) {
-				V2_float p{ static_cast<float>(i), static_cast<float>(j) };
+		for (int i{ 0 }; i < grid_size.x; i++) {
+			for (int j{ 0 }; j < grid_size.y; j++) {
+				V2_int tile{ i, j };
 
-				tile_rect.pos = p * pixel_size;
+				tile_rect.pos = tile * tile_size;
 
 				// Expand size of each tile to include neighbors to prevent edges from flashing
 				// when camera moves. Skip grid tiles not within camera view.
@@ -565,14 +648,23 @@ public:
 					continue;
 				}
 
-				Color color = color::Black;
+				float noise_value{ GetNoiseValue(tile) };
 
-				std::size_t index{ i + static_cast<std::size_t>(grid_size.x) * j };
-				PTGN_ASSERT(index < noise_map.size());
-				float opacity = noise_map[index] * 255.0f;
-				color.a		  = static_cast<std::uint8_t>(opacity);
+				PTGN_ASSERT(noise_value >= 0.0f);
 
-				game.renderer.DrawRectangleFilled(tile_rect, color);
+				bool destroyed_tile{ destroyed_tiles.count(tile) > 0 };
+
+				TileType tile_type = GetTileType(noise_value);
+
+				if (destroyed_tile) {
+					tile_type = TileType::Dirt;
+				}
+
+				Texture t = game.texture.Get(GetTileKey(tile_type));
+
+				game.renderer.DrawTexture(
+					t, tile_rect.pos, tile_rect.size, {}, {}, Origin::TopLeft
+				);
 			}
 		}
 	}
