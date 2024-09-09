@@ -12,6 +12,8 @@ enum class TileType {
 	Grass,
 	Dirt,
 	Corn,
+	House,
+	HouseDestroyed,
 	None,
 };
 
@@ -22,6 +24,8 @@ TileType GetTileType(float noise_value) {
 
 	if (noise_value >= 0.0f && noise_value <= 0.5f) {
 		return TileType::Corn;
+	} else if (noise_value > 0.59f && noise_value < 0.6f) {
+		return TileType::House;
 	} else {
 		return TileType::Grass;
 	}
@@ -30,11 +34,13 @@ TileType GetTileType(float noise_value) {
 
 std::size_t GetTileKey(TileType tile_type) {
 	switch (tile_type) {
-		case TileType::Grass: return Hash("grass");
-		case TileType::Corn:  return Hash("corn");
-		case TileType::Dirt:  return Hash("dirt");
-		case TileType::None:  PTGN_ERROR("Cannot return tile key for none type tile");
-		default:			  PTGN_ERROR("Unrecognized tile type");
+		case TileType::Grass:		   return Hash("grass");
+		case TileType::Corn:		   return Hash("corn");
+		case TileType::Dirt:		   return Hash("dirt");
+		case TileType::House:		   return Hash("house");
+		case TileType::HouseDestroyed: return Hash("house_destroyed");
+		case TileType::None:		   PTGN_ERROR("Cannot return tile key for none type tile");
+		default:					   PTGN_ERROR("Unrecognized tile type");
 	}
 }
 
@@ -94,6 +100,22 @@ struct Warning {
 	}
 };
 
+struct Lifetime {
+	Timer timer;
+
+	milliseconds lifetime{ 0 };
+
+	void Start() {
+		timer.Start();
+	}
+
+	bool Elapsed() const {
+		PTGN_ASSERT(timer.IsRunning());
+		PTGN_ASSERT(lifetime != milliseconds{ 0 });
+		return timer.ElapsedPercentage(lifetime) >= 1.0f;
+	}
+};
+
 struct TornadoComponent {
 	float turn_speed{ 0.0f };
 	float gravity_radius{ 0.0f };
@@ -131,6 +153,86 @@ struct TornadoComponent {
 		V2_float wind{ direction.Rotated(-half_pi<float>).Normalized() * wind_speed };
 
 		return wind;
+	}
+
+	ecs::Manager particle_manager;
+
+	std::size_t max_particles{ 500 };
+
+	// TODO: Make this a vector and choose randomly from that vector.
+	Texture particle_texture{ "resources/entity/tornado_particle_1.png" };
+
+	void CreateParticles(ecs::Entity tornado) {
+		std::size_t deficit{ max_particles - particle_manager.Size() };
+		PTGN_ASSERT(tornado.Has<Transform>());
+		PTGN_ASSERT(tornado.Has<RigidBody>());
+
+		const float particle_launch_speed{ 0.0f };
+		// milliseconds particle_lifetime{ 3000 };
+
+		RNG<float> rng_pos{ -escape_radius, escape_radius };
+		V2_float tornado_pos{ tornado.Get<Transform>().position };
+		V2_float tornado_vel{ tornado.Get<RigidBody>().velocity };
+
+		for (std::size_t i = 0; i < deficit; i++) {
+			auto particle	= particle_manager.CreateEntity();
+			auto& transform = particle.Add<Transform>();
+			V2_float heading{ V2_float::RandomHeading() };
+			transform.position	 = tornado_pos + V2_float{ rng_pos(), rng_pos() };
+			auto& rigid_body	 = particle.Add<RigidBody>();
+			rigid_body.velocity	 = tornado_vel;
+			rigid_body.velocity += heading * particle_launch_speed;
+			/*auto& lifetime		 = particle.Add<Lifetime>();
+			lifetime.lifetime	 = particle_lifetime;
+			lifetime.Start();*/
+		}
+	}
+
+	void UpdateParticles(float dt, ecs::Entity tornado) {
+		PTGN_ASSERT(tornado.Has<Transform>());
+
+		V2_float tornado_pos{ tornado.Get<Transform>().position };
+
+		float particle_pull_resistance{ 0.01f };
+		float particle_drag{ 0.99f };
+
+		Circle<float> inner_deletion_circle{ tornado_pos, escape_radius * 0.1f };
+		Circle<float> outer_deletion_circle{ tornado_pos, gravity_radius };
+
+		auto particles = particle_manager.EntitiesWith<Transform, RigidBody>();
+		for (auto [e, transform, rigid_body] : particles) {
+			/*if (lifetime.Elapsed()) {
+				e.Destroy();
+				continue;
+			}*/
+
+			V2_float dir{ tornado_pos - transform.position };
+
+			rigid_body.velocity += GetSuction(dir, 100.0f) * dt;
+			rigid_body.velocity += GetWind(dir, particle_pull_resistance) * dt;
+			rigid_body.velocity *= particle_drag * dt;
+			transform.position	+= rigid_body.velocity * dt;
+			transform.rotation	+= turn_speed * dt;
+
+			if (game.collision.overlap.PointCircle(transform.position, inner_deletion_circle) ||
+				!game.collision.overlap.PointCircle(transform.position, outer_deletion_circle)) {
+				e.Destroy();
+			}
+		}
+
+		CreateParticles(tornado);
+
+		particle_manager.Refresh();
+	}
+
+	void DrawParticles() {
+		auto particles = particle_manager.EntitiesWith<Transform>();
+		for (auto [e, transform] : particles) {
+			game.renderer.DrawTexture(
+				particle_texture, transform.position, particle_texture.GetSize(), {}, {},
+				Origin::Center, Flip::None, transform.rotation
+			);
+		}
 	}
 };
 
@@ -355,14 +457,16 @@ public:
 	}
 
 	void Init() final {
-		noise_properties.octaves	 = 6;
+		/*noise_properties.octaves	 = 6;
 		noise_properties.frequency	 = 0.01f;
 		noise_properties.bias		 = 1.2f;
-		noise_properties.persistence = 0.75f;
+		noise_properties.persistence = 0.75f;*/
 
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
 		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
 		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
+		game.texture.Load(Hash("house"), "resources/entity/house.png");
+		game.texture.Load(Hash("house_destroyed"), "resources/entity/house_destroyed.png");
 		game.texture.Load(Hash("tornado_icon"), "resources/ui/tornado_icon.png");
 		game.texture.Load(Hash("tornado_icon_green"), "resources/ui/tornado_icon_green.png");
 		game.texture.Load(Hash("speedometer"), "resources/ui/speedometer.png");
@@ -690,6 +794,8 @@ public:
 			}
 
 			transform.rotation += tornado.turn_speed * dt;
+
+			tornado.UpdateParticles(dt, e);
 		}
 	}
 
@@ -732,6 +838,8 @@ public:
 					transform.position, tornado.data_radius, color::DarkGreen
 				);
 			}
+
+			tornado.DrawParticles();
 		}
 	}
 
@@ -775,7 +883,11 @@ public:
 				TileType tile_type = GetTileType(noise_value);
 
 				if (destroyed_tile) {
-					tile_type = TileType::Dirt;
+					if (tile_type == TileType::House) {
+						tile_type = TileType::HouseDestroyed;
+					} else {
+						tile_type = TileType::Dirt;
+					}
 				}
 
 				Texture t = game.texture.Get(GetTileKey(tile_type));
