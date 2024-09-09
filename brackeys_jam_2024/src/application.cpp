@@ -63,10 +63,39 @@ struct VehicleComponent {
 	float inertia{ 0.0f };
 };
 
+struct TintColor : public Color {
+	using Color::Color;
+
+	TintColor(const Color& color) : Color{ color } {}
+};
+
+struct Warning {
+	void Init(ecs::Entity player) {
+		game.tween.Load(Hash("warning_flash"))
+			.During(milliseconds{ 500 })
+			.Repeat(-1)
+			.OnRepeat([=](Tween& tween) mutable {
+				if (tween.GetRepeats() % 2 == 0) {
+					player.Add<TintColor>() = color::Red;
+				} else {
+					player.Remove<TintColor>();
+				}
+			})
+			.OnStop([=]() mutable { player.Remove<TintColor>(); })
+			.Start();
+	}
+
+	void Shutdown() {
+		PTGN_ASSERT(game.tween.Has(Hash("warning_flash")));
+		game.tween.Unload(Hash("warning_flash"));
+	}
+};
+
 struct TornadoComponent {
 	float turn_speed{ 0.0f };
 	float gravity_radius{ 0.0f };
 	float escape_radius{ 0.0f };
+	float warning_radius{ 0.0f };
 	float data_radius{ 0.0f };
 
 	float outermost_increment_ratio{ 0.0f };
@@ -102,14 +131,18 @@ struct TornadoComponent {
 	}
 };
 
+void BackToLevelSelect();
+
 struct Progress {
 	Texture texture;
 
 	std::vector<ecs::Entity> completed_tornados;
+	std::vector<ecs::Entity> required_tornados;
 
 	ecs::Entity current_tornado;
 
-	Progress(const path& ui_texture_path) : texture{ ui_texture_path } {}
+	Progress(const path& ui_texture_path, const std::vector<ecs::Entity>& required_tornados) :
+		texture{ ui_texture_path }, required_tornados{ required_tornados } {}
 
 	float progress{ 0.0f };
 
@@ -143,11 +176,42 @@ struct Progress {
 
 		current_tornado = ecs::null;
 		progress		= 0.0f;
-		PTGN_LOG("Completed tornado: ", current_tornado.GetId());
+
+		if (completed_tornados == required_tornados) {
+			BackToLevelSelect();
+		}
 		// TODO: Some kind of particle effects? Change tornado indicator to completed?
 	}
 
-	void Draw() const {
+	void DrawTornadoIcons() {
+		const int icon_x_offset{ 10 };
+		const int icon_y_offset{ 10 };
+
+		PTGN_ASSERT(game.texture.Has(Hash("tornado_icon")));
+		PTGN_ASSERT(game.texture.Has(Hash("tornado_icon_green")));
+
+		const Texture tornado_icon = game.texture.Get(Hash("tornado_icon"));
+
+		const V2_float icon_size{ tornado_icon.GetSize() };
+
+		float total_width{ icon_size.x * required_tornados.size() +
+						   (required_tornados.size() - 1) * icon_x_offset };
+
+		V2_float start_pos{ center.x - total_width / 2.0f, icon_y_offset };
+
+		for (int i = 0; i < required_tornados.size(); ++i) {
+			auto tornado{ required_tornados[i] };
+			Texture t = tornado_icon;
+			if (CompletedTornado(tornado)) {
+				t = game.texture.Get(Hash("tornado_icon_green"));
+			}
+			V2_float pos = start_pos + V2_float{ i * (icon_size.x + icon_x_offset), 0 };
+
+			game.renderer.DrawTexture(t, pos, icon_size, {}, {}, Origin::TopLeft);
+		}
+	}
+
+	void DrawTornadoProgress() {
 		if (progress <= 0.0f || current_tornado == ecs::null) {
 			return;
 		}
@@ -167,6 +231,11 @@ struct Progress {
 		game.renderer.DrawRectangleFilled(
 			fill_pos, { fill_size.x, fill_size.y * progress }, color, Origin::CenterBottom
 		);
+	}
+
+	void Draw() {
+		DrawTornadoProgress();
+		DrawTornadoIcons();
 	}
 
 	[[nodiscard]] bool CompletedTornado(ecs::Entity tornado) {
@@ -236,8 +305,8 @@ struct Progress {
 			tornado_properties.innermost_increment_ratio
 		);
 		float increment_ratio{ Lerp(
-			tornado_properties.outermost_increment_ratio,
-			tornado_properties.innermost_increment_ratio, normalized_dist
+			tornado_properties.innermost_increment_ratio,
+			tornado_properties.outermost_increment_ratio, normalized_dist
 		) };
 
 		progress += tornado_properties.increment_speed * increment_ratio * dt;
@@ -249,8 +318,6 @@ struct Progress {
 		}
 	}
 };
-
-struct TintColor : public Color {};
 
 class GameScene : public Scene {
 public:
@@ -267,12 +334,17 @@ public:
 
 	std::unordered_set<V2_int> destroyed_tiles;
 
+	std::vector<ecs::Entity> required_tornados;
+
 	GameScene() {}
 
 	void RestartGame() {
-		destroyed_tiles.clear();
+		BackToLevelSelect();
+
+		/*destroyed_tiles.clear();
+		required_tornados.clear();
 		manager.Reset();
-		Init();
+		Init();*/
 	}
 
 	void Init() final {
@@ -284,12 +356,17 @@ public:
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
 		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
 		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
-
-		player = CreatePlayer();
+		game.texture.Load(Hash("tornado_icon"), "resources/ui/tornado_icon.png");
+		game.texture.Load(Hash("tornado_icon_green"), "resources/ui/tornado_icon_green.png");
 
 		CreateTornado(center + V2_float{ 200, 200 }, 50.0f);
 
+		CreateTornado(center - V2_float{ 200, 200 }, 50.0f);
+
 		CreateBackground();
+
+		// player must be created after tornados.
+		player = CreatePlayer();
 
 		manager.Refresh();
 	}
@@ -328,7 +405,8 @@ public:
 		auto& texture = entity.Add<Texture>(Texture{ "resources/entity/car.png" });
 
 		entity.Add<Size>(texture.GetSize());
-		entity.Add<Progress>("resources/ui/tornadometer.png");
+		PTGN_ASSERT(required_tornados.size() != 0);
+		entity.Add<Progress>("resources/ui/tornadometer.png", required_tornados);
 
 		auto& transform	   = entity.Add<Transform>();
 		transform.position = center;
@@ -359,16 +437,21 @@ public:
 
 		auto& tornado = entity.Add<TornadoComponent>();
 
-		tornado.turn_speed	   = turn_speed;
-		tornado.escape_radius  = texture.GetSize().x / 2.0f;
-		tornado.data_radius	   = 3.0f * tornado.escape_radius;
-		tornado.gravity_radius = 8.0f * tornado.escape_radius;
+		tornado.turn_speed		= turn_speed;
+		tornado.escape_radius	= texture.GetSize().x / 2.0f;
+		tornado.data_radius		= 4.0f * tornado.escape_radius;
+		tornado.gravity_radius	= 8.0f * tornado.escape_radius;
+		tornado.warning_radius	= 3.0f * tornado.escape_radius;
+		tornado.increment_speed = 0.3f;
 
 		auto& rigid_body		= entity.Add<RigidBody>();
 		rigid_body.max_velocity = 110.0f;
 
+		PTGN_ASSERT(tornado.warning_radius > tornado.escape_radius);
 		PTGN_ASSERT(tornado.data_radius > tornado.escape_radius);
 		PTGN_ASSERT(tornado.gravity_radius >= tornado.data_radius);
+
+		required_tornados.push_back(entity);
 
 		return entity;
 	}
@@ -502,6 +585,20 @@ public:
 				tornado.escape_radius, dt
 			);
 
+			if (game.collision.overlap.PointCircle(
+					player_transform.position, { transform.position, tornado.warning_radius }
+				)) {
+				if (!player.Has<Warning>()) {
+					player.Add<Warning>().Init(player);
+				}
+			} else {
+				if (player.Has<Warning>()) {
+					player.Get<Warning>().Shutdown();
+					player.Remove<Warning>();
+				}
+				continue;
+			}
+
 			if (!game.collision.overlap.PointCircle(
 					player_transform.position, { transform.position, tornado.escape_radius }
 				)) {
@@ -596,7 +693,8 @@ public:
 
 		game.renderer.DrawTexture(
 			player.Get<Texture>(), player_transform.position, player.Get<Size>(), {}, {},
-			Origin::Center, Flip::None, player_transform.rotation
+			Origin::Center, Flip::None, player_transform.rotation, { 0.5f, 0.5f }, 0.0f,
+			player.Has<TintColor>() ? player.Get<TintColor>() : color::White
 		);
 	}
 
@@ -615,6 +713,9 @@ public:
 				);
 				game.renderer.DrawCircleHollow(
 					transform.position, tornado.escape_radius, color::Red
+				);
+				game.renderer.DrawCircleHollow(
+					transform.position, tornado.warning_radius, color::Orange
 				);
 				game.renderer.DrawCircleHollow(
 					transform.position, tornado.data_radius, color::DarkGreen
@@ -638,7 +739,7 @@ public:
 		auto& primary{ camera.GetPrimary() };
 		Rectangle<float> camera_rect{ primary.GetRectangle() };
 
-		game.renderer.DrawRectangleHollow(camera_rect, color::Blue, 3.0f);
+		// game.renderer.DrawRectangleHollow(camera_rect, color::Blue, 3.0f);
 
 		Rectangle<float> tile_rect{ {}, tile_size, Origin::TopLeft };
 
@@ -707,19 +808,23 @@ struct TextButton {
 	Text text;
 };
 
+const int text_x_offset{ 14 };
 const int button_y_offset{ 14 };
-const V2_int button_size{ 250, 50 };
-const V2_int first_button_coordinate{ 250, 220 };
+const V2_int button_size{ 150, 50 };
+const V2_int first_button_coordinate{ 40, 180 };
 
 TextButton CreateMenuButton(
-	const std::string& content, const Color& text_color, const ButtonActivateFunction& f,
-	const Color& color, const Color& hover_color
+	const std::string& content, Color text_color, const ButtonActivateFunction& f,
+	const Color& color, Color hover_color
 ) {
 	ColorButton b;
+	Text text{ Hash("menu_font"), content, text_color };
+	b.SetOnHover(
+		[=]() mutable { text.SetColor(hover_color); }, [=]() mutable { text.SetColor(text_color); }
+	);
 	b.SetOnActivate(f);
 	b.SetColor(color);
 	b.SetHoverColor(hover_color);
-	Text text{ Hash("menu_font"), content, color };
 	return TextButton{ std::make_shared<ColorButton>(b), text };
 }
 
@@ -727,7 +832,14 @@ class LevelSelect : public Scene {
 public:
 	std::vector<TextButton> buttons;
 
-	LevelSelect() {}
+	LevelSelect() {
+		if (!game.font.Has(Hash("menu_font"))) {
+			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
+		}
+		if (!game.texture.Has(Hash("menu_background"))) {
+			game.texture.Load(Hash("menu_background"), "resources/ui/background.png");
+		}
+	}
 
 	void StartGame() {
 		game.scene.RemoveActive(Hash("level_select"));
@@ -744,18 +856,21 @@ public:
 
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Easy", color::Blue, [&]() { StartGame(); }, color::Blue, color::Black
+			"Easy", color::White, [&]() { StartGame(); }, color::Blue, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Medium", color::Green, [&]() { StartGame(); }, color::Gold, color::Black
+			"Medium", color::White, [&]() { StartGame(); }, color::Gold, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Hard", color::Red, [&]() { StartGame(); }, color::Red, color::Black
+			"Hard", color::White, [&]() { StartGame(); }, color::Red, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Back", color::Black,
-			[]() {
+			"Back", color::White,
+			[&]() {
 				game.scene.RemoveActive(Hash("level_select"));
+				if (!game.scene.Has(Hash("main_menu"))) {
+					LoadMainMenu();
+				}
 				game.scene.SetActive(Hash("main_menu"));
 			},
 			color::LightGrey, color::Black
@@ -765,7 +880,7 @@ public:
 			buttons[i].button->SetRectangle({ V2_int{ first_button_coordinate.x,
 													  first_button_coordinate.y +
 														  i * (button_size.y + button_y_offset) },
-											  button_size, Origin::CenterTop });
+											  button_size, Origin::TopLeft });
 			buttons[i].button->SubscribeToMouseEvents();
 		}
 	}
@@ -785,7 +900,8 @@ public:
 		);
 		for (std::size_t i = 0; i < buttons.size(); i++) {
 			buttons[i].button->DrawHollow(6.0f);
-			auto rect = buttons[i].button->GetRectangle();
+			auto rect	= buttons[i].button->GetRectangle();
+			rect.pos.x += text_x_offset;
 			rect.size.x =
 				buttons[i]
 					.text.GetSize(Hash("menu_font"), std::string(buttons[i].text.GetContent()))
@@ -794,6 +910,9 @@ public:
 			buttons[i].text.Draw(rect);
 		}
 	}
+
+private:
+	void LoadMainMenu();
 };
 
 class MainMenu : public Scene {
@@ -801,20 +920,26 @@ public:
 	std::vector<TextButton> buttons;
 
 	MainMenu() {
-		game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
-		game.texture.Load(Hash("menu_background"), "resources/ui/background.png");
+		if (!game.font.Has(Hash("menu_font"))) {
+			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
+		}
+		if (!game.texture.Has(Hash("menu_background"))) {
+			game.texture.Load(Hash("menu_background"), "resources/ui/background.png");
+		}
 
 		// TODO: Readd.
 		// game.music.Load(Hash("background_music"),
 		// "resources/sound/background_music.ogg").Play(-1);
 
-		game.scene.Load<LevelSelect>(Hash("level_select"));
+		if (!game.scene.Has(Hash("level_select"))) {
+			game.scene.Load<LevelSelect>(Hash("level_select"));
+		}
 	}
 
 	void Init() final {
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Play", color::Blue,
+			"Play", color::White,
 			[]() {
 				game.scene.RemoveActive(Hash("main_menu"));
 				game.scene.SetActive(Hash("level_select"));
@@ -822,7 +947,7 @@ public:
 			color::Blue, color::Black
 		));
 		// buttons.push_back(CreateMenuButton(
-		//	"Settings", color::Red,
+		//	"Settings", color::White,
 		//	[]() {
 		//		/*game.scene.RemoveActive(Hash("main_menu"));
 		//		game.scene.SetActive(Hash("game"));*/
@@ -834,7 +959,7 @@ public:
 			buttons[i].button->SetRectangle({ V2_int{ first_button_coordinate.x,
 													  first_button_coordinate.y +
 														  i * (button_size.y + button_y_offset) },
-											  button_size, Origin::CenterTop });
+											  button_size, Origin::TopLeft });
 			buttons[i].button->SubscribeToMouseEvents();
 		}
 	}
@@ -852,7 +977,8 @@ public:
 		);
 		for (std::size_t i = 0; i < buttons.size(); i++) {
 			buttons[i].button->DrawHollow(7.0f);
-			auto rect = buttons[i].button->GetRectangle();
+			auto rect	= buttons[i].button->GetRectangle();
+			rect.pos.x += text_x_offset;
 			rect.size.x =
 				buttons[i]
 					.text.GetSize(Hash("menu_font"), std::string(buttons[i].text.GetContent()))
@@ -866,6 +992,16 @@ public:
 	}
 };
 
+void BackToLevelSelect() {
+	game.scene.Unload(Hash("game"));
+	game.scene.Load<LevelSelect>(Hash("level_select"));
+	game.scene.SetActive(Hash("level_select"));
+}
+
+void LevelSelect::LoadMainMenu() {
+	game.scene.Load<MainMenu>(Hash("main_menu"));
+}
+
 class SetupScene : public Scene {
 public:
 	SetupScene() {}
@@ -874,11 +1010,11 @@ public:
 		game.renderer.SetClearColor(color::Silver);
 		game.window.SetSize(resolution);
 
-		/*std::size_t initial_scene{ Hash("main_menu") };
-		game.scene.Load<MainMenu>(initial_scene);*/
+		std::size_t initial_scene{ Hash("main_menu") };
+		game.scene.Load<MainMenu>(initial_scene);
 
-		std::size_t initial_scene{ Hash("game") };
-		game.scene.Load<GameScene>(initial_scene);
+		/*std::size_t initial_scene{ Hash("game") };
+		game.scene.Load<GameScene>(initial_scene);*/
 		game.scene.SetActive(initial_scene);
 	}
 };
