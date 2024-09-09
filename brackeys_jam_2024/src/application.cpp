@@ -135,56 +135,85 @@ struct TornadoComponent {
 	// direction is a vector pointing from the target torward the tornado's center.
 	// pull_resistance determines how much the target resists the inward pull of the tornado
 	V2_float GetSuction(const V2_float& direction, float max_thrust) const {
-		float dist{ direction.Magnitude() };
+		float dist2{ direction.MagnitudeSquared() };
 
 		// haha.. very funny...
-		float suction_force = escape_radius * escape_radius / (dist * dist) * max_thrust;
+		float suction_force = escape_radius * max_thrust;
 
-		V2_float suction{ direction.Normalized() * suction_force };
+		V2_float suction{ direction / dist2 * suction_force };
 
 		return suction;
 	}
 
 	V2_float GetWind(const V2_float& direction, float pull_resistance) const {
-		float dist{ direction.Magnitude() };
+		float dist2{ direction.MagnitudeSquared() };
 
-		float wind_speed = escape_radius / dist * wind_constant * turn_speed / pull_resistance;
+		float wind_speed = escape_radius * wind_constant * turn_speed / pull_resistance;
 
-		V2_float wind{ direction.Rotated(-half_pi<float>).Normalized() * wind_speed };
+		V2_float tangent{ direction.Skewed() };
+
+		V2_float wind{ tangent / dist2 * wind_speed };
 
 		return wind;
 	}
 
 	ecs::Manager particle_manager;
 
-	std::size_t max_particles{ 500 };
+	std::vector<ecs::Entity> available_entities;
+
+	std::size_t max_particles{ 300 };
 
 	// TODO: Make this a vector and choose randomly from that vector.
 	Texture particle_texture{ "resources/entity/tornado_particle_1.png" };
 
-	void CreateParticles(ecs::Entity tornado) {
-		std::size_t deficit{ max_particles - particle_manager.Size() };
+	Timer particle_spawn_timer;
+
+	constexpr static float particle_launch_speed{ 0.0f };
+
+	milliseconds particle_spawn_cycle{ 100 };
+
+	void CreateParticles(float dt, ecs::Entity tornado) {
 		PTGN_ASSERT(tornado.Has<Transform>());
 		PTGN_ASSERT(tornado.Has<RigidBody>());
-
-		const float particle_launch_speed{ 0.0f };
-		// milliseconds particle_lifetime{ 3000 };
-
-		RNG<float> rng_pos{ -escape_radius, escape_radius };
 		V2_float tornado_pos{ tornado.Get<Transform>().position };
 		V2_float tornado_vel{ tornado.Get<RigidBody>().velocity };
+		RNG<float> rng_pos{ -escape_radius, escape_radius };
 
-		for (std::size_t i = 0; i < deficit; i++) {
-			auto particle	= particle_manager.CreateEntity();
-			auto& transform = particle.Add<Transform>();
-			V2_float heading{ V2_float::RandomHeading() };
-			transform.position	 = tornado_pos + V2_float{ rng_pos(), rng_pos() };
-			auto& rigid_body	 = particle.Add<RigidBody>();
-			rigid_body.velocity	 = tornado_vel;
-			rigid_body.velocity += heading * particle_launch_speed;
-			/*auto& lifetime		 = particle.Add<Lifetime>();
-			lifetime.lifetime	 = particle_lifetime;
-			lifetime.Start();*/
+		if (!particle_spawn_timer.IsRunning()) {
+			particle_spawn_timer.Start();
+			available_entities.reserve(max_particles);
+			particle_manager.Reserve(max_particles);
+
+			// milliseconds particle_lifetime{ 3000 };
+
+			for (std::size_t i = 0; i < max_particles; i++) {
+				auto particle = particle_manager.CreateEntity();
+				available_entities.push_back(particle);
+				auto& transform = particle.Add<Transform>();
+				V2_float heading{ V2_float::RandomHeading() };
+				transform.position	= tornado_pos + V2_float{ rng_pos(), rng_pos() };
+				auto& rigid_body	= particle.Add<RigidBody>();
+				rigid_body.velocity = tornado_vel;
+			}
+
+			particle_manager.Refresh();
+		}
+
+		if (particle_spawn_timer.ElapsedPercentage(particle_spawn_cycle) >= 1.0f) {
+			particle_spawn_timer.Start();
+		}
+
+		if (particle_spawn_timer.ElapsedPercentage(particle_spawn_cycle) >= 0.5f) {
+			return;
+		}
+
+		for (std::size_t i = 0; i < available_entities.size(); i++) {
+			ecs::Entity particle = available_entities.back();
+			available_entities.pop_back();
+			auto& transform		= particle.Get<Transform>();
+			transform.position	= tornado_pos + V2_float{ rng_pos(), rng_pos() };
+			auto& rigid_body	= particle.Get<RigidBody>();
+			rigid_body.velocity = tornado_vel;
 		}
 	}
 
@@ -193,7 +222,7 @@ struct TornadoComponent {
 
 		V2_float tornado_pos{ tornado.Get<Transform>().position };
 
-		float particle_pull_resistance{ 0.01f };
+		float particle_pull_resistance{ 0.1f };
 		float particle_drag{ 0.99f };
 
 		Circle<float> inner_deletion_circle{ tornado_pos, escape_radius * 0.1f };
@@ -208,21 +237,19 @@ struct TornadoComponent {
 
 			V2_float dir{ tornado_pos - transform.position };
 
-			rigid_body.velocity += GetSuction(dir, 100.0f) * dt;
+			rigid_body.velocity += GetSuction(dir, 200.0f) * dt;
 			rigid_body.velocity += GetWind(dir, particle_pull_resistance) * dt;
-			rigid_body.velocity *= particle_drag * dt;
+			rigid_body.velocity *= particle_drag;
 			transform.position	+= rigid_body.velocity * dt;
 			transform.rotation	+= turn_speed * dt;
 
 			if (game.collision.overlap.PointCircle(transform.position, inner_deletion_circle) ||
 				!game.collision.overlap.PointCircle(transform.position, outer_deletion_circle)) {
-				e.Destroy();
+				available_entities.push_back(e);
 			}
 		}
 
-		CreateParticles(tornado);
-
-		particle_manager.Refresh();
+		CreateParticles(dt, tornado);
 	}
 
 	void DrawParticles() {
@@ -282,7 +309,10 @@ struct Progress {
 		current_tornado = ecs::null;
 		progress		= 0.0f;
 
+		// PTGN_LOG("Completed tornado with EntityID: ", tornado.GetId());
+
 		if (completed_tornados == required_tornados) {
+			// PTGN_LOG("All required tornados completed!");
 			BackToLevelSelect();
 		}
 		// TODO: Some kind of particle effects? Change tornado indicator to completed?
@@ -524,7 +554,7 @@ public:
 		transform.position = center;
 
 		auto& rigid_body		= entity.Add<RigidBody>();
-		rigid_body.max_velocity = 120.0f;
+		rigid_body.max_velocity = 125.0f;
 
 		auto& vehicle			= entity.Add<VehicleComponent>();
 		vehicle.forward_thrust	= 1000.0f;
@@ -557,7 +587,7 @@ public:
 		tornado.increment_speed = 0.3f;
 
 		auto& rigid_body		= entity.Add<RigidBody>();
-		rigid_body.max_velocity = 110.0f;
+		rigid_body.max_velocity = 137.0f;
 
 		PTGN_ASSERT(tornado.warning_radius > tornado.escape_radius);
 		PTGN_ASSERT(tornado.data_radius > tornado.escape_radius);
@@ -618,7 +648,7 @@ public:
 		auto& rigid_body = player.Get<RigidBody>();
 		auto& transform	 = player.Get<Transform>();
 
-		const float drag{ 0.85f };
+		const float drag{ 0.8f };
 
 		rigid_body.velocity += rigid_body.acceleration * dt;
 
@@ -1174,9 +1204,10 @@ public:
 };
 
 void BackToLevelSelect() {
-	game.scene.Unload(Hash("game"));
 	game.scene.Load<LevelSelect>(Hash("level_select"));
+	game.scene.RemoveActive(Hash("game"));
 	game.scene.SetActive(Hash("level_select"));
+	game.scene.Unload(Hash("game"));
 }
 
 void LevelSelect::LoadMainMenu() {
