@@ -61,6 +61,9 @@ struct VehicleComponent {
 	float turn_speed{ 0.0f };
 
 	float inertia{ 0.0f };
+
+	V2_float
+		prev_acceleration; // acceleration in the current frame (cached even after it is cleared).
 };
 
 struct TintColor : public Color {
@@ -184,6 +187,10 @@ struct Progress {
 	}
 
 	void DrawTornadoIcons() {
+		if (game.tween.Has(Hash("pulled_in_tween"))) {
+			return;
+		}
+
 		const int icon_x_offset{ 10 };
 		const int icon_y_offset{ 10 };
 
@@ -358,6 +365,7 @@ public:
 		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
 		game.texture.Load(Hash("tornado_icon"), "resources/ui/tornado_icon.png");
 		game.texture.Load(Hash("tornado_icon_green"), "resources/ui/tornado_icon_green.png");
+		game.texture.Load(Hash("speedometer"), "resources/ui/speedometer.png");
 
 		CreateTornado(center + V2_float{ 200, 200 }, 50.0f);
 
@@ -501,6 +509,7 @@ public:
 	void PlayerPhysics(float dt) {
 		PTGN_ASSERT(player.Has<RigidBody>());
 		PTGN_ASSERT(player.Has<Transform>());
+		PTGN_ASSERT(player.Has<VehicleComponent>());
 
 		auto& rigid_body = player.Get<RigidBody>();
 		auto& transform	 = player.Get<Transform>();
@@ -536,6 +545,8 @@ public:
 		if (tile_type == TileType::Corn) {
 			destroyed_tiles.insert(player_tile);
 		}
+
+		player.Get<VehicleComponent>().prev_acceleration = rigid_body.acceleration;
 
 		rigid_body.acceleration = {};
 	}
@@ -776,6 +787,63 @@ public:
 		}
 	}
 
+	void DrawSpeedometer() {
+		if (game.tween.Has(Hash("pulled_in_tween"))) {
+			return;
+		}
+
+		PTGN_ASSERT(game.texture.Has(Hash("speedometer")));
+
+		Texture texture{ game.texture.Get(Hash("speedometer")) };
+
+		V2_float meter_pos{ resolution - V2_float{ 10, 10 } };
+		V2_float meter_size{ texture.GetSize() };
+
+		PTGN_ASSERT(player.Has<RigidBody>());
+		PTGN_ASSERT(player.Has<Transform>());
+		PTGN_ASSERT(player.Has<VehicleComponent>());
+
+		RigidBody rigid_body{ player.Get<RigidBody>() };
+		Transform transform{ player.Get<Transform>() };
+		VehicleComponent vehicle{ player.Get<VehicleComponent>() };
+
+		float forward_velocity =
+			rigid_body.velocity.Dot(V2_float{ 1.0f, 0.0f }.Rotated(transform.rotation));
+
+		// float forward_accel = vehicle.prev_acceleration.Dot(V2_float{ 1.0f, 0.0f
+		// }.Rotated(transform.rotation));
+
+		float fraction{ forward_velocity / rigid_body.max_velocity };
+		// float fraction{ forward_accel / vehicle.forward_thrust };
+
+		// TODO: Consider not clamping this to show negative velocity.
+		fraction = std::clamp(fraction, 0.0f, 1.0f);
+
+		Color fill_color = Lerp(color::Red, color::Green, fraction);
+
+		V2_float border_size{ 4, 4 };
+
+		V2_float fill_size{ meter_size - border_size * 2.0f };
+
+		V2_float fill_pos{ meter_pos.x - border_size.x - fill_size.x,
+						   meter_pos.y - border_size.y - fill_size.y };
+
+		Color meter_background = color::White;
+
+		meter_background.a = 128;
+		fill_color.a	   = 200;
+
+		game.renderer.DrawRectangleFilled(
+			fill_pos, { fill_size.x, fill_size.y }, meter_background, Origin::TopLeft
+		);
+
+		game.renderer.DrawRectangleFilled(
+			fill_pos, { fill_size.x * fraction, fill_size.y }, fill_color, Origin::TopLeft
+		);
+
+		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::BottomRight);
+	}
+
 	void DrawUI() {
 		auto prev_primary = game.camera.GetPrimary();
 
@@ -791,6 +859,7 @@ public:
 
 		PTGN_ASSERT(player.Has<Progress>());
 		player.Get<Progress>().Draw();
+		DrawSpeedometer();
 
 		game.renderer.Flush();
 
