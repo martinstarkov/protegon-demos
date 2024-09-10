@@ -1087,6 +1087,10 @@ class LevelSelect : public Scene {
 public:
 	std::vector<TextButton> buttons;
 
+	std::unordered_map<int, std::vector<int>> levels{ { 0, { 0, 1 } }, { 1, { 0, 1 } }
+
+	};
+
 	LevelSelect() {
 		if (!game.font.Has(Hash("menu_font"))) {
 			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
