@@ -135,7 +135,7 @@ struct TornadoComponent {
 	Color tint{ color::White };
 
 	// Abritrary units related to frame rate.
-	constexpr static float wind_constant{ 10.0f };
+	constexpr static float wind_constant{ 3.0f };
 
 	// direction is a vector pointing from the target torward the tornado's center.
 	// pull_resistance determines how much the target resists the inward pull of the tornado
