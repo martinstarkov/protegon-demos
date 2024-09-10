@@ -4,7 +4,7 @@
 
 using namespace ptgn;
 
-constexpr const V2_int resolution{ 960, 540 };
+constexpr const V2_int resolution{ 1440, 810 };
 constexpr const V2_int center{ resolution / 2 };
 constexpr const bool draw_hitboxes{ true };
 
@@ -70,6 +70,11 @@ struct VehicleComponent {
 
 	V2_float
 		prev_acceleration; // acceleration in the current frame (cached even after it is cleared).
+
+	Texture vehicle_texture;
+	Texture wheel_texture;
+
+	float wheel_rotation{ 0.0f };
 };
 
 struct TintColor : public Color {
@@ -257,7 +262,7 @@ struct TornadoComponent {
 		for (auto [e, transform] : particles) {
 			game.renderer.DrawTexture(
 				particle_texture, transform.position, particle_texture.GetSize(), {}, {},
-				Origin::Center, Flip::None, transform.rotation
+				Origin::Center, Flip::None, transform.rotation, { 0.5f, 0.5f }, 4.0f
 			);
 		}
 	}
@@ -464,6 +469,8 @@ public:
 
 	ecs::Entity player;
 
+	float scale{ 4.0f };
+
 	const V2_float tile_size{ 32, 32 };
 	const V2_int grid_size{ 300, 300 };
 
@@ -544,9 +551,10 @@ public:
 	ecs::Entity CreatePlayer() {
 		ecs::Entity entity = manager.CreateEntity();
 
-		auto& texture = entity.Add<Texture>(Texture{ "resources/entity/car.png" });
+		Texture vehicle_texture{ "resources/entity/car.png" };
+		Texture wheel_texture{ "resources/entity/wheels.png" };
 
-		entity.Add<Size>(texture.GetSize());
+		entity.Add<Size>(vehicle_texture.GetSize());
 		PTGN_ASSERT(required_tornados.size() != 0);
 		entity.Add<Progress>("resources/ui/tornadometer.png", required_tornados);
 
@@ -558,9 +566,11 @@ public:
 
 		auto& vehicle			= entity.Add<VehicleComponent>();
 		vehicle.forward_thrust	= 1000.0f;
-		vehicle.backward_thrust = 0.3f * vehicle.forward_thrust;
-		vehicle.turn_speed		= 1.5f;
+		vehicle.backward_thrust = 0.6f * vehicle.forward_thrust;
+		vehicle.turn_speed		= 5.0f;
 		vehicle.inertia			= 200.0f;
+		vehicle.vehicle_texture = vehicle_texture;
+		vehicle.wheel_texture	= wheel_texture;
 
 		auto& aero			 = entity.Add<Aerodynamics>();
 		aero.pull_resistance = 1.0f;
@@ -575,12 +585,12 @@ public:
 		auto& transform	   = entity.Add<Transform>();
 		transform.position = position;
 
-		entity.Add<Size>(texture.GetSize());
+		auto& size = entity.Add<Size>(texture.GetSize() * scale);
 
 		auto& tornado = entity.Add<TornadoComponent>();
 
 		tornado.turn_speed		= turn_speed;
-		tornado.escape_radius	= texture.GetSize().x / 2.0f;
+		tornado.escape_radius	= size.x / 2.0f;
 		tornado.data_radius		= 4.0f * tornado.escape_radius;
 		tornado.gravity_radius	= 8.0f * tornado.escape_radius;
 		tornado.warning_radius	= 3.0f * tornado.escape_radius;
@@ -615,26 +625,37 @@ public:
 		auto& vehicle	 = player.Get<VehicleComponent>();
 		auto& transform	 = player.Get<Transform>();
 
-		V2_float unit_direction{ V2_float{ 1.0f, 0.0f }.Rotated(transform.rotation) };
-
-		V2_float thrust;
-
 		bool up{ game.input.KeyPressed(Key::W) };
 		bool left{ game.input.KeyPressed(Key::A) };
 		bool down{ game.input.KeyPressed(Key::S) };
 		bool right{ game.input.KeyPressed(Key::D) };
 
-		if (up) {
-			thrust = unit_direction * vehicle.forward_thrust;
-		} else if (down) {
-			thrust = unit_direction * -vehicle.backward_thrust;
-		}
+		const float wheel_rotation_angle{ pi<float> / 8.0f };
 
 		if (right) {
-			transform.rotation += vehicle.turn_speed * dt;
+			vehicle.wheel_rotation = wheel_rotation_angle;
 		}
 		if (left) {
-			transform.rotation -= vehicle.turn_speed * dt;
+			vehicle.wheel_rotation = -wheel_rotation_angle;
+		}
+
+		if (!left && !right) {
+			vehicle.wheel_rotation = 0.0f;
+		}
+
+		float direction{ transform.rotation + vehicle.turn_speed * vehicle.wheel_rotation * dt };
+
+		V2_float unit_direction{ V2_float{ 1.0f, 0.0f }.Rotated(direction) };
+
+		V2_float thrust;
+
+		if (up) {
+			transform.rotation = direction;
+			thrust			   = unit_direction * vehicle.forward_thrust;
+		} else if (down) {
+			transform.rotation =
+				transform.rotation - vehicle.turn_speed * vehicle.wheel_rotation * dt;
+			thrust = unit_direction * -vehicle.backward_thrust;
 		}
 
 		rigid_body.acceleration += thrust;
@@ -816,6 +837,7 @@ public:
 				for (int j = min.y; j <= max.y; j++) {
 					V2_int tile{ i, j };
 					Rectangle<float> tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
+					auto tile_type = GetTileType(GetNoiseValue(tile));
 					if (game.collision.overlap.CircleRectangle(tornado_destruction, tile_rect)) {
 						game.renderer.DrawRectangleFilled(tile_rect, color::Purple);
 						destroyed_tiles.insert(tile);
@@ -833,15 +855,28 @@ public:
 
 	void DrawPlayer() {
 		PTGN_ASSERT(player.Has<Transform>());
-		PTGN_ASSERT(player.Has<Texture>());
 		PTGN_ASSERT(player.Has<Size>());
+		PTGN_ASSERT(player.Has<VehicleComponent>());
 
 		auto& player_transform{ player.Get<Transform>() };
+		auto& vehicle{ player.Get<VehicleComponent>() };
+		auto size{ player.Get<Size>() };
+
+		Color tint{ player.Has<TintColor>() ? player.Get<TintColor>() : color::White };
+
+		V2_float relative_wheel_pos =
+			V2_float{ (25 - 15), 0.0f }.Rotated(player_transform.rotation);
 
 		game.renderer.DrawTexture(
-			player.Get<Texture>(), player_transform.position, player.Get<Size>(), {}, {},
-			Origin::Center, Flip::None, player_transform.rotation, { 0.5f, 0.5f }, 0.0f,
-			player.Has<TintColor>() ? player.Get<TintColor>() : color::White
+			vehicle.wheel_texture, player_transform.position + relative_wheel_pos,
+			vehicle.wheel_texture.GetSize(), {}, {}, Origin::Center, Flip::None,
+			player_transform.rotation + vehicle.wheel_rotation, { 0.5f, 0.5f }, 0.0f, tint
+		);
+
+		game.renderer.DrawTexture(
+			vehicle.vehicle_texture, player_transform.position, size, {}, {}, Origin::Center,
+			Flip::None, player_transform.rotation, { 0.5f, 0.5f }, 0.0f, tint
+
 		);
 	}
 
@@ -851,21 +886,21 @@ public:
 		for (auto [e, tornado, texture, transform, size] : tornados) {
 			game.renderer.DrawTexture(
 				texture, transform.position, size, {}, {}, Origin::Center, Flip::None,
-				transform.rotation, { 0.5f, 0.5f }, 0.0f, tornado.tint
+				transform.rotation, { 0.5f, 0.5f }, 2.0f, tornado.tint
 			);
 
 			if (draw_hitboxes) {
 				game.renderer.DrawCircleHollow(
-					transform.position, tornado.gravity_radius, color::Blue
+					transform.position, tornado.gravity_radius, color::Blue, 1.0f, 0.005f, 3.0f
 				);
 				game.renderer.DrawCircleHollow(
-					transform.position, tornado.escape_radius, color::Red
+					transform.position, tornado.escape_radius, color::Red, 1.0f, 0.005f, 3.0f
 				);
 				game.renderer.DrawCircleHollow(
-					transform.position, tornado.warning_radius, color::Orange
+					transform.position, tornado.warning_radius, color::Orange, 1.0f, 0.005f, 3.0f
 				);
 				game.renderer.DrawCircleHollow(
-					transform.position, tornado.data_radius, color::DarkGreen
+					transform.position, tornado.data_radius, color::DarkGreen, 1.0f, 0.005f, 3.0f
 				);
 			}
 
@@ -912,6 +947,14 @@ public:
 
 				TileType tile_type = GetTileType(noise_value);
 
+				auto size = tile_rect.size;
+				float z_index{ 0.0f };
+
+				if (tile_type == TileType::House) {
+					// size	= tile_rect.size * 3;
+					z_index = 1.0f;
+				}
+
 				if (destroyed_tile) {
 					if (tile_type == TileType::House) {
 						tile_type = TileType::HouseDestroyed;
@@ -923,7 +966,8 @@ public:
 				Texture t = game.texture.Get(GetTileKey(tile_type));
 
 				game.renderer.DrawTexture(
-					t, tile_rect.pos, tile_rect.size, {}, {}, Origin::TopLeft
+					t, tile_rect.pos, size, {}, {}, Origin::TopLeft, Flip::None, 0.0f,
+					{ 0.5f, 0.5f }, z_index
 				);
 			}
 		}
@@ -1047,8 +1091,8 @@ public:
 		if (!game.font.Has(Hash("menu_font"))) {
 			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
 		}
-		if (!game.texture.Has(Hash("menu_background"))) {
-			game.texture.Load(Hash("menu_background"), "resources/ui/background.png");
+		if (!game.texture.Has(Hash("level_select_background"))) {
+			game.texture.Load(Hash("level_select_background"), "resources/ui/laptop.png");
 		}
 	}
 
@@ -1067,13 +1111,10 @@ public:
 
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Easy", color::White, [&]() { StartGame(); }, color::Blue, color::Black
+			"Confirm", color::White, [&]() { StartGame(); }, color::Blue, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Medium", color::White, [&]() { StartGame(); }, color::Gold, color::Black
-		));
-		buttons.push_back(CreateMenuButton(
-			"Hard", color::White, [&]() { StartGame(); }, color::Red, color::Black
+			"Info", color::White, [&]() { StartGame(); }, color::Gold, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
 			"Back", color::White,
@@ -1087,11 +1128,11 @@ public:
 			color::LightGrey, color::Black
 		));
 
+		buttons[0].button->SetRectangle({ V2_int{ 536, 505 }, button_size, Origin::TopLeft });
+		buttons[1].button->SetRectangle({ V2_int{ 790, 505 }, button_size, Origin::TopLeft });
+		buttons[2].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+
 		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->SetRectangle({ V2_int{ first_button_coordinate.x,
-													  first_button_coordinate.y +
-														  i * (button_size.y + button_y_offset) },
-											  button_size, Origin::TopLeft });
 			buttons[i].button->SubscribeToMouseEvents();
 		}
 	}
@@ -1106,11 +1147,11 @@ public:
 		game.scene.Get(Hash("level_select"))->camera.SetPrimary(camera);
 
 		game.renderer.DrawTexture(
-			game.texture.Get(Hash("menu_background")), game.window.GetCenter(), resolution, {}, {},
-			Origin::Center, Flip::None, 0.0f, {}, -1.0f
+			game.texture.Get(Hash("level_select_background")), game.window.GetCenter(), resolution,
+			{}, {}, Origin::Center, Flip::None, 0.0f, {}, -1.0f
 		);
+
 		for (std::size_t i = 0; i < buttons.size(); i++) {
-			buttons[i].button->DrawHollow(6.0f);
 			auto rect	= buttons[i].button->GetRectangle();
 			rect.pos.x += text_x_offset;
 			rect.size.x =
@@ -1151,12 +1192,28 @@ public:
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
 			"Play", color::White,
-			[]() {
+			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
 				game.scene.SetActive(Hash("level_select"));
 			},
 			color::Blue, color::Black
 		));
+		/*buttons.push_back(CreateMenuButton(
+			"Settings", color::White,
+			[&]() {
+				game.scene.RemoveActive(Hash("main_menu"));
+				game.scene.SetActive(Hash("level_select"));
+			},
+			color::Gold, color::Black
+		));*/
+
+		/*	buttons[0].button->SetRectangle({ V2_int{ 550, 505 }, button_size, Origin::TopLeft });
+			buttons[1].button->SetRectangle({ V2_int{ 780, 505 }, button_size, Origin::TopLeft });*/
+		buttons[0].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+
+		for (int i = 0; i < (int)buttons.size(); i++) {
+			buttons[i].button->SubscribeToMouseEvents();
+		}
 		// buttons.push_back(CreateMenuButton(
 		//	"Settings", color::White,
 		//	[]() {
@@ -1167,10 +1224,6 @@ public:
 		//));
 
 		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->SetRectangle({ V2_int{ first_button_coordinate.x,
-													  first_button_coordinate.y +
-														  i * (button_size.y + button_y_offset) },
-											  button_size, Origin::TopLeft });
 			buttons[i].button->SubscribeToMouseEvents();
 		}
 	}
@@ -1187,7 +1240,7 @@ public:
 			Origin::Center, Flip::None, 0.0f, {}, -1.0f
 		);
 		for (std::size_t i = 0; i < buttons.size(); i++) {
-			buttons[i].button->DrawHollow(7.0f);
+			// buttons[i].button->DrawHollow(6.0f);
 			auto rect	= buttons[i].button->GetRectangle();
 			rect.pos.x += text_x_offset;
 			rect.size.x =
