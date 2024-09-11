@@ -22,13 +22,16 @@ TileType GetTileType(float noise_value) {
 		return TileType::None;
 	}
 
-	if (noise_value >= 0.0f && noise_value <= 0.5f) {
+	if (noise_value >= 0.0f && noise_value <= 0.6f) {
+		return TileType::Grass;
+	} else if (noise_value > 0.6f && noise_value <= 1.0f) {
 		return TileType::Corn;
-	} else if (noise_value > 0.59f && noise_value < 0.6f) {
-		return TileType::House;
-	} else {
+	}
+	/*
+	 else {
 		return TileType::Grass;
 	}
+	*/
 	PTGN_ERROR("Unrecognized tile type");
 }
 
@@ -497,10 +500,10 @@ public:
 	}
 
 	void Init() final {
-		/*noise_properties.octaves	 = 6;
-		noise_properties.frequency	 = 0.01f;
-		noise_properties.bias		 = 1.2f;
-		noise_properties.persistence = 0.75f;*/
+		noise_properties.octaves	 = 2;
+		noise_properties.frequency	 = 0.045f;
+		noise_properties.bias		 = 1.21f;
+		noise_properties.persistence = 0.65f;
 
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
 		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
@@ -524,8 +527,6 @@ public:
 	}
 
 	void Update(float dt) final {
-		game.profiler.PrintAll();
-
 		PlayerInput(dt);
 
 		UpdateTornados(dt);
@@ -925,7 +926,6 @@ public:
 	}
 
 	void DrawBackground() {
-		PTGN_PROFILE_FUNCTION();
 		auto& primary{ camera.GetPrimary() };
 		Rectangle<float> camera_rect{ primary.GetRectangle() };
 
@@ -933,17 +933,21 @@ public:
 
 		Rectangle<float> tile_rect{ {}, tile_size, Origin::TopLeft };
 
-		for (int i{ 0 }; i < grid_size.x; i++) {
-			for (int j{ 0 }; j < grid_size.y; j++) {
+		// Expand size of each tile to include neighbors to prevent edges from flashing
+		// when camera moves. Skip grid tiles not within camera view.
+
+		V2_int min{ Clamp(
+			V2_int{ camera_rect.Min() / tile_size } - V2_int{ 1, 1 }, V2_int{ 0, 0 }, grid_size
+		) };
+		V2_int max{ Clamp(
+			V2_int{ camera_rect.Max() / tile_size } + V2_int{ 1, 1 }, V2_int{ 0, 0 }, grid_size
+		) };
+
+		for (int i{ min.x }; i < max.x; i++) {
+			for (int j{ min.y }; j < max.y; j++) {
 				V2_int tile{ i, j };
 
 				tile_rect.pos = tile * tile_size;
-
-				// Expand size of each tile to include neighbors to prevent edges from flashing
-				// when camera moves. Skip grid tiles not within camera view.
-				if (!game.collision.overlap.RectangleRectangle(tile_rect, camera_rect)) {
-					continue;
-				}
 
 				float noise_value{ GetNoiseValue(tile) };
 
@@ -969,12 +973,12 @@ public:
 					}
 				}
 
-				// Texture t = game.texture.Get(GetTileKey(tile_type));
+				Texture t = game.texture.Get(GetTileKey(tile_type));
 
-				/*game.renderer.DrawTexture(
+				game.renderer.DrawTexture(
 					t, tile_rect.pos, size, {}, {}, Origin::TopLeft, Flip::None, 0.0f,
 					{ 0.5f, 0.5f }, z_index
-				);*/
+				);
 			}
 		}
 	}
@@ -1285,11 +1289,11 @@ public:
 		game.renderer.SetClearColor(color::Silver);
 		game.window.SetSize(resolution);
 
-		std::size_t initial_scene{ Hash("main_menu") };
-		game.scene.Load<MainMenu>(initial_scene);
+		/*std::size_t initial_scene{ Hash("main_menu") };
+		game.scene.Load<MainMenu>(initial_scene);*/
 
-		/*std::size_t initial_scene{ Hash("game") };
-		game.scene.Load<GameScene>(initial_scene);*/
+		std::size_t initial_scene{ Hash("game") };
+		game.scene.Load<GameScene>(initial_scene);
 		game.scene.SetActive(initial_scene);
 	}
 };
