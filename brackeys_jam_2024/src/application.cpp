@@ -228,10 +228,11 @@ struct TornadoComponent {
 		V2_float tornado_pos{ tornado.Get<Transform>().position };
 
 		float particle_pull_resistance{ 0.1f };
-		float particle_drag{ 0.99f };
 
 		Circle<float> inner_deletion_circle{ tornado_pos, escape_radius * 0.1f };
 		Circle<float> outer_deletion_circle{ tornado_pos, gravity_radius };
+
+		const float particle_drag_force{ 0.01f };
 
 		auto particles = particle_manager.EntitiesWith<Transform, RigidBody>();
 		for (auto [e, transform, rigid_body] : particles) {
@@ -242,11 +243,13 @@ struct TornadoComponent {
 
 			V2_float dir{ tornado_pos - transform.position };
 
-			rigid_body.velocity += GetSuction(dir, 200.0f) * dt;
-			rigid_body.velocity += GetWind(dir, particle_pull_resistance) * dt;
-			rigid_body.velocity *= particle_drag;
-			transform.position	+= rigid_body.velocity * dt;
-			transform.rotation	+= turn_speed * dt;
+			rigid_body.acceleration += -rigid_body.velocity * particle_drag_force;
+			rigid_body.velocity		+= GetSuction(dir, 200.0f) * dt;
+			rigid_body.velocity		+= GetWind(dir, particle_pull_resistance) * dt;
+			transform.position		+= rigid_body.velocity * dt;
+			transform.rotation		+= turn_speed * dt;
+
+			rigid_body.acceleration = {};
 
 			if (game.collision.overlap.PointCircle(transform.position, inner_deletion_circle) ||
 				!game.collision.overlap.PointCircle(transform.position, outer_deletion_circle)) {
@@ -521,6 +524,8 @@ public:
 	}
 
 	void Update(float dt) final {
+		game.profiler.PrintAll();
+
 		PlayerInput(dt);
 
 		UpdateTornados(dt);
@@ -565,7 +570,7 @@ public:
 		rigid_body.max_velocity = 125.0f;
 
 		auto& vehicle			= entity.Add<VehicleComponent>();
-		vehicle.forward_thrust	= 1000.0f;
+		vehicle.forward_thrust	= 4000.0f;
 		vehicle.backward_thrust = 0.6f * vehicle.forward_thrust;
 		vehicle.turn_speed		= 5.0f;
 		vehicle.inertia			= 200.0f;
@@ -669,11 +674,11 @@ public:
 		auto& rigid_body = player.Get<RigidBody>();
 		auto& transform	 = player.Get<Transform>();
 
-		const float drag{ 0.8f };
+		const float drag{ 20.0f };
+
+		rigid_body.acceleration += -rigid_body.velocity * drag;
 
 		rigid_body.velocity += rigid_body.acceleration * dt;
-
-		rigid_body.velocity *= drag;
 
 		rigid_body.velocity =
 			Clamp(rigid_body.velocity, -rigid_body.max_velocity, rigid_body.max_velocity);
@@ -920,6 +925,7 @@ public:
 	}
 
 	void DrawBackground() {
+		PTGN_PROFILE_FUNCTION();
 		auto& primary{ camera.GetPrimary() };
 		Rectangle<float> camera_rect{ primary.GetRectangle() };
 
@@ -963,12 +969,12 @@ public:
 					}
 				}
 
-				Texture t = game.texture.Get(GetTileKey(tile_type));
+				// Texture t = game.texture.Get(GetTileKey(tile_type));
 
-				game.renderer.DrawTexture(
+				/*game.renderer.DrawTexture(
 					t, tile_rect.pos, size, {}, {}, Origin::TopLeft, Flip::None, 0.0f,
 					{ 0.5f, 0.5f }, z_index
-				);
+				);*/
 			}
 		}
 	}
