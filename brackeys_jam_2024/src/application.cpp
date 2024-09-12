@@ -124,6 +124,27 @@ struct Lifetime {
 	}
 };
 
+static void ApplyBounds(ecs::Entity e, const Rectangle<float>& bounds) {
+	if (!e.Has<Transform>()) {
+		return;
+	}
+	auto& pos = e.Get<Transform>().position;
+	V2_float min{ pos };
+	V2_float max{ pos };
+	V2_float bounds_max{ bounds.Max() };
+	V2_float bounds_min{ bounds.Min() };
+	if (min.x < bounds_min.x) {
+		pos.x += bounds_min.x - min.x;
+	} else if (max.x > bounds_max.x) {
+		pos.x += bounds_max.x - max.x;
+	}
+	if (min.y < bounds_min.y) {
+		pos.y += bounds_min.y - min.y;
+	} else if (max.y > bounds_max.y) {
+		pos.y += bounds_max.y - max.y;
+	}
+}
+
 struct TornadoComponent {
 	float turn_speed{ 0.0f };
 	float gravity_radius{ 0.0f };
@@ -476,7 +497,7 @@ public:
 	ecs::Entity player;
 
 	const V2_float tile_size{ 16, 16 };
-	const V2_int grid_size{ 300, 300 };
+	const V2_int grid_size{ 100, 100 };
 
 	NoiseProperties noise_properties;
 	std::vector<float> noise_map;
@@ -501,6 +522,8 @@ public:
 
 	void Init() final {
 		auto& primary{ camera.GetCurrent() };
+
+		primary.SetFlip(Flip::Both);
 
 		bounds.pos	  = {};
 		bounds.size	  = grid_size * tile_size;
@@ -702,6 +725,8 @@ public:
 		}*/
 
 		transform.position += rigid_body.velocity * dt;
+
+		ApplyBounds(player, bounds);
 
 		// Center camera on player.
 		auto& primary{ camera.GetCurrent() };
