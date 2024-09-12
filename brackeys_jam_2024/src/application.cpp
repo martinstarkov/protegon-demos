@@ -475,9 +475,7 @@ public:
 
 	ecs::Entity player;
 
-	float scale{ 4.0f };
-
-	const V2_float tile_size{ 32, 32 };
+	const V2_float tile_size{ 16, 16 };
 	const V2_int grid_size{ 300, 300 };
 
 	NoiseProperties noise_properties;
@@ -499,7 +497,17 @@ public:
 		Init();*/
 	}
 
+	Rectangle<float> bounds;
+
 	void Init() final {
+		auto& primary{ camera.GetCurrent() };
+
+		bounds.pos	  = {};
+		bounds.size	  = grid_size * tile_size;
+		bounds.origin = Origin::TopLeft;
+
+		primary.SetBounds(bounds);
+
 		noise_properties.octaves	 = 2;
 		noise_properties.frequency	 = 0.045f;
 		noise_properties.bias		 = 1.21f;
@@ -591,7 +599,7 @@ public:
 		auto& transform	   = entity.Add<Transform>();
 		transform.position = position;
 
-		auto& size = entity.Add<Size>(texture.GetSize() * scale);
+		auto& size = entity.Add<Size>(texture.GetSize());
 
 		auto& tornado = entity.Add<TornadoComponent>();
 
@@ -696,7 +704,7 @@ public:
 		transform.position += rigid_body.velocity * dt;
 
 		// Center camera on player.
-		auto& primary{ camera.GetPrimary() };
+		auto& primary{ camera.GetCurrent() };
 		primary.SetPosition(transform.position);
 
 		V2_int player_tile = transform.position / tile_size;
@@ -866,7 +874,7 @@ public:
 
 		auto& player_transform{ player.Get<Transform>() };
 		auto& vehicle{ player.Get<VehicleComponent>() };
-		auto size{ player.Get<Size>() };
+		Size size{ player.Get<Size>() };
 
 		Color tint{ player.Has<TintColor>() ? player.Get<TintColor>() : color::White };
 
@@ -926,7 +934,7 @@ public:
 	}
 
 	void DrawBackground() {
-		auto& primary{ camera.GetPrimary() };
+		const auto& primary{ camera.GetCurrent() };
 		Rectangle<float> camera_rect{ primary.GetRectangle() };
 
 		// game.renderer.DrawRectangleHollow(camera_rect, color::Blue, 3.0f);
@@ -1041,15 +1049,8 @@ public:
 	}
 
 	void DrawUI() {
-		auto prev_primary = game.camera.GetPrimary();
-
 		game.renderer.Flush();
-
-		OrthographicCamera c;
-		c.SetPosition(game.window.GetCenter());
-		c.SetSizeToWindow();
-		c.SetClampBounds({});
-		game.camera.SetPrimary(c);
+		game.camera.SetCameraWindow();
 
 		// Draw UI here...
 
@@ -1058,10 +1059,7 @@ public:
 		DrawSpeedometer();
 
 		game.renderer.Flush();
-
-		if (game.camera.GetPrimary() == c) {
-			game.camera.SetPrimary(prev_primary);
-		}
+		game.camera.SetCameraPrimary();
 	}
 };
 
