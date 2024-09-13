@@ -4,9 +4,9 @@
 
 using namespace ptgn;
 
-constexpr const V2_int resolution{ 1440, 810 };
-constexpr const V2_int center{ resolution / 2 };
-constexpr const bool draw_hitboxes{ true };
+constexpr V2_int resolution{ 1440, 810 };
+constexpr V2_int center{ resolution / 2 };
+constexpr bool draw_hitboxes{ true };
 
 enum class TileType {
 	Grass,
@@ -65,6 +65,9 @@ struct Aerodynamics {
 };
 
 struct VehicleComponent {
+	float throttle{ 0.0f };
+	milliseconds throttle_time{ 0 };
+
 	float forward_thrust{ 0.0f };
 	float backward_thrust{ 0.0f };
 	float turn_speed{ 0.0f };
@@ -91,7 +94,7 @@ struct Warning {
 		game.tween.Load(Hash("warning_flash"))
 			.During(milliseconds{ 500 })
 			.Repeat(-1)
-			.OnRepeat([=](Tween& tween) mutable {
+			.OnRepeat([=](Tween tween) mutable {
 				if (tween.GetRepeats() % 2 == 0) {
 					player.Add<TintColor>() = color::Red;
 				} else {
@@ -496,8 +499,9 @@ public:
 
 	ecs::Entity player;
 
-	const V2_float tile_size{ 16, 16 };
-	const V2_int grid_size{ 100, 100 };
+	const V2_int tile_size{ 16, 16 };
+	const V2_int grid_size{ static_cast<int>(1 * resolution.x / tile_size.x),
+							static_cast<int>(2 * resolution.y / tile_size.y) };
 
 	NoiseProperties noise_properties;
 	std::vector<float> noise_map;
@@ -520,16 +524,19 @@ public:
 
 	Rectangle<float> bounds;
 
+	void Shutdown() final {
+		game.tween.Clear();
+	}
+
 	void Init() final {
 		auto& primary{ camera.GetCurrent() };
-
-		primary.SetFlip(Flip::Both);
 
 		bounds.pos	  = {};
 		bounds.size	  = grid_size * tile_size;
 		bounds.origin = Origin::TopLeft;
 
 		primary.SetBounds(bounds);
+		primary.SetZoom(2.0f);
 
 		noise_properties.octaves	 = 2;
 		noise_properties.frequency	 = 0.045f;
@@ -552,7 +559,10 @@ public:
 		CreateBackground();
 
 		// player must be created after tornados.
-		player = CreatePlayer();
+		player = CreatePlayer(
+			V2_float{ grid_size.x / 2.0f, static_cast<float>(grid_size.y) } * tile_size -
+			V2_float{ 0.0f, resolution.y / 2.0f }
+		);
 
 		manager.Refresh();
 	}
@@ -585,8 +595,9 @@ public:
 
 	// Init functions.
 
-	ecs::Entity CreatePlayer() {
+	ecs::Entity CreatePlayer(const V2_float& pos) {
 		ecs::Entity entity = manager.CreateEntity();
+		manager.Refresh();
 
 		Texture vehicle_texture{ "resources/entity/car.png" };
 		Texture wheel_texture{ "resources/entity/wheels.png" };
@@ -596,13 +607,15 @@ public:
 		entity.Add<Progress>("resources/ui/tornadometer.png", required_tornados);
 
 		auto& transform	   = entity.Add<Transform>();
-		transform.position = center;
+		transform.position = pos;
+		transform.rotation = -half_pi<float>;
 
 		auto& rigid_body		= entity.Add<RigidBody>();
-		rigid_body.max_velocity = 125.0f;
+		rigid_body.max_velocity = 225.0f;
 
 		auto& vehicle			= entity.Add<VehicleComponent>();
-		vehicle.forward_thrust	= 4000.0f;
+		vehicle.throttle_time	= milliseconds{ 500 };
+		vehicle.forward_thrust	= 3000.0f;
 		vehicle.backward_thrust = 0.6f * vehicle.forward_thrust;
 		vehicle.turn_speed		= 5.0f;
 		vehicle.inertia			= 200.0f;
@@ -617,7 +630,9 @@ public:
 
 	ecs::Entity CreateTornado(const V2_float& position, float turn_speed) {
 		ecs::Entity entity = manager.CreateEntity();
-		auto& texture	   = entity.Add<Texture>(Texture{ "resources/entity/tornado.png" });
+		manager.Refresh();
+
+		auto& texture = entity.Add<Texture>(Texture{ "resources/entity/tornado.png" });
 
 		auto& transform	   = entity.Add<Transform>();
 		transform.position = position;
@@ -631,7 +646,7 @@ public:
 		tornado.data_radius		= 4.0f * tornado.escape_radius;
 		tornado.gravity_radius	= 8.0f * tornado.escape_radius;
 		tornado.warning_radius	= 3.0f * tornado.escape_radius;
-		tornado.increment_speed = 0.3f;
+		tornado.increment_speed = 1.0f;
 
 		auto& rigid_body		= entity.Add<RigidBody>();
 		rigid_body.max_velocity = 137.0f;
@@ -686,13 +701,52 @@ public:
 
 		V2_float thrust;
 
+		bool throttling{ game.tween.Has(Hash("throttle_tween")) };
+
+		if (up || down) {
+			if (!throttling) {
+				const auto reset_throttle = [=]() {
+					player.Get<VehicleComponent>().throttle = 0.0f;
+				};
+
+				game.tween.Load(Hash("throttle_tween"))
+					.During(vehicle.throttle_time)
+					.OnUpdate([=](Tween tween, float f) {
+						PTGN_ASSERT(player.Has<VehicleComponent>());
+						auto& throttle{ player.Get<VehicleComponent>().throttle };
+						PTGN_LOG("Updating throttle: ", f);
+						if (game.input.KeyPressed(Key::W)) {
+							throttle = f;
+						} else if (game.input.KeyPressed(Key::S)) {
+							throttle = -f;
+						} else {
+							tween.Reset();
+						}
+					})
+					.OnStop(reset_throttle)
+					.Start();
+				game.tween.KeepAlive(Hash("throttle_tween"));
+			} else {
+				auto& throttle = game.tween.Get(Hash("throttle_tween"));
+				if (!throttle.IsStarted() && !throttle.IsCompleted()) {
+					throttle.Start();
+				}
+			}
+		} else {
+			if (throttling) {
+				auto& throttle = game.tween.Get(Hash("throttle_tween"));
+				throttle.Reset();
+			}
+		}
+
 		if (up) {
 			transform.rotation = direction;
-			thrust			   = unit_direction * vehicle.forward_thrust;
+			thrust			   = unit_direction * vehicle.forward_thrust * vehicle.throttle;
 		} else if (down) {
 			transform.rotation =
 				transform.rotation - vehicle.turn_speed * vehicle.wheel_rotation * dt;
-			thrust = unit_direction * -vehicle.backward_thrust;
+			// Negative contained in vehicle.throttle.
+			thrust = unit_direction * vehicle.backward_thrust * vehicle.throttle;
 		}
 
 		rigid_body.acceleration += thrust;
@@ -706,7 +760,7 @@ public:
 		auto& rigid_body = player.Get<RigidBody>();
 		auto& transform	 = player.Get<Transform>();
 
-		const float drag{ 20.0f };
+		const float drag{ 5.0f };
 
 		rigid_body.acceleration += -rigid_body.velocity * drag;
 
@@ -824,6 +878,9 @@ public:
 					RestartGame();
 				})
 				.OnUpdate([=]() {
+					PTGN_ASSERT(player.IsAlive());
+					PTGN_ASSERT(player.Has<RigidBody>());
+					PTGN_ASSERT(player.Has<Transform>());
 					player.Get<RigidBody>().acceleration.x = player_vehicle.forward_thrust;
 					player.Get<Transform>().rotation += 10.0f * player_vehicle.turn_speed * dt;
 				})
@@ -1025,7 +1082,8 @@ public:
 
 		Texture texture{ game.texture.Get(Hash("speedometer")) };
 
-		V2_float meter_pos{ resolution - V2_float{ 10, 10 } };
+		V2_float meter_pos{ V2_float{ static_cast<float>(resolution.x), 0.0f } +
+							V2_float{ -10.0f, 10.0f } };
 		V2_float meter_size{ texture.GetSize() };
 
 		PTGN_ASSERT(player.Has<RigidBody>());
@@ -1042,8 +1100,9 @@ public:
 		// float forward_accel = vehicle.prev_acceleration.Dot(V2_float{ 1.0f, 0.0f
 		// }.Rotated(transform.rotation));
 
-		float fraction{ forward_velocity / rigid_body.max_velocity };
-		// float fraction{ forward_accel / vehicle.forward_thrust };
+		float fraction{ vehicle.throttle };
+		// float fraction{ forward_velocity / rigid_body.max_velocity };
+		//  float fraction{ forward_accel / vehicle.forward_thrust };
 
 		// TODO: Consider not clamping this to show negative velocity.
 		fraction = std::clamp(fraction, 0.0f, 1.0f);
@@ -1055,7 +1114,7 @@ public:
 		V2_float fill_size{ meter_size - border_size * 2.0f };
 
 		V2_float fill_pos{ meter_pos.x - border_size.x - fill_size.x,
-						   meter_pos.y - border_size.y - fill_size.y };
+						   meter_pos.y + border_size.y + fill_size.y };
 
 		Color meter_background = color::White;
 
@@ -1063,14 +1122,14 @@ public:
 		fill_color.a	   = 200;
 
 		game.renderer.DrawRectangleFilled(
-			fill_pos, { fill_size.x, fill_size.y }, meter_background, Origin::TopLeft
+			fill_pos, { fill_size.x, fill_size.y }, meter_background, Origin::BottomLeft
 		);
 
 		game.renderer.DrawRectangleFilled(
-			fill_pos, { fill_size.x * fraction, fill_size.y }, fill_color, Origin::TopLeft
+			fill_pos, { fill_size.x * fraction, fill_size.y }, fill_color, Origin::BottomLeft
 		);
 
-		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::BottomRight);
+		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::TopRight);
 	}
 
 	void DrawUI() {
@@ -1120,10 +1179,6 @@ class LevelSelect : public Scene {
 public:
 	std::vector<TextButton> buttons;
 
-	std::unordered_map<int, std::vector<int>> levels{ { 0, { 0, 1 } }, { 1, { 0, 1 } }
-
-	};
-
 	LevelSelect() {
 		if (!game.font.Has(Hash("menu_font"))) {
 			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
@@ -1136,16 +1191,10 @@ public:
 	void StartGame() {
 		game.scene.RemoveActive(Hash("level_select"));
 		game.scene.Load<GameScene>(Hash("game"));
-		game.scene.SetActive(Hash("game"));
+		game.scene.AddActive(Hash("game"));
 	}
 
-	OrthographicCamera camera;
-
 	void Init() final {
-		camera.SetSizeToWindow();
-		camera.SetPosition(game.window.GetCenter());
-		game.camera.SetPrimary(camera);
-
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
 			"Confirm", color::White, [&]() { StartGame(); }, color::Blue, color::Black
@@ -1160,7 +1209,7 @@ public:
 				if (!game.scene.Has(Hash("main_menu"))) {
 					LoadMainMenu();
 				}
-				game.scene.SetActive(Hash("main_menu"));
+				game.scene.AddActive(Hash("main_menu"));
 			},
 			color::LightGrey, color::Black
 		));
@@ -1181,8 +1230,6 @@ public:
 	}
 
 	void Update() final {
-		game.scene.Get(Hash("level_select"))->camera.SetPrimary(camera);
-
 		game.renderer.DrawTexture(
 			game.texture.Get(Hash("level_select_background")), game.window.GetCenter(), resolution,
 			{}, {}, Origin::Center, Flip::None, 0.0f, {}, -1.0f
@@ -1200,8 +1247,83 @@ public:
 		}
 	}
 
-private:
-	void LoadMainMenu();
+	static void LoadMainMenu();
+};
+
+class TutorialText : public Scene {
+public:
+	std::vector<TextButton> buttons;
+
+	Text instructions;
+
+	TutorialText() {
+		if (!game.font.Has(Hash("menu_font"))) {
+			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
+		}
+		if (!game.font.Has(Hash("tutorial_text_font"))) {
+			game.font.Load(Hash("tutorial_text_font"), "resources/font/retro_gaming.ttf", 18);
+		}
+		if (!game.texture.Has(Hash("level_select_background"))) {
+			game.texture.Load(Hash("level_select_background"), "resources/ui/laptop.png");
+		}
+	}
+
+	Rectangle<float> text_rect{ { 554, 174 }, { 362, 253 }, Origin::TopLeft };
+
+	void Init() final {
+		instructions.SetFont(game.font.Get(Hash("tutorial_text_font")));
+		instructions.SetColor(color::Black);
+		instructions.SetContent(
+			"When in level select, click on the storm you wish to chase. Then click info for "
+			"details about the chosen storm. Confirm to start the chase!"
+		);
+		instructions.SetWrapAfter(static_cast<std::uint32_t>(text_rect.size.x));
+
+		buttons.clear();
+		buttons.push_back(CreateMenuButton(
+			"Back", color::White,
+			[&]() {
+				game.scene.RemoveActive(Hash("tutorial_text"));
+				if (!game.scene.Has(Hash("main_menu"))) {
+					LevelSelect::LoadMainMenu();
+				}
+				game.scene.AddActive(Hash("main_menu"));
+			},
+			color::LightGrey, color::Black
+		));
+
+		buttons[0].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+
+		for (int i = 0; i < (int)buttons.size(); i++) {
+			buttons[i].button->SubscribeToMouseEvents();
+		}
+	}
+
+	void Shutdown() final {
+		for (int i = 0; i < (int)buttons.size(); i++) {
+			buttons[i].button->UnsubscribeFromMouseEvents();
+		}
+	}
+
+	void Update() final {
+		game.renderer.DrawTexture(
+			game.texture.Get(Hash("level_select_background")), game.window.GetCenter(), resolution,
+			{}, {}, Origin::Center, Flip::None, 0.0f, {}, -1.0f
+		);
+
+		for (std::size_t i = 0; i < buttons.size(); i++) {
+			auto rect	= buttons[i].button->GetRectangle();
+			rect.pos.x += text_x_offset;
+			rect.size.x =
+				buttons[i]
+					.text.GetSize(Hash("menu_font"), std::string(buttons[i].text.GetContent()))
+					.x *
+				0.5f;
+			buttons[i].text.Draw(rect);
+		}
+
+		instructions.Draw(text_rect);
+	}
 };
 
 class MainMenu : public Scene {
@@ -1223,6 +1345,9 @@ public:
 		if (!game.scene.Has(Hash("level_select"))) {
 			game.scene.Load<LevelSelect>(Hash("level_select"));
 		}
+		if (!game.scene.Has(Hash("tutorial_text"))) {
+			game.scene.Load<TutorialText>(Hash("tutorial_text"));
+		}
 	}
 
 	void Init() final {
@@ -1231,22 +1356,23 @@ public:
 			"Play", color::White,
 			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
-				game.scene.SetActive(Hash("level_select"));
+				game.scene.AddActive(Hash("level_select"));
 			},
 			color::Blue, color::Black
 		));
-		/*buttons.push_back(CreateMenuButton(
-			"Settings", color::White,
+		buttons.push_back(CreateMenuButton(
+			"Tutorial", color::White,
 			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
-				game.scene.SetActive(Hash("level_select"));
+				game.scene.AddActive(Hash("tutorial_text"));
 			},
-			color::Gold, color::Black
-		));*/
+			color::Blue, color::Black
+		));
 
 		/*	buttons[0].button->SetRectangle({ V2_int{ 550, 505 }, button_size, Origin::TopLeft });
 			buttons[1].button->SetRectangle({ V2_int{ 780, 505 }, button_size, Origin::TopLeft });*/
-		buttons[0].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+		buttons[0].button->SetRectangle({ V2_int{ 560, 505 }, button_size, Origin::TopLeft });
+		buttons[1].button->SetRectangle({ V2_int{ 770, 505 }, button_size, Origin::TopLeft });
 
 		for (int i = 0; i < (int)buttons.size(); i++) {
 			buttons[i].button->SubscribeToMouseEvents();
@@ -1255,7 +1381,7 @@ public:
 		//	"Settings", color::White,
 		//	[]() {
 		//		/*game.scene.RemoveActive(Hash("main_menu"));
-		//		game.scene.SetActive(Hash("game"));*/
+		//		game.scene.AddActive(Hash("game"));*/
 		//	},
 		//	color::Red, color::Black
 		//));
@@ -1295,8 +1421,7 @@ public:
 
 void BackToLevelSelect() {
 	game.scene.Load<LevelSelect>(Hash("level_select"));
-	game.scene.RemoveActive(Hash("game"));
-	game.scene.SetActive(Hash("level_select"));
+	game.scene.AddActive(Hash("level_select"));
 	game.scene.Unload(Hash("game"));
 }
 
@@ -1312,12 +1437,13 @@ public:
 		game.renderer.SetClearColor(color::Silver);
 		game.window.SetSize(resolution);
 
-		/*std::size_t initial_scene{ Hash("main_menu") };
-		game.scene.Load<MainMenu>(initial_scene);*/
+		std::size_t initial_scene{ Hash("main_menu") };
+		game.scene.Load<MainMenu>(initial_scene);
 
-		std::size_t initial_scene{ Hash("game") };
-		game.scene.Load<GameScene>(initial_scene);
-		game.scene.SetActive(initial_scene);
+		/*std::size_t initial_scene{ Hash("game") };
+		game.scene.Load<GameScene>(initial_scene);*/
+
+		game.scene.AddActive(initial_scene);
 	}
 };
 
