@@ -89,6 +89,8 @@ struct TintColor : public Color {
 	TintColor(const Color& color) : Color{ color } {}
 };
 
+struct CameraShake {};
+
 struct Warning {
 	void Init(ecs::Entity player) {
 		game.tween.Load(Hash("warning_flash"))
@@ -97,11 +99,16 @@ struct Warning {
 			.OnRepeat([=](Tween tween) mutable {
 				if (tween.GetRepeats() % 2 == 0) {
 					player.Add<TintColor>() = color::Red;
+					player.Add<CameraShake>();
 				} else {
 					player.Remove<TintColor>();
+					player.Remove<CameraShake>();
 				}
 			})
-			.OnStop([=]() mutable { player.Remove<TintColor>(); })
+			.OnStop([=]() mutable {
+				player.Remove<TintColor>();
+				player.Remove<CameraShake>();
+			})
 			.Start();
 	}
 
@@ -784,7 +791,15 @@ public:
 
 		// Center camera on player.
 		auto& primary{ camera.GetCurrent() };
-		primary.SetPosition(transform.position);
+
+		V2_float shake;
+
+		if (player.Has<CameraShake>()) {
+			float camera_shake_amplitude{ 1.0f };
+			shake = V2_float::RandomHeading() * camera_shake_amplitude;
+		}
+
+		primary.SetPosition(transform.position + shake);
 
 		V2_int player_tile = transform.position / tile_size;
 
@@ -1178,6 +1193,8 @@ TextButton CreateMenuButton(
 class LevelSelect : public Scene {
 public:
 	std::vector<TextButton> buttons;
+
+	std::size_t difficulty_layer{ 0 };
 
 	LevelSelect() {
 		if (!game.font.Has(Hash("menu_font"))) {
