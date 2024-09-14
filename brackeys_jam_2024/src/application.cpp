@@ -1237,6 +1237,8 @@ TextButton CreateMenuButton(
 	b.SetOnHover(
 		[=]() mutable { text.SetColor(hover_color); }, [=]() mutable { text.SetColor(text_color); }
 	);
+	b.SetOnEnable([=]() mutable { text.SetColor(text_color); });
+	b.SetOnDisable([=]() mutable { text.SetColor(color::Black); });
 	b.SetOnActivate(f);
 	b.SetColor(color);
 	b.SetHoverColor(hover_color);
@@ -1269,7 +1271,7 @@ public:
 	void Init() final {
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Back", color::White,
+			"Back", color::Silver,
 			[&]() {
 				game.scene.RemoveActive(Hash("text_screen"));
 				if (!game.scene.Has(Hash(back_name))) {
@@ -1278,7 +1280,7 @@ public:
 				PTGN_ASSERT(game.scene.Has(Hash(back_name)));
 				game.scene.AddActive(Hash(back_name));
 			},
-			color::LightGrey, color::Black
+			color::Transparent, color::Black
 		));
 
 		buttons[0].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
@@ -1326,19 +1328,13 @@ public:
 
 	json level_data;
 
-	bool CompletedLevel(int level) {
+	bool CompletedLevel(int level) const {
 		return completed_levels.count(level) > 0;
 	}
 
-	bool ShownLevel(int level) {
-		return std::any_of(shown_levels.begin(), shown_levels.end(), [=](int l) {
-			return level == l;
-		});
-	}
-
 	json GetLevel(int level) const {
-		for (auto& l : level_data["levels"]) {
-			if (l["id"] == level) {
+		for (const auto& l : level_data.at("levels")) {
+			if (l.at("id") == level) {
 				return l;
 			}
 		}
@@ -1348,7 +1344,7 @@ public:
 	std::string GetDetails(int level) const {
 		PTGN_ASSERT(level != -1);
 		auto l = GetLevel(level);
-		return l["details"];
+		return l.at("details");
 	}
 
 	LevelSelect() {
@@ -1369,8 +1365,6 @@ public:
 	// level, button, tint
 	std::vector<std::tuple<int, std::shared_ptr<TexturedToggleButton>>> level_buttons;
 
-	std::vector<int> shown_levels;
-
 	void ToggleOtherLevel() {
 		for (auto& [l, button] : level_buttons) {
 			if (l != selected_level) {
@@ -1384,7 +1378,7 @@ public:
 		Rectangle rect;
 
 		auto l			= GetLevel(level);
-		std::size_t key = Hash(l["ui_icon"]);
+		std::size_t key = Hash(l.at("ui_icon"));
 
 		PTGN_ASSERT(game.texture.Has(key));
 
@@ -1397,24 +1391,24 @@ public:
 			rect, std::vector<TextureOrKey>{ texture, texture }
 		);
 
-		Color select_color = color::Black;
-		Color hover_color  = color::Grey;
+		Color tornado_select_color = color::Black;
+		Color tornado_hover_color  = color::Grey;
 
-		button->SetOnActivate([this, button, level, select_color]() {
+		button->SetOnActivate([this, button, level, tornado_select_color]() {
 			selected_level = level;
 			PTGN_INFO("Selected level: ", level);
-			button->SetTintColor(select_color);
+			button->SetTintColor(tornado_select_color);
 			ToggleOtherLevel();
 		});
 		button->SetOnHover(
 			[=]() {
 				if (button->GetTintColor() == color::White) {
-					button->SetTintColor(hover_color);
+					button->SetTintColor(tornado_hover_color);
 					PTGN_INFO("Hover started on button for level: ", level);
 				}
 			},
 			[=]() {
-				if (button->GetTintColor() == hover_color) {
+				if (button->GetTintColor() == tornado_hover_color) {
 					button->SetTintColor(color::White);
 					PTGN_INFO("Hover stopped on button for level: ", level);
 				}
@@ -1424,29 +1418,6 @@ public:
 	}
 
 	int selected_level{ -1 };
-
-	int GetValidLevel() {
-		int level = -1;
-		int i	  = 0;
-		while (i < 3000) {
-			i++;
-			int branch	   = branch_rng();
-			auto& branches = level_data["branches"];
-			PTGN_ASSERT(
-				branch < branches.size(), "Randomly selected branch out of range of branches"
-			);
-			auto& levels = branches[branch];
-			if (difficulty_layer >= levels.size()) {
-				continue;
-			}
-			int potential_level = levels[difficulty_layer];
-			if (CompletedLevel(potential_level) || ShownLevel(potential_level)) {
-				continue;
-			}
-			return potential_level;
-		}
-		return level;
-	}
 
 	V2_float level_button_offset0{ 0, -100 };
 	V2_float level_button_offset1{ -100, -170 };
@@ -1458,58 +1429,75 @@ public:
 		}
 
 		level_buttons.clear();
-		shown_levels.clear();
 		selected_level = -1;
 	}
 
-	RNG<int> branch_rng;
+	std::set<int> GetPotentialLevels() {
+		std::set<int> potential_levels;
+
+		for (auto& b : level_data.at("branches")) {
+			if (difficulty_layer >= b.size()) {
+				continue;
+			}
+			int potential_level = b[difficulty_layer];
+			if (CompletedLevel(potential_level)) {
+				continue;
+			}
+			potential_levels.emplace(potential_level);
+		}
+		while (potential_levels.size() > 2) {
+			RNG<std::size_t> removal{ 0, potential_levels.size() - 1 };
+			auto it = potential_levels.begin();
+			std::advance(it, removal());
+			potential_levels.erase(it);
+		}
+
+		return potential_levels;
+	}
 
 	void Init() final {
 		level_data = GetLevelData();
 
-		branch_rng = { 0, static_cast<int>(level_data["branches"].size()) - 1 };
-
-		for (const auto& l : level_data["levels"]) {
-			std::string icon_path = l["ui_icon"];
-			std::size_t key{ Hash(icon_path) };
-			if (!game.texture.Has(key)) {
-				PTGN_ASSERT(FileExists(icon_path), "Could not find icon for level: ", l["id"]);
-				game.texture.Load(key, icon_path);
-			}
+		for (int l : level_data.at("completed_levels")) {
+			completed_levels.emplace(l);
 		}
 
-		if (shown_levels.empty()) {
-			int first_level = GetValidLevel();
-
-			int second_level = -1;
-			if (first_level == -1) {
-				difficulty_layer++;
-				first_level = GetValidLevel();
-				if (first_level == -1) {
-					PTGN_LOG("No more levels available! You won them all");
-				} else {
-					shown_levels.emplace_back(first_level);
-					second_level = GetValidLevel();
-					shown_levels.emplace_back(second_level);
-				}
-			} else {
-				shown_levels.emplace_back(first_level);
-				second_level = GetValidLevel();
-				shown_levels.emplace_back(second_level);
+		for (const auto& l : level_data.at("levels")) {
+			std::string icon_path = l.at("ui_icon");
+			std::size_t key{ Hash(icon_path) };
+			if (!game.texture.Has(key)) {
+				PTGN_ASSERT(FileExists(icon_path), "Could not find icon for level: ", l.at("id"));
+				game.texture.Load(key, icon_path);
 			}
 		}
 
 		bool was_cleared{ level_buttons.empty() };
 
-		if (was_cleared && shown_levels.size() > 0 && shown_levels[0] != -1) {
-			CreateLevelButton(shown_levels[0]);
+		if (was_cleared) {
+			std::size_t furthest_branch = 0;
+
+			for (const auto& b : level_data.at("branches")) {
+				for (std::size_t i = 0; i < b.size(); i++) {
+					furthest_branch = std::max(i, furthest_branch);
+				}
+			}
+
+			std::set<int> potential_levels;
+
+			while (difficulty_layer <= furthest_branch) {
+				potential_levels = GetPotentialLevels();
+				if (!potential_levels.empty()) {
+					break;
+				}
+				difficulty_layer++;
+			}
+
+			for (int l : potential_levels) {
+				CreateLevelButton(l);
+			}
 		}
 
-		if (was_cleared && shown_levels.size() > 1 && shown_levels[1] != -1) {
-			CreateLevelButton(shown_levels[1]);
-		}
-
-		if (level_buttons.size() == 0) {
+		if (level_buttons.empty()) {
 			/* win screen? */
 		} else if (level_buttons.size() == 1) {
 			auto& button{ std::get<1>(level_buttons[0]) };
@@ -1536,16 +1524,16 @@ public:
 
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Confirm", color::White,
+			"Chase", color::Green,
 			[&]() {
 				auto level = selected_level;
 				ClearChoices();
 				StartGame(level);
 			},
-			color::Blue, color::Black
+			color::Transparent, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Details", color::White,
+			"Details", color::Gold,
 			[&]() {
 				game.scene.RemoveActive(Hash("level_select"));
 				auto screen		  = game.scene.Get<TextScreen>(Hash("text_screen"));
@@ -1554,10 +1542,10 @@ public:
 				screen->text.SetContent(GetDetails(selected_level));
 				game.scene.AddActive(Hash("text_screen"));
 			},
-			color::Gold, color::Black
+			color::Transparent, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Back", color::White,
+			"Back", color::Silver,
 			[&]() {
 				game.scene.RemoveActive(Hash("level_select"));
 				if (!game.scene.Has(Hash("main_menu"))) {
@@ -1565,7 +1553,7 @@ public:
 				}
 				game.scene.AddActive(Hash("main_menu"));
 			},
-			color::LightGrey, color::Black
+			color::Transparent, color::Black
 		));
 
 		buttons[0].button->SetRectangle({ V2_int{ 596, 505 }, button_size, Origin::CenterTop });
@@ -1600,7 +1588,7 @@ public:
 		} else {
 			buttons[0].button->SetInteractable(true);
 			buttons[1].button->SetInteractable(true);
-			buttons[0].text.SetContent("Confirm");
+			buttons[0].text.SetContent("Chase");
 			buttons[1].text.SetContent("Details");
 		}
 
@@ -1653,7 +1641,7 @@ public:
 	void Init() final {
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Play", color::White,
+			"Play", color::Cyan,
 			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
 				if (game.scene.Has(Hash("level_select"))) {
@@ -1661,10 +1649,10 @@ public:
 				}
 				game.scene.AddActive(Hash("level_select"));
 			},
-			color::Blue, color::Black
+			color::Transparent, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Tutorial", color::White,
+			"Tutorial", color::Gold,
 			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
 				auto screen		  = game.scene.Get<TextScreen>(Hash("text_screen"));
@@ -1676,7 +1664,7 @@ public:
 				);
 				game.scene.AddActive(Hash("text_screen"));
 			},
-			color::Blue, color::Black
+			color::Transparent, color::Black
 		));
 
 		/*	buttons[0].button->SetRectangle({ V2_int{ 550, 505 }, button_size, Origin::TopLeft });
