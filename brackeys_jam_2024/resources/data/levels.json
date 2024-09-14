@@ -1,10 +1,10 @@
 {
   "branches": [
-    [0, 1, 4, 6, 9, "faster"],
-    [0, 2, 5, 7, 9, "more"  ],
-    [0, 0, 3, 8, 9, "bigger"]
+    [0, 1, 4, 6, 9],
+    [0, 2, 5, 7, 9],
+    [0, 0, 3, 8, 9]
   ],
-  "completed_levels": [0, 1, 2],
+  "completed_levels": [],
   "levels": [
     {
       "id": 0,
