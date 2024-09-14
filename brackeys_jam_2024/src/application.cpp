@@ -408,7 +408,7 @@ struct Progress {
 
 		const Texture tornado_icon = game.texture.Get(Hash("tornado_icon"));
 
-		const V2_float icon_size{ tornado_icon.GetSize() };
+		const V2_float icon_size{ tornado_icon.GetSize() * 1.5f };
 
 		float total_width{ icon_size.x * required_tornadoes.size() +
 						   (required_tornadoes.size() - 1) * icon_x_offset };
@@ -455,9 +455,68 @@ struct Progress {
 		);
 	}
 
-	void Draw() {
+	void DrawTornadoArrow(const V2_float& player_pos) {
+		if (progress <= 0.0f || current_tornado == ecs::null) {
+			return;
+		}
+
+		PTGN_ASSERT(game.texture.Has(Hash("tornado_arrow")));
+		PTGN_ASSERT(game.texture.Has(Hash("tornado_arrow")));
+
+		const Texture tornado_arrow_texture = game.texture.Get(Hash("tornado_arrow"));
+
+		const float scale{ 1.0f };
+		V2_float arrow_size{ tornado_arrow_texture.GetSize() * scale };
+
+		PTGN_ASSERT(current_tornado.Has<Transform>());
+		PTGN_ASSERT(current_tornado.Has<TornadoComponent>());
+
+		V2_float tornado_center{ current_tornado.Get<Transform>().position };
+		TornadoComponent tornado_properties{ current_tornado.Get<TornadoComponent>() };
+
+		V2_float dir{ tornado_center - player_pos };
+
+		float dist{ dir.Magnitude() };
+
+		if (dist >= tornado_properties.data_radius) {
+			return;
+		}
+
+		PTGN_ASSERT(tornado_properties.data_radius > tornado_properties.escape_radius);
+		float range{ tornado_properties.data_radius -
+					 (tornado_properties.escape_radius + arrow_size.x) };
+
+		float dist_from_escape{ dist - (tornado_properties.escape_radius + arrow_size.x) };
+
+		float normalized_dist{ dist_from_escape / range };
+
+		if (normalized_dist <= 0.0f) {
+			return;
+		}
+
+		Color color = Lerp(color::Red, color::Green, normalized_dist);
+
+		const float arrow_pixels_from_player{ 25 };
+
+		V2_float arrow_pos{ player_pos + dir / dist * arrow_pixels_from_player };
+
+		float arrow_rotation{ dir.Angle() };
+
+		game.renderer.DrawTexture(
+			tornado_arrow_texture, arrow_pos, arrow_size, {}, {}, Origin::Center, Flip::None,
+			arrow_rotation, { 0.5f, 0.5f }, 10.0f, color
+		);
+	}
+
+	void Draw(const V2_float& player_pos) {
 		DrawTornadoProgress();
 		DrawTornadoIcons();
+
+		game.renderer.Flush();
+		game.camera.SetCameraPrimary();
+		DrawTornadoArrow(player_pos);
+		game.renderer.Flush();
+		game.camera.SetCameraWindow();
 	}
 
 	[[nodiscard]] bool CompletedTornado(ecs::Entity tornado) {
@@ -579,6 +638,7 @@ public:
 		game.texture.Load(Hash("house_destroyed"), "resources/entity/house_destroyed.png");
 		game.texture.Load(Hash("tornado_icon"), "resources/ui/tornado_icon.png");
 		game.texture.Load(Hash("tornado_icon_green"), "resources/ui/tornado_icon_green.png");
+		game.texture.Load(Hash("tornado_arrow"), "resources/ui/arrow.png");
 		game.texture.Load(Hash("speedometer"), "resources/ui/speedometer.png");
 	}
 
@@ -1390,7 +1450,8 @@ public:
 		// Draw UI here...
 
 		PTGN_ASSERT(player.Has<Progress>());
-		player.Get<Progress>().Draw();
+		PTGN_ASSERT(player.Has<Transform>());
+		player.Get<Progress>().Draw(player.Get<Transform>().position);
 		DrawSpeedometer();
 
 		game.renderer.Flush();
