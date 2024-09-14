@@ -1,9 +1,8 @@
   {
       "branches": [
-              [0],
-              [0, 1, 4],
-              [0, 2, 6, 5],
-              [0, 0, 3, 8]
+              [0, 1, 4, 7, 9, "faster"],
+              [0, 2, 5, 6, 9, "more"],
+              [0, 0, 3, 8, 9, "bigger"]
       ],
       "levels": [
           {
@@ -26,7 +25,7 @@
               "details": "Information: \nThis 'nado is moving! Can you keep up?\nDifficulty: Easy",
               "tornadoes": [{
                   "sequence": [
-                      { "x": 720, "y": 3500, "time_to_next": 1000 },
+                      { "x": 720, "y": 3500, "time_to_next": 60000 },
                       { "x": 720, "y": 300, "time_to_next": -1 }
                   ],
                   "texture": "resources/entity/tornado.png",
@@ -60,7 +59,7 @@
               "details": "Information: \nThis tornado is bigger than we've seen before.\nDifficulty: Medium",
               "tornadoes": [{
                   "sequence": [
-                      { "x": 900, "y": 3600, "time_to_next": 1000 },
+                      { "x": 900, "y": 3600, "time_to_next": 60000 },
                       { "x": 900, "y": 300, "time_to_next": -1 }
                   ],
                   "texture": "resources/entity/tornado.png",
@@ -70,12 +69,19 @@
           {
             "id": 4,
               "ui_icon": "resources/ui/tornado4.png",
-              "screen_size": [1, 5],
-              "details": "Information: \nThis tornado is very large and powerful!\nDifficulty: Medium",
+              "screen_size": [1, 8],
+              "details": "Information: \nYou'll need to use some real chasin' skills for this one. \nDifficulty: Medium",
               "tornadoes": [{
                   "sequence": [
-                      { "x": 300, "y": 300, "time_to_next": 1000 },
-                      { "x": 300, "y": 300, "time_to_next": 1000 }
+                      { "x": 300, "y": 4100, "time_to_next": 5000 },
+                      { "x": 900, "y": 4000, "time_to_next": 5000 },
+                      { "x": 300, "y": 3900, "time_to_next": 5000 },
+                      { "x": 900, "y": 3800, "time_to_next": 5000 },
+                      { "x": 300, "y": 3700, "time_to_next": 5000 },
+                      { "x": 900, "y": 3600, "time_to_next": 5000 },
+                      { "x": 300, "y": 3500, "time_to_next": 5000 },
+                      { "x": 900, "y": 3400, "time_to_next": 5000 },
+                      { "x": 300, "y": 3300, "time_to_next": 5000 }
                   ],
                   "texture": "resources/entity/tornado.png",
                   "size": []
@@ -85,14 +91,30 @@
             "id": 5,
               "ui_icon": "resources/ui/tornado5.png",
               "screen_size": [1, 5],
-              "details": "Information: \nThe largest tornado ever found with incredibly strong winds!\nDifficulty: Hard",
+              "details": "Information: \nHopefully you can navigate three fully developed tornadoes! \nDifficulty: Medium",
               "tornadoes": [{
                   "sequence": [
-                      { "x": 300, "y": 300, "time_to_next": 1000 },
-                      { "x": 300, "y": 300, "time_to_next": 1000 }
+                      { "x": 720, "y": 300, "time_to_next": 60000 },
+                      { "x": 720, "y": 3500, "time_to_next": -1 }
                   ],
                   "texture": "resources/entity/tornado.png",
                   "size": []
+              },
+              {
+                  "sequence": [
+                      { "x": 300, "y": 3500, "time_to_next": 60000 },
+                      { "x": 300, "y": 300, "time_to_next": -1 }
+                    ],
+                    "texture": "resources/entity/tornado.png",
+                    "size": []
+              },
+              {
+                  "sequence": [
+                      { "x": 1000, "y": 3500, "time_to_next": 60000 },
+                      { "x": 1000, "y": 300, "time_to_next": -1 }
+                    ],
+                    "texture": "resources/entity/tornado.png",
+                    "size": []
               }]
           },
           {
@@ -136,7 +158,21 @@
                   "texture": "resources/entity/tornado.png",
                   "size": []
               }]
-          }
+          },
+          {
+            "id": 9,
+              "ui_icon": "resources/ui/tornado9.png",
+              "screen_size": [1, 5],
+              "details": "Information: \nThis is the craziest system we've ever seen. Watch out!\nDifficulty: Very Hard",
+              "tornadoes": [{
+                  "sequence": [
+                      { "x": 300, "y": 300, "time_to_next": 1000 },
+                      { "x": 300, "y": 300, "time_to_next": 1000 }
+                  ],
+                  "texture": "resources/entity/tornado.png",
+                  "size": []
+              }]
+            }
           
       ]
   }
