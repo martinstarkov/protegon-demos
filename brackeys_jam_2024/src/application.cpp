@@ -1326,19 +1326,13 @@ public:
 
 	json level_data;
 
-	bool CompletedLevel(int level) {
+	bool CompletedLevel(int level) const {
 		return completed_levels.count(level) > 0;
 	}
 
-	bool ShownLevel(int level) {
-		return std::any_of(shown_levels.begin(), shown_levels.end(), [=](int l) {
-			return level == l;
-		});
-	}
-
 	json GetLevel(int level) const {
-		for (auto& l : level_data["levels"]) {
-			if (l["id"] == level) {
+		for (const auto& l : level_data.at("levels")) {
+			if (l.at("id") == level) {
 				return l;
 			}
 		}
@@ -1348,10 +1342,14 @@ public:
 	std::string GetDetails(int level) const {
 		PTGN_ASSERT(level != -1);
 		auto l = GetLevel(level);
-		return l["details"];
+		return l.at("details");
 	}
 
 	LevelSelect() {
+		completed_levels.emplace(0);
+		completed_levels.emplace(1);
+		// completed_levels.emplace(2);
+
 		if (!game.font.Has(Hash("menu_font"))) {
 			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
 		}
@@ -1369,8 +1367,6 @@ public:
 	// level, button, tint
 	std::vector<std::tuple<int, std::shared_ptr<TexturedToggleButton>>> level_buttons;
 
-	std::vector<int> shown_levels;
-
 	void ToggleOtherLevel() {
 		for (auto& [l, button] : level_buttons) {
 			if (l != selected_level) {
@@ -1384,7 +1380,7 @@ public:
 		Rectangle rect;
 
 		auto l			= GetLevel(level);
-		std::size_t key = Hash(l["ui_icon"]);
+		std::size_t key = Hash(l.at("ui_icon"));
 
 		PTGN_ASSERT(game.texture.Has(key));
 
@@ -1425,29 +1421,6 @@ public:
 
 	int selected_level{ -1 };
 
-	int GetValidLevel() {
-		int level = -1;
-		int i	  = 0;
-		while (i < 3000) {
-			i++;
-			int branch	   = branch_rng();
-			auto& branches = level_data["branches"];
-			PTGN_ASSERT(
-				branch < branches.size(), "Randomly selected branch out of range of branches"
-			);
-			auto& levels = branches[branch];
-			if (difficulty_layer >= levels.size()) {
-				continue;
-			}
-			int potential_level = levels[difficulty_layer];
-			if (CompletedLevel(potential_level) || ShownLevel(potential_level)) {
-				continue;
-			}
-			return potential_level;
-		}
-		return level;
-	}
-
 	V2_float level_button_offset0{ 0, -100 };
 	V2_float level_button_offset1{ -100, -170 };
 	V2_float level_button_offset2{ +120, -50 };
@@ -1458,58 +1431,71 @@ public:
 		}
 
 		level_buttons.clear();
-		shown_levels.clear();
 		selected_level = -1;
 	}
 
-	RNG<int> branch_rng;
+	std::set<int> GetPotentialLevels() {
+		std::set<int> potential_levels;
+
+		for (auto& b : level_data.at("branches")) {
+			if (difficulty_layer >= b.size()) {
+				continue;
+			}
+			int potential_level = b[difficulty_layer];
+			if (CompletedLevel(potential_level)) {
+				continue;
+			}
+			potential_levels.emplace(potential_level);
+		}
+		while (potential_levels.size() > 2) {
+			RNG<std::size_t> removal{ 0, potential_levels.size() - 1 };
+			auto it = potential_levels.begin();
+			std::advance(it, removal());
+			potential_levels.erase(it);
+		}
+
+		return potential_levels;
+	}
 
 	void Init() final {
 		level_data = GetLevelData();
 
-		branch_rng = { 0, static_cast<int>(level_data["branches"].size()) - 1 };
-
-		for (const auto& l : level_data["levels"]) {
-			std::string icon_path = l["ui_icon"];
+		for (const auto& l : level_data.at("levels")) {
+			std::string icon_path = l.at("ui_icon");
 			std::size_t key{ Hash(icon_path) };
 			if (!game.texture.Has(key)) {
-				PTGN_ASSERT(FileExists(icon_path), "Could not find icon for level: ", l["id"]);
+				PTGN_ASSERT(FileExists(icon_path), "Could not find icon for level: ", l.at("id"));
 				game.texture.Load(key, icon_path);
-			}
-		}
-
-		if (shown_levels.empty()) {
-			int first_level = GetValidLevel();
-
-			int second_level = -1;
-			if (first_level == -1) {
-				difficulty_layer++;
-				first_level = GetValidLevel();
-				if (first_level == -1) {
-					PTGN_LOG("No more levels available! You won them all");
-				} else {
-					shown_levels.emplace_back(first_level);
-					second_level = GetValidLevel();
-					shown_levels.emplace_back(second_level);
-				}
-			} else {
-				shown_levels.emplace_back(first_level);
-				second_level = GetValidLevel();
-				shown_levels.emplace_back(second_level);
 			}
 		}
 
 		bool was_cleared{ level_buttons.empty() };
 
-		if (was_cleared && shown_levels.size() > 0 && shown_levels[0] != -1) {
-			CreateLevelButton(shown_levels[0]);
+		if (was_cleared) {
+			std::size_t furthest_branch = 0;
+
+			for (const auto& b : level_data.at("branches")) {
+				for (std::size_t i = 0; i < b.size(); i++) {
+					furthest_branch = std::max(i, furthest_branch);
+				}
+			}
+
+			std::set<int> potential_levels;
+
+			while (difficulty_layer <= furthest_branch) {
+				potential_levels = GetPotentialLevels();
+				if (!potential_levels.empty()) {
+					break;
+				}
+				difficulty_layer++;
+			}
+
+			for (int l : potential_levels) {
+				CreateLevelButton(l);
+			}
 		}
 
-		if (was_cleared && shown_levels.size() > 1 && shown_levels[1] != -1) {
-			CreateLevelButton(shown_levels[1]);
-		}
-
-		if (level_buttons.size() == 0) {
+		if (level_buttons.empty()) {
 			/* win screen? */
 		} else if (level_buttons.size() == 1) {
 			auto& button{ std::get<1>(level_buttons[0]) };
