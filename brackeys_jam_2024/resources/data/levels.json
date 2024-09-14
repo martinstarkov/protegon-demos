@@ -7,6 +7,7 @@
       "levels": [
           {
             "id": 0,
+            "seed": 0,
               "ui_icon": "resources/ui/tornado0.png",
               "screen_size": [1, 2],
               "details": "Information: \nA stagnant tornado. See how close you can get!\nDifficulty: Easy",
@@ -20,6 +21,7 @@
           },
           {
             "id": 1,
+            "seed": 1000,
               "ui_icon": "resources/ui/tornado1.png",
               "screen_size": [1, 5],
               "details": "Information: \nThis 'nado is moving! Can you keep up?\nDifficulty: Easy",
@@ -34,6 +36,7 @@
           },
           {
             "id": 2,
+            "seed": 2000,
               "ui_icon": "resources/ui/tornado2.png",
               "screen_size": [1, 3],
               "details": "Information: \nLook out! Two tornadoes have formed near each other. \nDifficulty: Easy",
@@ -54,6 +57,7 @@
           },
           {
             "id": 3,
+            "seed": 3000,
               "ui_icon": "resources/ui/tornado3.png",
               "screen_size": [1, 8],
               "details": "Information: \nThis tornado is bigger than we've seen before.\nDifficulty: Medium",
@@ -68,6 +72,7 @@
           },
           {
             "id": 4,
+            "seed": 4000,
               "ui_icon": "resources/ui/tornado4.png",
               "screen_size": [1, 8],
               "details": "Information: \nYou'll need to use some real chasin' skills for this one. \nDifficulty: Medium",
@@ -89,6 +94,7 @@
           },
           {
             "id": 5,
+            "seed": 5000,
               "ui_icon": "resources/ui/tornado5.png",
               "screen_size": [1, 5],
               "details": "Information: \nHopefully you can navigate three fully developed tornadoes! \nDifficulty: Medium",
@@ -119,6 +125,7 @@
           },
           {
             "id": 6,
+            "seed": 6000,
               "ui_icon": "resources/ui/tornado6.png",
               "screen_size": [1, 5],
               "details": "Information: \nThis is a simple twin tornado system.\nDifficulty: Easy",
@@ -133,6 +140,7 @@
           },
           {
             "id": 7,
+            "seed": 7000,
               "ui_icon": "resources/ui/tornado7.png",
               "screen_size": [1, 5],
               "details": "Information: \nThis twin system of tornados moves quickly and unpredictably!\nDifficulty: Medium",
@@ -147,6 +155,7 @@
           },
           {
             "id": 8,
+            "seed": 8000,
               "ui_icon": "resources/ui/tornado8.png",
               "screen_size": [1, 5],
               "details": "Information: \nThis is a system of three aggressive tornados. Watch out!\nDifficulty: Hard",
@@ -161,6 +170,7 @@
           },
           {
             "id": 9,
+            "seed": 9000,
               "ui_icon": "resources/ui/tornado9.png",
               "screen_size": [1, 5],
               "details": "Information: \nThis is the craziest system we've ever seen. Watch out!\nDifficulty: Very Hard",
