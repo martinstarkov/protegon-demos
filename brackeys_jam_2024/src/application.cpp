@@ -1,12 +1,15 @@
+#include <set>
 #include <unordered_set>
 
 #include "protegon/protegon.h"
 
 using namespace ptgn;
 
-constexpr const V2_int resolution{ 1440, 810 };
-constexpr const V2_int center{ resolution / 2 };
-constexpr const bool draw_hitboxes{ true };
+constexpr V2_int resolution{ 1440, 810 };
+constexpr V2_int center{ resolution / 2 };
+constexpr bool draw_hitboxes{ true };
+
+static void LoadMainMenu();
 
 enum class TileType {
 	Grass,
@@ -22,13 +25,16 @@ TileType GetTileType(float noise_value) {
 		return TileType::None;
 	}
 
-	if (noise_value >= 0.0f && noise_value <= 0.5f) {
+	if (noise_value >= 0.0f && noise_value <= 0.6f) {
+		return TileType::Grass;
+	} else if (noise_value > 0.6f && noise_value <= 1.0f) {
 		return TileType::Corn;
-	} else if (noise_value > 0.59f && noise_value < 0.6f) {
-		return TileType::House;
-	} else {
+	}
+	/*
+	 else {
 		return TileType::Grass;
 	}
+	*/
 	PTGN_ERROR("Unrecognized tile type");
 }
 
@@ -62,8 +68,11 @@ struct Aerodynamics {
 };
 
 struct VehicleComponent {
-	float forward_thrust{ 0.0f };
-	float backward_thrust{ 0.0f };
+	float throttle{ 0.0f };
+	milliseconds throttle_time{ 0 };
+
+	float thrust{ 0.0f };
+	float backward_thrust_frac{ 0.0f };
 	float turn_speed{ 0.0f };
 
 	float inertia{ 0.0f };
@@ -71,8 +80,10 @@ struct VehicleComponent {
 	V2_float
 		prev_acceleration; // acceleration in the current frame (cached even after it is cleared).
 
+	Texture texture;
 	Texture vehicle_texture;
 	Texture wheel_texture;
+	Texture vehicle_dirty_texture;
 
 	float wheel_rotation{ 0.0f };
 };
@@ -83,6 +94,8 @@ struct TintColor : public Color {
 	TintColor(const Color& color) : Color{ color } {}
 };
 
+struct CameraShake {};
+
 struct Warning {
 	void Init(ecs::Entity player) {
 		game.tween.Load(Hash("warning_flash"))
@@ -90,12 +103,28 @@ struct Warning {
 			.Repeat(-1)
 			.OnRepeat([=](Tween& tween) mutable {
 				if (tween.GetRepeats() % 2 == 0) {
-					player.Add<TintColor>() = color::Red;
+					if (player.Has<VehicleComponent>()) {
+						auto& v	  = player.Get<VehicleComponent>();
+						v.texture = v.vehicle_dirty_texture;
+					}
+					player.Add<CameraShake>();
 				} else {
-					player.Remove<TintColor>();
+					if (player.Has<VehicleComponent>()) {
+						auto& v	  = player.Get<VehicleComponent>();
+						v.texture = v.vehicle_texture;
+					}
+					// player.Remove<TintColor>();
+					player.Remove<CameraShake>();
 				}
 			})
-			.OnStop([=]() mutable { player.Remove<TintColor>(); })
+			.OnStop([=]() mutable {
+				if (player.Has<VehicleComponent>()) {
+					auto& v	  = player.Get<VehicleComponent>();
+					v.texture = v.vehicle_texture;
+				}
+				// player.Remove<TintColor>();
+				player.Remove<CameraShake>();
+			})
 			.Start();
 	}
 
@@ -120,6 +149,27 @@ struct Lifetime {
 		return timer.ElapsedPercentage(lifetime) >= 1.0f;
 	}
 };
+
+static void ApplyBounds(ecs::Entity e, const Rectangle<float>& bounds) {
+	if (!e.Has<Transform>()) {
+		return;
+	}
+	auto& pos = e.Get<Transform>().position;
+	V2_float min{ pos };
+	V2_float max{ pos };
+	V2_float bounds_max{ bounds.Max() };
+	V2_float bounds_min{ bounds.Min() };
+	if (min.x < bounds_min.x) {
+		pos.x += bounds_min.x - min.x;
+	} else if (max.x > bounds_max.x) {
+		pos.x += bounds_max.x - max.x;
+	}
+	if (min.y < bounds_min.y) {
+		pos.y += bounds_min.y - min.y;
+	} else if (max.y > bounds_max.y) {
+		pos.y += bounds_max.y - max.y;
+	}
+}
 
 struct TornadoComponent {
 	float turn_speed{ 0.0f };
@@ -286,10 +336,6 @@ struct Progress {
 
 	float progress{ 0.0f };
 
-	constexpr static V2_float meter_pos{
-		25, 258
-	}; // center bottom screen position of the tornado progress indicator.
-
 	void Stop(ecs::Entity tornado) {
 		if (tornado != current_tornado || tornado == ecs::null) {
 			return;
@@ -363,20 +409,26 @@ struct Progress {
 			return;
 		}
 
-		V2_float meter_size{ texture.GetSize() };
+		V2_float meter_pos{
+			4.0f, resolution.y / 2.0f
+		}; // center bottom screen position of the tornado progress indicator.
+
+		const float scale{ 2.0f };
+
+		V2_float meter_size{ texture.GetSize() * scale };
 
 		Color color = Lerp(color::Grey, color::Green, progress);
 
-		V2_float border_size{ 4, 4 };
+		V2_float border_size{ V2_float{ 4, 4 } * scale };
 
 		V2_float fill_size{ meter_size - border_size * 2.0f };
 
-		V2_float fill_pos{ meter_pos.x, meter_pos.y - border_size.y };
+		V2_float fill_pos{ meter_pos.x + border_size.x, meter_pos.y + fill_size.y / 2.0f };
 
-		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::CenterBottom);
+		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::CenterLeft);
 
 		game.renderer.DrawRectangleFilled(
-			fill_pos, { fill_size.x, fill_size.y * progress }, color, Origin::CenterBottom
+			fill_pos, { fill_size.x, fill_size.y * progress }, color, Origin::BottomLeft
 		);
 	}
 
@@ -472,10 +524,9 @@ public:
 
 	ecs::Entity player;
 
-	float scale{ 4.0f };
-
-	const V2_float tile_size{ 32, 32 };
-	const V2_int grid_size{ 300, 300 };
+	const V2_int tile_size{ 16, 16 };
+	const V2_int grid_size{ static_cast<int>(1 * resolution.x / tile_size.x),
+							static_cast<int>(2 * resolution.y / tile_size.y) };
 
 	NoiseProperties noise_properties;
 	std::vector<float> noise_map;
@@ -485,7 +536,9 @@ public:
 
 	std::vector<ecs::Entity> required_tornados;
 
-	GameScene() {}
+	GameScene(int level) {
+		PTGN_LOG("Playing level: ", level);
+	}
 
 	void RestartGame() {
 		BackToLevelSelect();
@@ -496,11 +549,26 @@ public:
 		Init();*/
 	}
 
+	Rectangle<float> bounds;
+
+	void Shutdown() final {
+		game.tween.Clear();
+	}
+
 	void Init() final {
-		/*noise_properties.octaves	 = 6;
-		noise_properties.frequency	 = 0.01f;
-		noise_properties.bias		 = 1.2f;
-		noise_properties.persistence = 0.75f;*/
+		auto& primary{ camera.GetCurrent() };
+
+		bounds.pos	  = {};
+		bounds.size	  = grid_size * tile_size;
+		bounds.origin = Origin::TopLeft;
+
+		primary.SetBounds(bounds);
+		primary.SetZoom(2.0f);
+
+		noise_properties.octaves	 = 2;
+		noise_properties.frequency	 = 0.045f;
+		noise_properties.bias		 = 1.21f;
+		noise_properties.persistence = 0.65f;
 
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
 		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
@@ -518,14 +586,15 @@ public:
 		CreateBackground();
 
 		// player must be created after tornados.
-		player = CreatePlayer();
+		player = CreatePlayer(
+			V2_float{ grid_size.x / 2.0f, static_cast<float>(grid_size.y) } * tile_size -
+			V2_float{ 0.0f, resolution.y / 2.0f }
+		);
 
 		manager.Refresh();
 	}
 
 	void Update(float dt) final {
-		game.profiler.PrintAll();
-
 		PlayerInput(dt);
 
 		UpdateTornados(dt);
@@ -553,10 +622,12 @@ public:
 
 	// Init functions.
 
-	ecs::Entity CreatePlayer() {
+	ecs::Entity CreatePlayer(const V2_float& pos) {
 		ecs::Entity entity = manager.CreateEntity();
+		manager.Refresh();
 
 		Texture vehicle_texture{ "resources/entity/car.png" };
+		Texture vehicle_dirty_texture{ "resources/entity/car_dirty.png" };
 		Texture wheel_texture{ "resources/entity/wheels.png" };
 
 		entity.Add<Size>(vehicle_texture.GetSize());
@@ -564,18 +635,22 @@ public:
 		entity.Add<Progress>("resources/ui/tornadometer.png", required_tornados);
 
 		auto& transform	   = entity.Add<Transform>();
-		transform.position = center;
+		transform.position = pos;
+		transform.rotation = -half_pi<float>;
 
 		auto& rigid_body		= entity.Add<RigidBody>();
-		rigid_body.max_velocity = 125.0f;
+		rigid_body.max_velocity = 225.0f;
 
-		auto& vehicle			= entity.Add<VehicleComponent>();
-		vehicle.forward_thrust	= 4000.0f;
-		vehicle.backward_thrust = 0.6f * vehicle.forward_thrust;
-		vehicle.turn_speed		= 5.0f;
-		vehicle.inertia			= 200.0f;
-		vehicle.vehicle_texture = vehicle_texture;
-		vehicle.wheel_texture	= wheel_texture;
+		auto& vehicle				  = entity.Add<VehicleComponent>();
+		vehicle.throttle_time		  = milliseconds{ 500 };
+		vehicle.thrust				  = 3000.0f;
+		vehicle.backward_thrust_frac  = 0.6f;
+		vehicle.turn_speed			  = 5.0f;
+		vehicle.inertia				  = 200.0f;
+		vehicle.vehicle_texture		  = vehicle_texture;
+		vehicle.vehicle_dirty_texture = vehicle_dirty_texture;
+		vehicle.wheel_texture		  = wheel_texture;
+		vehicle.texture				  = vehicle_texture;
 
 		auto& aero			 = entity.Add<Aerodynamics>();
 		aero.pull_resistance = 1.0f;
@@ -585,12 +660,14 @@ public:
 
 	ecs::Entity CreateTornado(const V2_float& position, float turn_speed) {
 		ecs::Entity entity = manager.CreateEntity();
-		auto& texture	   = entity.Add<Texture>(Texture{ "resources/entity/tornado.png" });
+		manager.Refresh();
+
+		auto& texture = entity.Add<Texture>(Texture{ "resources/entity/tornado.png" });
 
 		auto& transform	   = entity.Add<Transform>();
 		transform.position = position;
 
-		auto& size = entity.Add<Size>(texture.GetSize() * scale);
+		auto& size = entity.Add<Size>(texture.GetSize());
 
 		auto& tornado = entity.Add<TornadoComponent>();
 
@@ -599,7 +676,7 @@ public:
 		tornado.data_radius		= 4.0f * tornado.escape_radius;
 		tornado.gravity_radius	= 8.0f * tornado.escape_radius;
 		tornado.warning_radius	= 3.0f * tornado.escape_radius;
-		tornado.increment_speed = 0.3f;
+		tornado.increment_speed = 0.5f;
 
 		auto& rigid_body		= entity.Add<RigidBody>();
 		rigid_body.max_velocity = 137.0f;
@@ -654,13 +731,58 @@ public:
 
 		V2_float thrust;
 
+		bool throttling{ game.tween.Has(Hash("throttle_tween")) };
+
+		if ((up || down) && !(up && down)) {
+			if (!throttling) {
+				const auto reset_throttle = [=]() {
+					player.Get<VehicleComponent>().throttle = 0.0f;
+				};
+
+				game.tween.Load(Hash("throttle_tween"))
+					.During(vehicle.throttle_time)
+					.OnUpdate([=](Tween& tween, float f) {
+						PTGN_ASSERT(player.Has<VehicleComponent>());
+						auto& throttle{ player.Get<VehicleComponent>().throttle };
+						// PTGN_LOG("Updating throttle: ", f);
+						bool u{ game.input.KeyPressed(Key::W) };
+						bool d{ game.input.KeyPressed(Key::S) };
+						if (d) {
+							throttle = -f;
+						}
+						if (u) {
+							throttle = f;
+						}
+						if (!u && !d || u && d) {
+							throttle = 0.0f;
+							tween.Reset();
+						}
+					})
+					.OnStop(reset_throttle)
+					.Start();
+				game.tween.KeepAlive(Hash("throttle_tween"));
+			} else {
+				auto& throttle = game.tween.Get(Hash("throttle_tween"));
+				if (!throttle.IsStarted() && !throttle.IsCompleted()) {
+					throttle.Start();
+				}
+			}
+		} else {
+			if (throttling) {
+				auto& throttle = game.tween.Get(Hash("throttle_tween"));
+				throttle.Reset();
+			}
+		}
+
 		if (up) {
 			transform.rotation = direction;
-			thrust			   = unit_direction * vehicle.forward_thrust;
+			thrust			   = unit_direction * vehicle.thrust * vehicle.throttle;
 		} else if (down) {
 			transform.rotation =
 				transform.rotation - vehicle.turn_speed * vehicle.wheel_rotation * dt;
-			thrust = unit_direction * -vehicle.backward_thrust;
+			// Negative contained in vehicle.throttle.
+			thrust =
+				unit_direction * vehicle.thrust * vehicle.backward_thrust_frac * vehicle.throttle;
 		}
 
 		rigid_body.acceleration += thrust;
@@ -673,15 +795,24 @@ public:
 
 		auto& rigid_body = player.Get<RigidBody>();
 		auto& transform	 = player.Get<Transform>();
+		auto& vehicle	 = player.Get<VehicleComponent>();
 
-		const float drag{ 20.0f };
+		const float drag{ 5.0f };
 
 		rigid_body.acceleration += -rigid_body.velocity * drag;
 
 		rigid_body.velocity += rigid_body.acceleration * dt;
 
-		rigid_body.velocity =
-			Clamp(rigid_body.velocity, -rigid_body.max_velocity, rigid_body.max_velocity);
+		// TODO: Fix this.
+		if (game.input.KeyPressed(Key::S)) {
+			rigid_body.velocity = Clamp(
+				rigid_body.velocity, -rigid_body.max_velocity * vehicle.backward_thrust_frac,
+				rigid_body.max_velocity * vehicle.backward_thrust_frac
+			);
+		} else {
+			rigid_body.velocity =
+				Clamp(rigid_body.velocity, -rigid_body.max_velocity, rigid_body.max_velocity);
+		}
 
 		// Zeros velocity when below a certain magnitude.
 		/*float vel_mag2{ rigid_body.velocity.MagnitudeSquared() };
@@ -694,9 +825,19 @@ public:
 
 		transform.position += rigid_body.velocity * dt;
 
+		ApplyBounds(player, bounds);
+
 		// Center camera on player.
-		auto& primary{ camera.GetPrimary() };
-		primary.SetPosition(transform.position);
+		auto& primary{ camera.GetCurrent() };
+
+		V2_float shake;
+
+		if (player.Has<CameraShake>()) {
+			float camera_shake_amplitude{ 1.0f };
+			shake = V2_float::RandomHeading() * camera_shake_amplitude;
+		}
+
+		primary.SetPosition(transform.position + shake);
 
 		V2_int player_tile = transform.position / tile_size;
 
@@ -706,7 +847,7 @@ public:
 			destroyed_tiles.insert(player_tile);
 		}
 
-		player.Get<VehicleComponent>().prev_acceleration = rigid_body.acceleration;
+		vehicle.prev_acceleration = rigid_body.acceleration;
 
 		rigid_body.acceleration = {};
 	}
@@ -723,12 +864,12 @@ public:
 		auto& player_transform{ player.Get<Transform>() };
 		VehicleComponent player_vehicle{ player.Get<VehicleComponent>() };
 
-		float player_max_thrust{
-			std::max(player_vehicle.backward_thrust, player_vehicle.forward_thrust)
-		};
+		float player_max_thrust{ player_vehicle.thrust };
 
 		auto& player_rigid_body{ player.Get<RigidBody>() };
 		const auto& player_aero{ player.Get<Aerodynamics>() };
+
+		bool within_danger{ false };
 
 		for (auto [e, tornado, transform, rigid_body] : tornados) {
 			if (!game.collision.overlap.PointCircle(
@@ -747,7 +888,6 @@ public:
 			if (!game.collision.overlap.PointCircle(
 					player_transform.position, { transform.position, tornado.data_radius }
 				)) {
-				player.Get<Progress>().Stop(e);
 				continue;
 			}
 
@@ -759,14 +899,8 @@ public:
 			if (game.collision.overlap.PointCircle(
 					player_transform.position, { transform.position, tornado.warning_radius }
 				)) {
-				if (!player.Has<Warning>()) {
-					player.Add<Warning>().Init(player);
-				}
+				within_danger = true;
 			} else {
-				if (player.Has<Warning>()) {
-					player.Get<Warning>().Shutdown();
-					player.Remove<Warning>();
-				}
 				continue;
 			}
 
@@ -790,10 +924,24 @@ public:
 					RestartGame();
 				})
 				.OnUpdate([=]() {
-					player.Get<RigidBody>().acceleration.x = player_vehicle.forward_thrust;
+					PTGN_ASSERT(player.IsAlive());
+					PTGN_ASSERT(player.Has<RigidBody>());
+					PTGN_ASSERT(player.Has<Transform>());
+					player.Get<RigidBody>().acceleration.x = player_vehicle.thrust;
 					player.Get<Transform>().rotation += 10.0f * player_vehicle.turn_speed * dt;
 				})
 				.Start();
+		}
+
+		if (within_danger) {
+			if (!player.Has<Warning>()) {
+				player.Add<Warning>().Init(player);
+			}
+		} else {
+			if (player.Has<Warning>()) {
+				player.Get<Warning>().Shutdown();
+				player.Remove<Warning>();
+			}
 		}
 	}
 
@@ -865,7 +1013,7 @@ public:
 
 		auto& player_transform{ player.Get<Transform>() };
 		auto& vehicle{ player.Get<VehicleComponent>() };
-		auto size{ player.Get<Size>() };
+		Size size{ player.Get<Size>() };
 
 		Color tint{ player.Has<TintColor>() ? player.Get<TintColor>() : color::White };
 
@@ -879,8 +1027,8 @@ public:
 		);
 
 		game.renderer.DrawTexture(
-			vehicle.vehicle_texture, player_transform.position, size, {}, {}, Origin::Center,
-			Flip::None, player_transform.rotation, { 0.5f, 0.5f }, 0.0f, tint
+			vehicle.texture, player_transform.position, size, {}, {}, Origin::Center, Flip::None,
+			player_transform.rotation, { 0.5f, 0.5f }, 0.0f, tint
 
 		);
 	}
@@ -925,25 +1073,28 @@ public:
 	}
 
 	void DrawBackground() {
-		PTGN_PROFILE_FUNCTION();
-		auto& primary{ camera.GetPrimary() };
+		const auto& primary{ camera.GetCurrent() };
 		Rectangle<float> camera_rect{ primary.GetRectangle() };
 
 		// game.renderer.DrawRectangleHollow(camera_rect, color::Blue, 3.0f);
 
 		Rectangle<float> tile_rect{ {}, tile_size, Origin::TopLeft };
 
-		for (int i{ 0 }; i < grid_size.x; i++) {
-			for (int j{ 0 }; j < grid_size.y; j++) {
+		// Expand size of each tile to include neighbors to prevent edges from flashing
+		// when camera moves. Skip grid tiles not within camera view.
+
+		V2_int min{ Clamp(
+			V2_int{ camera_rect.Min() / tile_size } - V2_int{ 1, 1 }, V2_int{ 0, 0 }, grid_size
+		) };
+		V2_int max{ Clamp(
+			V2_int{ camera_rect.Max() / tile_size } + V2_int{ 1, 1 }, V2_int{ 0, 0 }, grid_size
+		) };
+
+		for (int i{ min.x }; i < max.x; i++) {
+			for (int j{ min.y }; j < max.y; j++) {
 				V2_int tile{ i, j };
 
 				tile_rect.pos = tile * tile_size;
-
-				// Expand size of each tile to include neighbors to prevent edges from flashing
-				// when camera moves. Skip grid tiles not within camera view.
-				if (!game.collision.overlap.RectangleRectangle(tile_rect, camera_rect)) {
-					continue;
-				}
 
 				float noise_value{ GetNoiseValue(tile) };
 
@@ -969,12 +1120,12 @@ public:
 					}
 				}
 
-				// Texture t = game.texture.Get(GetTileKey(tile_type));
+				Texture t = game.texture.Get(GetTileKey(tile_type));
 
-				/*game.renderer.DrawTexture(
+				game.renderer.DrawTexture(
 					t, tile_rect.pos, size, {}, {}, Origin::TopLeft, Flip::None, 0.0f,
 					{ 0.5f, 0.5f }, z_index
-				);*/
+				);
 			}
 		}
 	}
@@ -988,7 +1139,8 @@ public:
 
 		Texture texture{ game.texture.Get(Hash("speedometer")) };
 
-		V2_float meter_pos{ resolution - V2_float{ 10, 10 } };
+		V2_float meter_pos{ V2_float{ static_cast<float>(resolution.x), 0.0f } +
+							V2_float{ -10.0f, 10.0f } };
 		V2_float meter_size{ texture.GetSize() };
 
 		PTGN_ASSERT(player.Has<RigidBody>());
@@ -1005,8 +1157,9 @@ public:
 		// float forward_accel = vehicle.prev_acceleration.Dot(V2_float{ 1.0f, 0.0f
 		// }.Rotated(transform.rotation));
 
-		float fraction{ forward_velocity / rigid_body.max_velocity };
-		// float fraction{ forward_accel / vehicle.forward_thrust };
+		float fraction{ vehicle.throttle };
+		// float fraction{ forward_velocity / rigid_body.max_velocity };
+		//  float fraction{ forward_accel / vehicle.forward_thrust };
 
 		// TODO: Consider not clamping this to show negative velocity.
 		fraction = std::clamp(fraction, 0.0f, 1.0f);
@@ -1018,7 +1171,7 @@ public:
 		V2_float fill_size{ meter_size - border_size * 2.0f };
 
 		V2_float fill_pos{ meter_pos.x - border_size.x - fill_size.x,
-						   meter_pos.y - border_size.y - fill_size.y };
+						   meter_pos.y + border_size.y + fill_size.y };
 
 		Color meter_background = color::White;
 
@@ -1026,26 +1179,19 @@ public:
 		fill_color.a	   = 200;
 
 		game.renderer.DrawRectangleFilled(
-			fill_pos, { fill_size.x, fill_size.y }, meter_background, Origin::TopLeft
+			fill_pos, { fill_size.x, fill_size.y }, meter_background, Origin::BottomLeft
 		);
 
 		game.renderer.DrawRectangleFilled(
-			fill_pos, { fill_size.x * fraction, fill_size.y }, fill_color, Origin::TopLeft
+			fill_pos, { fill_size.x * fraction, fill_size.y }, fill_color, Origin::BottomLeft
 		);
 
-		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::BottomRight);
+		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::TopRight);
 	}
 
 	void DrawUI() {
-		auto prev_primary = game.camera.GetPrimary();
-
 		game.renderer.Flush();
-
-		OrthographicCamera c;
-		c.SetPosition(game.window.GetCenter());
-		c.SetSizeToWindow();
-		c.SetClampBounds({});
-		game.camera.SetPrimary(c);
+		game.camera.SetCameraWindow();
 
 		// Draw UI here...
 
@@ -1054,10 +1200,7 @@ public:
 		DrawSpeedometer();
 
 		game.renderer.Flush();
-
-		if (game.camera.GetPrimary() == c) {
-			game.camera.SetPrimary(prev_primary);
-		}
+		game.camera.SetCameraPrimary();
 	}
 };
 
@@ -1089,58 +1232,45 @@ TextButton CreateMenuButton(
 	return TextButton{ std::make_shared<ColorButton>(b), text };
 }
 
-class LevelSelect : public Scene {
+class TextScreen : public Scene {
 public:
 	std::vector<TextButton> buttons;
 
-	std::unordered_map<int, std::vector<int>> levels{ { 0, { 0, 1 } }, { 1, { 0, 1 } }
+	Font font{ "resources/font/retro_gaming.ttf", 18 };
 
-	};
+	Text text{ font, "", color::Black };
 
-	LevelSelect() {
+	std::string back_name = "main_menu";
+
+	TextScreen() {
 		if (!game.font.Has(Hash("menu_font"))) {
 			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
 		}
-		if (!game.texture.Has(Hash("level_select_background"))) {
-			game.texture.Load(Hash("level_select_background"), "resources/ui/laptop.png");
+		if (!game.texture.Has(Hash("text_screen_background"))) {
+			game.texture.Load(Hash("text_screen_background"), "resources/ui/laptop_text.png");
 		}
 	}
 
-	void StartGame() {
-		game.scene.RemoveActive(Hash("level_select"));
-		game.scene.Load<GameScene>(Hash("game"));
-		game.scene.SetActive(Hash("game"));
-	}
+	V2_float max_text_dim{ 362, 253 };
 
-	OrthographicCamera camera;
+	Rectangle<float> text_rect{ { 554, 174 }, max_text_dim, Origin::TopLeft };
 
 	void Init() final {
-		camera.SetSizeToWindow();
-		camera.SetPosition(game.window.GetCenter());
-		game.camera.SetPrimary(camera);
-
 		buttons.clear();
-		buttons.push_back(CreateMenuButton(
-			"Confirm", color::White, [&]() { StartGame(); }, color::Blue, color::Black
-		));
-		buttons.push_back(CreateMenuButton(
-			"Info", color::White, [&]() { StartGame(); }, color::Gold, color::Black
-		));
 		buttons.push_back(CreateMenuButton(
 			"Back", color::White,
 			[&]() {
-				game.scene.RemoveActive(Hash("level_select"));
-				if (!game.scene.Has(Hash("main_menu"))) {
+				game.scene.RemoveActive(Hash("text_screen"));
+				if (!game.scene.Has(Hash(back_name))) {
 					LoadMainMenu();
 				}
-				game.scene.SetActive(Hash("main_menu"));
+				PTGN_ASSERT(game.scene.Has(Hash(back_name)));
+				game.scene.AddActive(Hash(back_name));
 			},
 			color::LightGrey, color::Black
 		));
 
-		buttons[0].button->SetRectangle({ V2_int{ 536, 505 }, button_size, Origin::TopLeft });
-		buttons[1].button->SetRectangle({ V2_int{ 790, 505 }, button_size, Origin::TopLeft });
-		buttons[2].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+		buttons[0].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
 
 		for (int i = 0; i < (int)buttons.size(); i++) {
 			buttons[i].button->SubscribeToMouseEvents();
@@ -1154,7 +1284,336 @@ public:
 	}
 
 	void Update() final {
-		game.scene.Get(Hash("level_select"))->camera.SetPrimary(camera);
+		game.renderer.DrawTexture(
+			game.texture.Get(Hash("text_screen_background")), game.window.GetCenter(), resolution,
+			{}, {}, Origin::Center, Flip::None, 0.0f, {}, -1.0f
+		);
+
+		for (std::size_t i = 0; i < buttons.size(); i++) {
+			auto rect	= buttons[i].button->GetRectangle();
+			rect.pos.x += text_x_offset;
+			rect.size.x =
+				buttons[i]
+					.text.GetSize(Hash("menu_font"), std::string(buttons[i].text.GetContent()))
+					.x *
+				0.5f;
+			buttons[i].text.Draw(rect);
+		}
+		text_rect.size.x = (float)std::clamp(text.GetSize().x, 0, static_cast<int>(max_text_dim.x));
+		text.SetWrapAfter(static_cast<std::uint32_t>(text_rect.size.x));
+		text.Draw(text_rect);
+	}
+};
+
+class LevelSelect : public Scene {
+public:
+	std::vector<TextButton> buttons;
+
+	std::size_t difficulty_layer{ 0 };
+
+	std::set<int> completed_levels;
+
+	bool CompletedLevel(int level) {
+		return completed_levels.count(level) > 0;
+	}
+
+	bool ShownLevel(int level) {
+		return std::any_of(shown_levels.begin(), shown_levels.end(), [=](int l) {
+			return level == l;
+		});
+	}
+
+	std::unordered_map<int, std::vector<int>> branches{ { 0, { 0, 1, 2 } },
+														{ 1, { 3, 4, 5 } },
+														{ 2, { 6, 7, 8 } } };
+
+	std::unordered_map<int, std::string> details{
+		{ 0, "Information: \nThis is a slow moving tornado.\nDifficulty: Easy" },
+		{ 1, "Information: \nThis tornado goes at medium speed and has unpredictable movement "
+			 "patterns.\nDifficulty: Medium" },
+		{ 2, "Information: \nThis tornado moves very quickly! Very difficult to "
+			 "dodge!\nDifficulty: Hard" },
+		{ 3, "Information: \nThis is a medium sized tornado.\nDifficulty: Easy" },
+		{ 4, "Information: \nThis tornado is very large and powerful!\nDifficulty: Medium" },
+		{ 5, "Information: \nThe largest tornado ever found with incredibly strong "
+			 "winds!\nDifficulty: Hard" },
+		{ 6, "Information: \nThis is a simple twin tornado system.\nDifficulty: Easy" },
+		{ 7, "Information: \nThis twin system of tornados moves quickly and "
+			 "unpredictably!\nDifficulty: Medium" },
+		{ 8, "Information: \nThis is a system of three aggressive tornados. Watch "
+			 "out!\nDifficulty: Hard" },
+	};
+
+	std::unordered_map<int, std::string> tornado_textures{
+		{ 0, "tornado_ui_0" }, { 1, "tornado_ui_1" }, { 2, "tornado_ui_2" },
+		{ 3, "tornado_ui_3" }, { 4, "tornado_ui_4" }, { 5, "tornado_ui_0" },
+		{ 6, "tornado_ui_1" }, { 7, "tornado_ui_2" }, { 8, "tornado_ui_3" }
+	};
+
+	std::string GetDetails(int level) const {
+		PTGN_ASSERT(level != -1);
+		auto it = details.find(level);
+		PTGN_ASSERT(it != details.end(), "No details provided for selected tornado level");
+		return it->second;
+	}
+
+	RNG<int> branch_rng{ 0, static_cast<int>(branches.size()) - 1 };
+	RNG<int> texture_rng{ 0, 4 };
+
+	// level, texture index
+	std::unordered_map<int, std::size_t> level_textures;
+
+	LevelSelect() {
+		for (auto& [branch, levels] : branches) {
+			for (auto level : levels) {
+				auto it = tornado_textures.find(level);
+				PTGN_ASSERT(
+					it != tornado_textures.end(), "Could not find tornado texture for level"
+				);
+				level_textures.emplace(level, Hash(it->second));
+			}
+		}
+
+		if (!game.font.Has(Hash("menu_font"))) {
+			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
+		}
+		if (!game.texture.Has(Hash("level_select_background"))) {
+			game.texture.Load(Hash("level_select_background"), "resources/ui/laptop.png");
+		}
+		if (!game.texture.Has(Hash("tornado_ui_0"))) {
+			game.texture.Load(Hash("tornado_ui_0"), "resources/ui/tornado0.png");
+			game.texture.Load(Hash("tornado_ui_1"), "resources/ui/tornado1.png");
+			game.texture.Load(Hash("tornado_ui_2"), "resources/ui/tornado2.png");
+			game.texture.Load(Hash("tornado_ui_3"), "resources/ui/tornado3.png");
+			game.texture.Load(Hash("tornado_ui_4"), "resources/ui/tornado4.png");
+		}
+	}
+
+	void StartGame(int level) {
+		game.scene.RemoveActive(Hash("level_select"));
+		game.scene.Load<GameScene>(Hash("game"), level);
+		game.scene.AddActive(Hash("game"));
+	}
+
+	// level, button, tint
+	std::vector<std::tuple<int, std::shared_ptr<TexturedToggleButton>>> level_buttons;
+
+	std::vector<int> shown_levels;
+
+	void ToggleOtherLevel() {
+		for (auto& [l, button] : level_buttons) {
+			if (l != selected_level) {
+				button->SetTintColor(color::White);
+				button->SetToggleState(false);
+			}
+		}
+	}
+
+	void CreateLevelButton(int level) {
+		Rectangle rect;
+		auto it = level_textures.find(level);
+		PTGN_ASSERT(it != level_textures.end());
+		std::size_t key =
+			it->second; // Hash(std::string("tornado_ui_") + std::to_string(texture_index));
+		PTGN_ASSERT(game.texture.Has(key));
+		Texture texture = game.texture.Get(key);
+		rect.pos		= game.window.GetCenter();
+		rect.size		= texture.GetSize();
+		rect.origin		= Origin::Center;
+
+		auto button = std::make_shared<TexturedToggleButton>(
+			rect, std::vector<TextureOrKey>{ texture, texture }
+		);
+
+		Color select_color = color::Black;
+		Color hover_color  = color::Grey;
+
+		button->SetOnActivate([this, button, level, select_color]() {
+			selected_level = level;
+			PTGN_INFO("Selected level: ", level);
+			button->SetTintColor(select_color);
+			ToggleOtherLevel();
+		});
+		button->SetOnHover(
+			[=]() {
+				if (button->GetTintColor() == color::White) {
+					button->SetTintColor(hover_color);
+					PTGN_INFO("Hover started on button for level: ", level);
+				}
+			},
+			[=]() {
+				if (button->GetTintColor() == hover_color) {
+					button->SetTintColor(color::White);
+					PTGN_INFO("Hover stopped on button for level: ", level);
+				}
+			}
+		);
+		level_buttons.emplace_back(level, button);
+	}
+
+	int selected_level{ -1 };
+
+	int GetValidLevel() {
+		int level = -1;
+		int i	  = 0;
+		while (i < 3000) {
+			i++;
+			int branch = branch_rng();
+			auto it	   = branches.find(branch);
+			PTGN_ASSERT(it != branches.end());
+			auto& levels = it->second;
+			if (difficulty_layer >= levels.size()) {
+				continue;
+			}
+			auto potential_level = levels[difficulty_layer];
+			if (CompletedLevel(potential_level) || ShownLevel(potential_level)) {
+				continue;
+			}
+			return potential_level;
+		}
+		return level;
+	}
+
+	V2_float level_button_offset0{ 0, -200 };
+	V2_float level_button_offset1{ -100, -170 };
+	V2_float level_button_offset2{ +120, -50 };
+
+	void ClearChoices() {
+		for (int i = 0; i < (int)level_buttons.size(); i++) {
+			std::get<1>(level_buttons[i])->UnsubscribeFromMouseEvents();
+		}
+
+		level_buttons.clear();
+		shown_levels.clear();
+		selected_level = -1;
+	}
+
+	void Init() final {
+		if (shown_levels.size() == 0) {
+			int first_level = GetValidLevel();
+
+			int second_level = -1;
+			if (first_level == -1) {
+				difficulty_layer++;
+				first_level = GetValidLevel();
+				if (first_level == -1) {
+					PTGN_LOG("No more levels available! You won them all");
+				} else {
+					shown_levels.emplace_back(first_level);
+					second_level = GetValidLevel();
+					shown_levels.emplace_back(second_level);
+				}
+			} else {
+				shown_levels.emplace_back(first_level);
+				second_level = GetValidLevel();
+				shown_levels.emplace_back(second_level);
+			}
+		}
+
+		bool was_cleared{ level_buttons.empty() };
+
+		if (was_cleared && shown_levels.size() > 0 && shown_levels[0] != -1) {
+			CreateLevelButton(shown_levels[0]);
+		}
+
+		if (was_cleared && shown_levels.size() > 1 && shown_levels[1] != -1) {
+			CreateLevelButton(shown_levels[1]);
+		}
+
+		if (level_buttons.size() == 0) {
+			/* win screen? */
+		} else if (level_buttons.size() == 1) {
+			auto& button{ std::get<1>(level_buttons[0]) };
+			auto rect{ button->GetRectangle() };
+			rect.pos = game.window.GetCenter() + level_button_offset0;
+			button->SetRectangle(rect);
+		} else if (level_buttons.size() == 2) {
+			auto& button1{ std::get<1>(level_buttons[0]) };
+			auto rect1{ button1->GetRectangle() };
+			rect1.pos = game.window.GetCenter() + level_button_offset1;
+			button1->SetRectangle(rect1);
+
+			auto& button2{ std::get<1>(level_buttons[1]) };
+			auto rect2{ button2->GetRectangle() };
+			rect2.pos = game.window.GetCenter() + level_button_offset2;
+			button2->SetRectangle(rect2);
+
+		} else {
+			PTGN_ERROR("Too many level buttons");
+		}
+		for (int i = 0; i < (int)level_buttons.size(); i++) {
+			std::get<1>(level_buttons[i])->SubscribeToMouseEvents();
+		}
+
+		buttons.clear();
+		buttons.push_back(CreateMenuButton(
+			"Confirm", color::White,
+			[&]() {
+				auto level = selected_level;
+				ClearChoices();
+				StartGame(level);
+			},
+			color::Blue, color::Black
+		));
+		buttons.push_back(CreateMenuButton(
+			"Details", color::White,
+			[&]() {
+				game.scene.RemoveActive(Hash("level_select"));
+				auto screen		  = game.scene.Get<TextScreen>(Hash("text_screen"));
+				screen->back_name = "level_select";
+				PTGN_ASSERT(selected_level != -1);
+				screen->text.SetContent(GetDetails(selected_level));
+				game.scene.AddActive(Hash("text_screen"));
+			},
+			color::Gold, color::Black
+		));
+		buttons.push_back(CreateMenuButton(
+			"Back", color::White,
+			[&]() {
+				game.scene.RemoveActive(Hash("level_select"));
+				if (!game.scene.Has(Hash("main_menu"))) {
+					LoadMainMenu();
+				}
+				game.scene.AddActive(Hash("main_menu"));
+			},
+			color::LightGrey, color::Black
+		));
+
+		buttons[0].button->SetRectangle({ V2_int{ 596, 505 }, button_size, Origin::CenterTop });
+		buttons[1].button->SetRectangle({ V2_int{ 830, 505 }, button_size, Origin::CenterTop });
+		buttons[2].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+
+		for (int i = 0; i < (int)buttons.size(); i++) {
+			buttons[i].button->SubscribeToMouseEvents();
+		}
+	}
+
+	void Shutdown() final {
+		for (int i = 0; i < (int)buttons.size(); i++) {
+			buttons[i].button->UnsubscribeFromMouseEvents();
+		}
+		for (int i = 0; i < (int)level_buttons.size(); i++) {
+			std::get<1>(level_buttons[i])->UnsubscribeFromMouseEvents();
+		}
+	}
+
+	void Update() final {
+		if (selected_level == -1 ||
+			(level_buttons.size() == 1 &&
+			 std::get<1>(level_buttons[0])->GetTintColor() == color::White) ||
+			(level_buttons.size() == 2 &&
+			 std::get<1>(level_buttons[0])->GetTintColor() == color::White &&
+			 std::get<1>(level_buttons[1])->GetTintColor() == color::White)) {
+			buttons[0].button->SetInteractable(false);
+			buttons[1].button->SetInteractable(false);
+			buttons[0].text.SetContent("Click");
+			buttons[1].text.SetContent("Tornado");
+		} else {
+			buttons[0].button->SetInteractable(true);
+			buttons[1].button->SetInteractable(true);
+			buttons[0].text.SetContent("Confirm");
+			buttons[1].text.SetContent("Details");
+		}
 
 		game.renderer.DrawTexture(
 			game.texture.Get(Hash("level_select_background")), game.window.GetCenter(), resolution,
@@ -1171,10 +1630,11 @@ public:
 				0.5f;
 			buttons[i].text.Draw(rect);
 		}
-	}
 
-private:
-	void LoadMainMenu();
+		for (std::size_t i = 0; i < level_buttons.size(); i++) {
+			std::get<1>(level_buttons[i])->Draw();
+		}
+	}
 };
 
 class MainMenu : public Scene {
@@ -1196,6 +1656,9 @@ public:
 		if (!game.scene.Has(Hash("level_select"))) {
 			game.scene.Load<LevelSelect>(Hash("level_select"));
 		}
+		if (!game.scene.Has(Hash("text_screen"))) {
+			game.scene.Load<TextScreen>(Hash("text_screen"));
+		}
 	}
 
 	void Init() final {
@@ -1204,22 +1667,33 @@ public:
 			"Play", color::White,
 			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
-				game.scene.SetActive(Hash("level_select"));
+				if (game.scene.Has(Hash("level_select"))) {
+					game.scene.Get<LevelSelect>(Hash("level_select"))->ClearChoices();
+				}
+				game.scene.AddActive(Hash("level_select"));
 			},
 			color::Blue, color::Black
 		));
-		/*buttons.push_back(CreateMenuButton(
-			"Settings", color::White,
+		buttons.push_back(CreateMenuButton(
+			"Tutorial", color::White,
 			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
-				game.scene.SetActive(Hash("level_select"));
+				auto screen		  = game.scene.Get<TextScreen>(Hash("text_screen"));
+				screen->back_name = "main_menu";
+				screen->text.SetContent(
+					"When in level select, click on the storm you wish to chase. "
+					"Then click info for "
+					"details about the chosen storm. Confirm to start the chase!"
+				);
+				game.scene.AddActive(Hash("text_screen"));
 			},
-			color::Gold, color::Black
-		));*/
+			color::Blue, color::Black
+		));
 
 		/*	buttons[0].button->SetRectangle({ V2_int{ 550, 505 }, button_size, Origin::TopLeft });
 			buttons[1].button->SetRectangle({ V2_int{ 780, 505 }, button_size, Origin::TopLeft });*/
-		buttons[0].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+		buttons[0].button->SetRectangle({ V2_int{ 560, 505 }, button_size, Origin::TopLeft });
+		buttons[1].button->SetRectangle({ V2_int{ 770, 505 }, button_size, Origin::TopLeft });
 
 		for (int i = 0; i < (int)buttons.size(); i++) {
 			buttons[i].button->SubscribeToMouseEvents();
@@ -1228,7 +1702,7 @@ public:
 		//	"Settings", color::White,
 		//	[]() {
 		//		/*game.scene.RemoveActive(Hash("main_menu"));
-		//		game.scene.SetActive(Hash("game"));*/
+		//		game.scene.AddActive(Hash("game"));*/
 		//	},
 		//	color::Red, color::Black
 		//));
@@ -1267,13 +1741,16 @@ public:
 };
 
 void BackToLevelSelect() {
-	game.scene.Load<LevelSelect>(Hash("level_select"));
-	game.scene.RemoveActive(Hash("game"));
-	game.scene.SetActive(Hash("level_select"));
+	if (game.scene.Has(Hash("level_select"))) {
+		game.scene.Get<LevelSelect>(Hash("level_select"))->ClearChoices();
+	} else {
+		game.scene.Load<LevelSelect>(Hash("level_select"));
+	}
+	game.scene.AddActive(Hash("level_select"));
 	game.scene.Unload(Hash("game"));
 }
 
-void LevelSelect::LoadMainMenu() {
+void LoadMainMenu() {
 	game.scene.Load<MainMenu>(Hash("main_menu"));
 }
 
@@ -1290,7 +1767,8 @@ public:
 
 		/*std::size_t initial_scene{ Hash("game") };
 		game.scene.Load<GameScene>(initial_scene);*/
-		game.scene.SetActive(initial_scene);
+
+		game.scene.AddActive(initial_scene);
 	}
 };
 
