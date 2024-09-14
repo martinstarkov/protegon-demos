@@ -17,6 +17,7 @@ constexpr V2_int center{ resolution / 2 };
 constexpr bool draw_hitboxes{ true };
 
 static void LoadMainMenu();
+static int GetCurrentGameLevel();
 
 enum class TileType {
 	Grass,
@@ -328,7 +329,7 @@ struct TornadoComponent {
 	}
 };
 
-void BackToLevelSelect();
+void BackToLevelSelect(int level, bool won);
 
 struct Progress {
 	Texture texture;
@@ -374,7 +375,7 @@ struct Progress {
 
 		if (completed_tornadoes == required_tornadoes) {
 			// PTGN_LOG("All required tornadoes completed!");
-			BackToLevelSelect();
+			BackToLevelSelect(GetCurrentGameLevel(), true);
 		}
 		// TODO: Some kind of particle effects? Change tornado indicator to completed?
 	}
@@ -532,12 +533,11 @@ public:
 	ecs::Entity player;
 
 	const V2_int tile_size{ 16, 16 };
-	const V2_int grid_size{ static_cast<int>(1 * resolution.x / tile_size.x),
-							static_cast<int>(2 * resolution.y / tile_size.y) };
+	V2_int grid_size{ resolution / tile_size };
 
 	NoiseProperties noise_properties;
 	std::vector<float> noise_map;
-	const ValueNoise noise{ 256, 0 };
+	ValueNoise noise;
 
 	std::unordered_set<V2_int> destroyed_tiles;
 
@@ -545,12 +545,36 @@ public:
 
 	json level_data;
 
-	GameScene(int level) {
-		PTGN_LOG("Playing level: ", level);
+	int level{ 0 };
+
+	GameScene(int level) : level{ level } {
+		PTGN_INFO("Starting level: ", level);
+
+		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
+		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
+		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
+		game.texture.Load(Hash("house"), "resources/entity/house.png");
+		game.texture.Load(Hash("house_destroyed"), "resources/entity/house_destroyed.png");
+		game.texture.Load(Hash("tornado_icon"), "resources/ui/tornado_icon.png");
+		game.texture.Load(Hash("tornado_icon_green"), "resources/ui/tornado_icon_green.png");
+		game.texture.Load(Hash("speedometer"), "resources/ui/speedometer.png");
+	}
+
+	~GameScene() {
+		game.texture.Unload(Hash("grass"));
+		game.texture.Unload(Hash("dirt"));
+		game.texture.Unload(Hash("corn"));
+		game.texture.Unload(Hash("house"));
+		game.texture.Unload(Hash("house_destroyed"));
+		game.texture.Unload(Hash("tornado_icon"));
+		game.texture.Unload(Hash("tornado_icon_green"));
+		game.texture.Unload(Hash("speedometer"));
+
+		// TODO: Unload tornado textures.
 	}
 
 	void RestartGame() {
-		BackToLevelSelect();
+		BackToLevelSelect(level, false);
 
 		/*destroyed_tiles.clear();
 		required_tornadoes.clear();
@@ -565,7 +589,16 @@ public:
 	}
 
 	void Init() final {
-		level_data = GetLevelData();
+		level_data = GetLevelData().at("levels").at(level);
+
+		V2_int screen_size{ level_data.at("screen_size").at(0),
+							level_data.at("screen_size").at(1) };
+
+		grid_size = { screen_size * resolution / tile_size };
+
+		PTGN_INFO("Level size: ", grid_size);
+
+		// PTGN_LOG(level_data.dump(4));
 
 		auto& primary{ camera.GetCurrent() };
 
@@ -581,20 +614,19 @@ public:
 		noise_properties.bias		 = 1.21f;
 		noise_properties.persistence = 0.65f;
 
-		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
-		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
-		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
-		game.texture.Load(Hash("house"), "resources/entity/house.png");
-		game.texture.Load(Hash("house_destroyed"), "resources/entity/house_destroyed.png");
-		game.texture.Load(Hash("tornado_icon"), "resources/ui/tornado_icon.png");
-		game.texture.Load(Hash("tornado_icon_green"), "resources/ui/tornado_icon_green.png");
-		game.texture.Load(Hash("speedometer"), "resources/ui/speedometer.png");
+		auto& tornadoes = level_data.at("tornadoes");
 
-		CreateTornado(center + V2_float{ 200, 200 }, 50.0f);
+		PTGN_ASSERT(
+			!tornadoes.empty(), "Each level must have at least one tornado specified in the JSON"
+		);
 
-		CreateTornado(center - V2_float{ 200, 200 }, 50.0f);
+		for (const auto& t : tornadoes) {
+			CreateTornado(t);
+		}
 
-		CreateBackground();
+		std::uint32_t seed = level_data.at("seed");
+
+		CreateBackground(seed);
 
 		// player must be created after tornadoes.
 		player = CreatePlayer(
@@ -669,28 +701,64 @@ public:
 		return entity;
 	}
 
-	ecs::Entity CreateTornado(const V2_float& position, float turn_speed) {
+	ecs::Entity CreateTornado(const json& tornado_data) {
 		ecs::Entity entity = manager.CreateEntity();
 		manager.Refresh();
 
-		auto& texture = entity.Add<Texture>(Texture{ "resources/entity/tornado.png" });
+		std::string tornado_path = tornado_data.at("texture");
 
-		auto& transform	   = entity.Add<Transform>();
-		transform.position = position;
+		std::size_t key{ Hash(tornado_path) };
+
+		if (!game.texture.Has(key)) {
+			PTGN_ASSERT(
+				FileExists(tornado_path), "Tornado texture: ", tornado_path, " could not be found"
+			);
+			game.texture.Load(key, tornado_path);
+		}
+
+		auto& texture = entity.Add<Texture>(game.texture.Get(key));
+
+		if (tornado_data.contains("static")) {
+			auto& static_tornado = tornado_data.at("static");
+			auto& tornado_pos	 = static_tornado.at("pos");
+			auto& transform		 = entity.Add<Transform>();
+			transform.position.x = tornado_pos.at(0);
+			transform.position.y = tornado_pos.at(1);
+		} else if (tornado_data.contains("sequence")) {
+			auto& sequence_tornado = tornado_data.at("sequence");
+			PTGN_ASSERT(
+				!sequence_tornado.empty(), "JSON tornado sequence must contain at least one entry"
+			);
+			/* TODO: create tween sequence */
+			auto& tornado_pos	 = sequence_tornado.at(0).at("pos");
+			auto& transform		 = entity.Add<Transform>();
+			transform.position.x = tornado_pos.at(0);
+			transform.position.y = tornado_pos.at(1);
+		}
+
+		if (tornado_data.contains("custom") && tornado_data.at("custom")) {
+			/* TODO: custom stuff with tornado */
+		}
+
+		PTGN_ASSERT(
+			entity.Has<Transform>(), "Failed to create tornado position from given JSON data"
+		);
 
 		auto& size = entity.Add<Size>(texture.GetSize());
 
 		auto& tornado = entity.Add<TornadoComponent>();
 
-		tornado.turn_speed		= turn_speed;
-		tornado.escape_radius	= size.x / 2.0f;
-		tornado.data_radius		= 4.0f * tornado.escape_radius;
-		tornado.gravity_radius	= 8.0f * tornado.escape_radius;
-		tornado.warning_radius	= 3.0f * tornado.escape_radius;
-		tornado.increment_speed = 0.5f;
+		float width{ size.x };
 
-		auto& rigid_body		= entity.Add<RigidBody>();
-		rigid_body.max_velocity = 137.0f;
+		tornado.escape_radius	= tornado_data.at("escape_radius") * width;
+		tornado.turn_speed		= tornado_data.at("turn_speed");
+		tornado.data_radius		= tornado_data.at("data_radius") * width;
+		tornado.gravity_radius	= tornado_data.at("gravity_radius") * width;
+		tornado.warning_radius	= tornado_data.at("warning_radius") * width;
+		tornado.increment_speed = tornado_data.at("increment_speed");
+
+		auto& rigid_body = entity.Add<RigidBody>();
+		// rigid_body.max_velocity = 137.0f;
 
 		PTGN_ASSERT(tornado.warning_radius > tornado.escape_radius);
 		PTGN_ASSERT(tornado.data_radius > tornado.escape_radius);
@@ -701,7 +769,8 @@ public:
 		return entity;
 	}
 
-	void CreateBackground() {
+	void CreateBackground(std::uint32_t seed) {
+		noise	  = { 256, seed };
 		noise_map = FractalNoise::Generate(noise, {}, grid_size, noise_properties);
 	}
 
@@ -1404,13 +1473,13 @@ public:
 			[=]() {
 				if (button->GetTintColor() == color::White) {
 					button->SetTintColor(tornado_hover_color);
-					PTGN_INFO("Hover started on button for level: ", level);
+					// PTGN_INFO("Hover started on button for level: ", level);
 				}
 			},
 			[=]() {
 				if (button->GetTintColor() == tornado_hover_color) {
 					button->SetTintColor(color::White);
-					PTGN_INFO("Hover stopped on button for level: ", level);
+					// PTGN_INFO("Hover stopped on button for level: ", level);
 				}
 			}
 		);
@@ -1422,6 +1491,10 @@ public:
 	V2_float level_button_offset0{ 0, -100 };
 	V2_float level_button_offset1{ -100, -170 };
 	V2_float level_button_offset2{ +120, -50 };
+
+	void AddCompletedLevel(int level) {
+		completed_levels.emplace(level);
+	}
 
 	void ClearChoices() {
 		for (int i = 0; i < (int)level_buttons.size(); i++) {
@@ -1717,9 +1790,15 @@ public:
 	}
 };
 
-void BackToLevelSelect() {
+void BackToLevelSelect(int level, bool won) {
 	if (game.scene.Has(Hash("level_select"))) {
-		game.scene.Get<LevelSelect>(Hash("level_select"))->ClearChoices();
+		if (won) {
+			auto level_select{ game.scene.Get<LevelSelect>(Hash("level_select")) };
+			level_select->AddCompletedLevel(level);
+			level_select->ClearChoices();
+		} else {
+			/* player lost, do something on level select to reflect this? */
+		}
 	} else {
 		game.scene.Load<LevelSelect>(Hash("level_select"));
 	}
@@ -1729,6 +1808,11 @@ void BackToLevelSelect() {
 
 void LoadMainMenu() {
 	game.scene.Load<MainMenu>(Hash("main_menu"));
+}
+
+int GetCurrentGameLevel() {
+	PTGN_ASSERT(game.scene.Has(Hash("game")), "Could not find game scene");
+	return game.scene.Get<GameScene>(Hash("game"))->level;
 }
 
 class SetupScene : public Scene {
