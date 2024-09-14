@@ -138,6 +138,7 @@ struct Warning {
 
 	void Shutdown() {
 		PTGN_ASSERT(game.tween.Has(Hash("warning_flash")));
+		game.tween.Get(Hash("warning_flash")).Stop();
 		game.tween.Unload(Hash("warning_flash"));
 	}
 };
@@ -365,7 +366,7 @@ struct Progress {
 		completed_tornadoes.push_back(current_tornado);
 
 		// TODO: Remove tornado tint once indicators exist.
-		current_tornado.Get<TornadoComponent>().tint = color::Green;
+		current_tornado.Get<TornadoComponent>().tint = color::DarkGreen;
 
 		current_tornado = ecs::null;
 		progress		= 0.0f;
@@ -375,6 +376,7 @@ struct Progress {
 		if (completed_tornadoes == required_tornadoes) {
 			// PTGN_LOG("All required tornadoes completed!");
 			BackToLevelSelect(GetCurrentGameLevel(), true);
+			return;
 		}
 		// TODO: Some kind of particle effects? Change tornado indicator to completed?
 	}
@@ -453,47 +455,40 @@ struct Progress {
 		return false;
 	}
 
-	void Update(ecs::Entity tornado, const V2_float& player_pos, float dt) {
-		if (CompletedTornado(tornado)) {
+	void DecrementTornadoProgress(float dt) {
+		if (completed_tornadoes == required_tornadoes) {
+			// PTGN_LOG("All required tornadoes completed!");
+			BackToLevelSelect(GetCurrentGameLevel(), true);
 			return;
-		}
-
-		if (tornado != current_tornado) {
-			bool start_over{ false };
-
-			if (current_tornado != ecs::null) {
-				PTGN_ASSERT(current_tornado.Has<Transform>());
-				float dist2old{
-					(player_pos - current_tornado.Get<Transform>().position).MagnitudeSquared()
-				};
-				// If the new tornado is closer than the previously imaged one, start imaging the
-				// new one and drop the old one.
-				if (tornado.Has<Transform>()) {
-					const auto& tornado_center = tornado.Get<Transform>().position;
-					float dist2new{ (player_pos - tornado_center).MagnitudeSquared() };
-					if (dist2new < dist2old) {
-						start_over = true;
-					}
-				}
-			} else {
-				start_over = true;
-			}
-
-			if (start_over) {
-				Start(tornado);
-			}
 		}
 
 		if (current_tornado == ecs::null) {
 			return;
 		}
+		PTGN_ASSERT(current_tornado.Has<TornadoComponent>());
+		TornadoComponent tornado_properties{ current_tornado.Get<TornadoComponent>() };
 
-		if (!current_tornado.Has<Transform>()) {
+		// Rate relative to tornado max increment speed that it decrements when outside of
+		// radius.
+		const float decrement_rate{ 0.5f };
+
+		progress -= tornado_properties.increment_speed * decrement_rate * dt;
+		progress  = std::clamp(progress, 0.0f, 1.0f);
+	}
+
+	void Update(ecs::Entity tornado, const V2_float& player_pos, float dt) {
+		if (tornado == ecs::null) {
+			DecrementTornadoProgress(dt);
 			return;
 		}
-		if (!current_tornado.Has<TornadoComponent>()) {
-			return;
+		PTGN_ASSERT(!CompletedTornado(tornado));
+
+		if (tornado != current_tornado) {
+			Start(tornado);
 		}
+
+		PTGN_ASSERT(current_tornado.Has<Transform>());
+		PTGN_ASSERT(current_tornado.Has<TornadoComponent>());
 
 		const auto& tornado_center = current_tornado.Get<Transform>().position;
 
@@ -523,6 +518,7 @@ struct Progress {
 			tornado_properties.outermost_increment_ratio <=
 			tornado_properties.innermost_increment_ratio
 		);
+
 		float increment_ratio{ Lerp(
 			tornado_properties.innermost_increment_ratio,
 			tornado_properties.outermost_increment_ratio, normalized_dist
@@ -657,7 +653,7 @@ public:
 	void Update(float dt) final {
 		PlayerInput(dt);
 
-		UpdateTornados(dt);
+		UpdateTornadoes(dt);
 
 		PlayerPhysics(dt);
 
@@ -675,7 +671,7 @@ public:
 
 		DrawPlayer();
 
-		DrawTornados();
+		DrawTornadoes();
 
 		DrawUI();
 	}
@@ -765,7 +761,7 @@ public:
 
 		auto& tornado = entity.Add<TornadoComponent>();
 
-		float width{ size.x };
+		float width{ size.x / 2.0f };
 
 		tornado.escape_radius	= tornado_data.at("escape_radius") * width;
 		tornado.turn_speed		= tornado_data.at("turn_speed");
@@ -964,6 +960,29 @@ public:
 		rigid_body.acceleration = {};
 	}
 
+	// May return ecs::null.
+	ecs::Entity GetClosestTornado(const std::vector<ecs::Entity>& data_tornadoes) {
+		PTGN_ASSERT(!data_tornadoes.empty());
+		PTGN_ASSERT(player.Has<Progress>());
+		PTGN_ASSERT(player.Has<Transform>());
+		float closest_tornado2{ std::numeric_limits<float>::max() };
+		ecs::Entity closest_tornado{ ecs::null };
+		const auto& player_center = player.Get<Transform>().position;
+		for (const ecs::Entity& t : data_tornadoes) {
+			// Ignore completed tornadoes.
+			if (player.Get<Progress>().CompletedTornado(t) || !t.Has<Transform>()) {
+				continue;
+			}
+			const auto& tornado_center = t.Get<Transform>().position;
+			float dist2new{ (player_center - tornado_center).MagnitudeSquared() };
+			if (dist2new < closest_tornado2) {
+				closest_tornado2 = dist2new;
+				closest_tornado	 = t;
+			}
+		}
+		return closest_tornado;
+	}
+
 	void UpdateTornadoGravity(float dt) {
 		auto tornadoes = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
 
@@ -983,6 +1002,8 @@ public:
 
 		bool within_danger{ false };
 
+		std::vector<ecs::Entity> data_tornadoes;
+
 		for (auto [e, tornado, transform, rigid_body] : tornadoes) {
 			if (!game.collision.overlap.PointCircle(
 					player_transform.position, { transform.position, tornado.gravity_radius }
@@ -992,6 +1013,9 @@ public:
 
 			V2_float dir{ transform.position - player_transform.position };
 			V2_float wind_speed{ tornado.GetWind(dir, player_aero.pull_resistance) * dt };
+
+			// Apply tornado effects to player.
+
 			player_rigid_body.velocity	   += wind_speed;
 			player_transform.rotation	   += wind_speed.Magnitude() / player_vehicle.inertia;
 			player_rigid_body.acceleration += tornado.GetSuction(dir, player_max_thrust);
@@ -1000,10 +1024,11 @@ public:
 			if (!game.collision.overlap.PointCircle(
 					player_transform.position, { transform.position, tornado.data_radius }
 				)) {
+				// Not collecting data.
 				continue;
 			}
 
-			player.Get<Progress>().Update(e, player_transform.position, dt);
+			data_tornadoes.push_back(e);
 
 			if (game.collision.overlap.PointCircle(
 					player_transform.position, { transform.position, tornado.warning_radius }
@@ -1042,6 +1067,13 @@ public:
 				.Start();
 		}
 
+		if (data_tornadoes.size() > 0) {
+			auto closest_tornado = GetClosestTornado(data_tornadoes);
+			player.Get<Progress>().Update(closest_tornado, player_transform.position, dt);
+		} else {
+			player.Get<Progress>().DecrementTornadoProgress(dt);
+		}
+
 		if (within_danger) {
 			if (!player.Has<Warning>()) {
 				player.Add<Warning>().Init(player);
@@ -1054,7 +1086,7 @@ public:
 		}
 	}
 
-	void UpdateTornados(float dt) {
+	void UpdateTornadoes(float dt) {
 		TornadoMotion(dt);
 		UpdateTornadoGravity(dt);
 	}
@@ -1142,7 +1174,7 @@ public:
 		);
 	}
 
-	void DrawTornados() {
+	void DrawTornadoes() {
 		auto tornadoes = manager.EntitiesWith<TornadoComponent, Texture, Transform, Size>();
 
 		for (auto [e, tornado, texture, transform, size] : tornadoes) {
