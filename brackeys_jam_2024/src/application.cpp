@@ -360,8 +360,7 @@ struct Progress {
 		progress		= 0.0f;
 	}
 
-	void AddTornado(ecs::Entity tornado) {
-		PTGN_ASSERT(tornado == current_tornado);
+	void FinishCurrentTornado() {
 		PTGN_ASSERT(current_tornado.Has<TornadoComponent>());
 		completed_tornadoes.push_back(current_tornado);
 
@@ -454,13 +453,7 @@ struct Progress {
 		return false;
 	}
 
-	void Update(
-		ecs::Entity tornado, const V2_float& player_pos, const V2_float& tornado_center,
-		float data_radius, float escape_radius, float dt
-	) {
-		PTGN_ASSERT(data_radius != 0.0f);
-		PTGN_ASSERT(escape_radius != 0.0f);
-
+	void Update(ecs::Entity tornado, const V2_float& player_pos, float dt) {
 		if (CompletedTornado(tornado)) {
 			return;
 		}
@@ -475,9 +468,12 @@ struct Progress {
 				};
 				// If the new tornado is closer than the previously imaged one, start imaging the
 				// new one and drop the old one.
-				float dist2new{ (player_pos - tornado_center).MagnitudeSquared() };
-				if (dist2new < dist2old) {
-					start_over = true;
+				if (tornado.Has<Transform>()) {
+					const auto& tornado_center = tornado.Get<Transform>().position;
+					float dist2new{ (player_pos - tornado_center).MagnitudeSquared() };
+					if (dist2new < dist2old) {
+						start_over = true;
+					}
 				}
 			} else {
 				start_over = true;
@@ -488,24 +484,40 @@ struct Progress {
 			}
 		}
 
+		if (current_tornado == ecs::null) {
+			return;
+		}
+
+		if (!current_tornado.Has<Transform>()) {
+			return;
+		}
+		if (!current_tornado.Has<TornadoComponent>()) {
+			return;
+		}
+
+		const auto& tornado_center = current_tornado.Get<Transform>().position;
+
+		TornadoComponent tornado_properties{ current_tornado.Get<TornadoComponent>() };
+
+		PTGN_ASSERT(tornado_properties.data_radius != 0.0f);
+		PTGN_ASSERT(tornado_properties.escape_radius != 0.0f);
+
 		V2_float dir{ tornado_center - player_pos };
 		float dist{ dir.Magnitude() };
-		PTGN_ASSERT(dist <= data_radius);
-		PTGN_ASSERT(data_radius > escape_radius);
-		float range{ data_radius - escape_radius };
+		PTGN_ASSERT(dist <= tornado_properties.data_radius);
+		PTGN_ASSERT(tornado_properties.data_radius > tornado_properties.escape_radius);
+		float range{ tornado_properties.data_radius - tornado_properties.escape_radius };
 
-		if (dist <= escape_radius) {
+		if (dist <= tornado_properties.escape_radius) {
 			progress = 0.0f;
 			return;
 		}
 
-		float dist_from_escape{ dist - escape_radius };
+		float dist_from_escape{ dist - tornado_properties.escape_radius };
 
 		float normalized_dist{ dist_from_escape / range };
 		PTGN_ASSERT(normalized_dist >= 0.0f);
 		PTGN_ASSERT(normalized_dist <= 1.0f);
-
-		TornadoComponent tornado_properties{ tornado.Get<TornadoComponent>() };
 
 		PTGN_ASSERT(
 			tornado_properties.outermost_increment_ratio <=
@@ -521,7 +533,7 @@ struct Progress {
 		progress = std::clamp(progress, 0.0f, 1.0f);
 
 		if (progress >= 1.0f) {
-			AddTornado(tornado);
+			FinishCurrentTornado();
 		}
 	}
 };
@@ -588,6 +600,11 @@ public:
 		game.tween.Clear();
 	}
 
+	float min_zoom{ 1.0f };
+	float max_zoom{ 2.0f };
+	float zoom_speed{ 0.38f };
+	float zoom{ 1.5f };
+
 	void Init() final {
 		level_data = GetLevelData().at("levels").at(level);
 
@@ -607,7 +624,7 @@ public:
 		bounds.origin = Origin::TopLeft;
 
 		primary.SetBounds(bounds);
-		primary.SetZoom(2.0f);
+		primary.SetZoom(zoom);
 
 		noise_properties.octaves	 = 2;
 		noise_properties.frequency	 = 0.045f;
@@ -791,6 +808,21 @@ public:
 		bool left{ game.input.KeyPressed(Key::A) };
 		bool down{ game.input.KeyPressed(Key::S) };
 		bool right{ game.input.KeyPressed(Key::D) };
+		bool q{ game.input.KeyPressed(Key::Q) };
+		bool e{ game.input.KeyPressed(Key::E) };
+
+		auto& primary{ camera.GetCurrent() };
+
+		if (q) {
+			zoom += zoom_speed * dt;
+			zoom  = std::clamp(zoom, min_zoom, max_zoom);
+			primary.SetZoom(zoom);
+		}
+		if (e) {
+			zoom -= zoom_speed * dt;
+			zoom  = std::clamp(zoom, min_zoom, max_zoom);
+			primary.SetZoom(zoom);
+		}
 
 		const float wheel_rotation_angle{ pi<float> / 8.0f };
 
@@ -971,10 +1003,7 @@ public:
 				continue;
 			}
 
-			player.Get<Progress>().Update(
-				e, player_transform.position, transform.position, tornado.data_radius,
-				tornado.escape_radius, dt
-			);
+			player.Get<Progress>().Update(e, player_transform.position, dt);
 
 			if (game.collision.overlap.PointCircle(
 					player_transform.position, { transform.position, tornado.warning_radius }

@@ -15,7 +15,7 @@
       "tornadoes": [
         {
           "static": {
-            "pos": [500, 325]
+            "pos": [800, 325]
           },
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -36,8 +36,8 @@
       "tornadoes": [
         {
           "sequence": [
-            { "pos": [720, 3500], "time_to_next": 60000 },
-            { "pos": [720,  300], "time_to_next":    -1 }
+            { "pos": [720, 3200], "time_to_next": 60000 },
+            { "pos": [720,  800], "time_to_next":    -1 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -70,7 +70,7 @@
         },
         {
           "static": {
-            "pos": [500, 325]
+            "pos": [800, 325]
           },
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -92,7 +92,7 @@
         {
           "sequence": [
             { "pos": [900, 3600], "time_to_next": 60000 },
-            { "pos": [900,  300], "time_to_next":    -1 }
+            { "pos": [900,  800], "time_to_next":    -1 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -142,7 +142,7 @@
       "tornadoes": [
         {
           "sequence": [
-            { "pos": [720,  300], "time_to_next": 60000 },
+            { "pos": [720,  800], "time_to_next": 60000 },
             { "pos": [720, 3500], "time_to_next":    -1 }
           ],
           "texture": "resources/entity/tornado.png",
@@ -155,8 +155,8 @@
         },
         {
           "sequence": [
-            { "pos": [300, 3500], "time_to_next": 60000 },
-            { "pos": [300,  300], "time_to_next":    -1 }
+            { "pos": [300, 3200], "time_to_next": 60000 },
+            { "pos": [300,  800], "time_to_next":    -1 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -168,8 +168,8 @@
         },
         {
           "sequence": [
-            { "pos": [1000, 3500], "time_to_next": 60000 },
-            { "pos": [1000,  300], "time_to_next":    -1 }
+            { "pos": [1000, 3200], "time_to_next": 60000 },
+            { "pos": [1000,  800], "time_to_next":    -1 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -225,8 +225,8 @@
       "tornadoes": [
         {
           "sequence": [
-            { "pos": [300, 300], "time_to_next": 1000 },
-            { "pos": [300, 300], "time_to_next": 1000 }
+            { "pos": [300, 800], "time_to_next": 1000 },
+            { "pos": [300, 800], "time_to_next": 1000 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -238,8 +238,8 @@
         },
         {
           "sequence": [
-            { "pos": [300, 300], "time_to_next": 1000 },
-            { "pos": [300, 300], "time_to_next": 1000 }
+            { "pos": [300, 800], "time_to_next": 1000 },
+            { "pos": [300, 800], "time_to_next": 1000 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -251,8 +251,8 @@
         },
         {
           "sequence": [
-            { "pos": [300, 300], "time_to_next": 1000 },
-            { "pos": [300, 300], "time_to_next": 1000 }
+            { "pos": [300, 800], "time_to_next": 1000 },
+            { "pos": [300, 800], "time_to_next": 1000 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -264,8 +264,8 @@
         },
         {
           "sequence": [
-            { "pos": [300, 300], "time_to_next": 1000 },
-            { "pos": [300, 300], "time_to_next": 1000 }
+            { "pos": [300, 800], "time_to_next": 1000 },
+            { "pos": [300, 800], "time_to_next": 1000 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -286,8 +286,8 @@
       "tornadoes": [
         {
           "sequence": [
-            { "pos": [300, 300], "time_to_next": 1000 },
-            { "pos": [300, 300], "time_to_next": 1000 }
+            { "pos": [300, 800], "time_to_next": 1000 },
+            { "pos": [300, 800], "time_to_next": 1000 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
@@ -308,8 +308,8 @@
       "tornadoes": [
         {
           "sequence": [
-            { "pos": [300, 300], "time_to_next": 1000 },
-            { "pos": [300, 300], "time_to_next": 1000 }
+            { "pos": [300, 800], "time_to_next": 1000 },
+            { "pos": [300, 800], "time_to_next": 1000 }
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
