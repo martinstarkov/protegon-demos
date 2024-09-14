@@ -1344,6 +1344,12 @@ public:
 			 "out!\nDifficulty: Hard" },
 	};
 
+	std::unordered_map<int, std::string> tornado_textures{
+		{ 0, "tornado_ui_0" }, { 1, "tornado_ui_1" }, { 2, "tornado_ui_2" },
+		{ 3, "tornado_ui_3" }, { 4, "tornado_ui_4" }, { 5, "tornado_ui_0" },
+		{ 6, "tornado_ui_1" }, { 7, "tornado_ui_2" }, { 8, "tornado_ui_3" }
+	};
+
 	std::string GetDetails(int level) const {
 		PTGN_ASSERT(level != -1);
 		auto it = details.find(level);
@@ -1355,12 +1361,16 @@ public:
 	RNG<int> texture_rng{ 0, 4 };
 
 	// level, texture index
-	std::unordered_map<int, int> level_textures;
+	std::unordered_map<int, std::size_t> level_textures;
 
 	LevelSelect() {
 		for (auto& [branch, levels] : branches) {
 			for (auto level : levels) {
-				level_textures.emplace(level, texture_rng());
+				auto it = tornado_textures.find(level);
+				PTGN_ASSERT(
+					it != tornado_textures.end(), "Could not find tornado texture for level"
+				);
+				level_textures.emplace(level, Hash(it->second));
 			}
 		}
 
@@ -1403,8 +1413,8 @@ public:
 		Rectangle rect;
 		auto it = level_textures.find(level);
 		PTGN_ASSERT(it != level_textures.end());
-		int texture_index = it->second;
-		std::size_t key	  = Hash(std::string("tornado_ui_") + std::to_string(texture_index));
+		std::size_t key =
+			it->second; // Hash(std::string("tornado_ui_") + std::to_string(texture_index));
 		PTGN_ASSERT(game.texture.Has(key));
 		Texture texture = game.texture.Get(key);
 		rect.pos		= game.window.GetCenter();
