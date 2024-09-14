@@ -345,6 +345,20 @@ struct Progress {
 
 	float progress{ 0.0f };
 
+	bool CompletedAllRequired() const {
+		std::vector<ecs::Entity> v1 = completed_tornadoes;
+		std::vector<ecs::Entity> v2 = required_tornadoes;
+
+		auto comp = [&](const ecs::Entity& a, const ecs::Entity& b) {
+			return a.GetId() < b.GetId();
+		};
+
+		// Required in case completion order differs from required order.
+		std::sort(v1.begin(), v1.end(), comp);
+		std::sort(v2.begin(), v2.end(), comp);
+		return v1 == v2;
+	}
+
 	void Stop(ecs::Entity tornado) {
 		if (tornado != current_tornado || tornado == ecs::null) {
 			return;
@@ -373,7 +387,7 @@ struct Progress {
 
 		// PTGN_LOG("Completed tornado with EntityID: ", tornado.GetId());
 
-		if (completed_tornadoes == required_tornadoes) {
+		if (CompletedAllRequired()) {
 			// PTGN_LOG("All required tornadoes completed!");
 			BackToLevelSelect(GetCurrentGameLevel(), true);
 			return;
@@ -456,7 +470,7 @@ struct Progress {
 	}
 
 	void DecrementTornadoProgress(float dt) {
-		if (completed_tornadoes == required_tornadoes) {
+		if (CompletedAllRequired()) {
 			// PTGN_LOG("All required tornadoes completed!");
 			BackToLevelSelect(GetCurrentGameLevel(), true);
 			return;
@@ -1359,16 +1373,24 @@ const V2_int button_size{ 150, 50 };
 const V2_int first_button_coordinate{ 40, 180 };
 
 TextButton CreateMenuButton(
-	const std::string& content, Color text_color, const ButtonActivateFunction& f,
-	const Color& color, Color hover_color
+	const std::string& content_enabled, Color text_color, const ButtonActivateFunction& f,
+	const Color& color, Color hover_color, const std::string& content_disabled = ""
 ) {
 	ColorButton b;
-	Text text{ Hash("menu_font"), content, text_color };
+	Text text{ Hash("menu_font"), content_enabled, text_color };
 	b.SetOnHover(
 		[=]() mutable { text.SetColor(hover_color); }, [=]() mutable { text.SetColor(text_color); }
 	);
-	b.SetOnEnable([=]() mutable { text.SetColor(text_color); });
-	b.SetOnDisable([=]() mutable { text.SetColor(color::Black); });
+	b.SetOnEnable([=]() mutable {
+		text.SetColor(text_color);
+		text.SetContent(content_enabled);
+	});
+	b.SetOnDisable([=]() mutable {
+		text.SetColor(color::Black);
+		if (content_disabled != "") {
+			text.SetContent(content_disabled);
+		}
+	});
 	b.SetOnActivate(f);
 	b.SetColor(color);
 	b.SetHoverColor(hover_color);
@@ -1632,7 +1654,8 @@ public:
 		}
 
 		if (level_buttons.empty()) {
-			/* win screen? */
+			PTGN_INFO("You won! No levels available");
+			// TODO: Add restart game button?
 		} else if (level_buttons.size() == 1) {
 			auto& button{ std::get<1>(level_buttons[0]) };
 			auto rect{ button->GetRectangle() };
@@ -1664,7 +1687,7 @@ public:
 				ClearChoices();
 				StartGame(level);
 			},
-			color::Transparent, color::Black
+			color::Transparent, color::Black, "Click"
 		));
 		buttons.push_back(CreateMenuButton(
 			"Details", color::Gold,
@@ -1676,7 +1699,7 @@ public:
 				screen->text.SetContent(GetDetails(selected_level));
 				game.scene.AddActive(Hash("text_screen"));
 			},
-			color::Transparent, color::Black
+			color::Transparent, color::Black, "Tornado"
 		));
 		buttons.push_back(CreateMenuButton(
 			"Back", color::Silver,
@@ -1717,13 +1740,9 @@ public:
 			 std::get<1>(level_buttons[1])->GetTintColor() == color::White)) {
 			buttons[0].button->SetInteractable(false);
 			buttons[1].button->SetInteractable(false);
-			buttons[0].text.SetContent("Click");
-			buttons[1].text.SetContent("Tornado");
 		} else {
 			buttons[0].button->SetInteractable(true);
 			buttons[1].button->SetInteractable(true);
-			buttons[0].text.SetContent("Chase");
-			buttons[1].text.SetContent("Details");
 		}
 
 		game.renderer.DrawTexture(
