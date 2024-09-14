@@ -647,8 +647,10 @@ public:
 			!tornadoes.empty(), "Each level must have at least one tornado specified in the JSON"
 		);
 
+		std::size_t tornado_id{ 0 };
 		for (const auto& t : tornadoes) {
-			CreateTornado(t);
+			CreateTornado(tornado_id, t);
+			tornado_id++;
 		}
 
 		std::uint32_t seed = level_data.at("seed");
@@ -728,7 +730,7 @@ public:
 		return entity;
 	}
 
-	ecs::Entity CreateTornado(const json& tornado_data) {
+	ecs::Entity CreateTornado(std::size_t tornado_id, const json& tornado_data) {
 		ecs::Entity entity = manager.CreateEntity();
 		manager.Refresh();
 
@@ -754,13 +756,43 @@ public:
 		} else if (tornado_data.contains("sequence")) {
 			auto& sequence_tornado = tornado_data.at("sequence");
 			PTGN_ASSERT(
-				!sequence_tornado.empty(), "JSON tornado sequence must contain at least one entry"
+				sequence_tornado.size() >= 2,
+				"JSON tornado sequence must contain at least two entries"
 			);
-			/* TODO: create tween sequence */
-			auto& tornado_pos	 = sequence_tornado.at(0).at("pos");
-			auto& transform		 = entity.Add<Transform>();
-			transform.position.x = tornado_pos.at(0);
-			transform.position.y = tornado_pos.at(1);
+			auto& tornado_pos		  = sequence_tornado.at(0).at("pos");
+			auto& transform			  = entity.Add<Transform>();
+			transform.position.x	  = tornado_pos.at(0);
+			transform.position.y	  = tornado_pos.at(1);
+			std::string sequence_name = "tornado_sequence_" + std::to_string(tornado_id);
+			Tween& sequence			  = game.tween.Load(Hash(sequence_name));
+
+			for (std::size_t current{ 0 }; current < sequence_tornado.size(); current++) {
+				std::size_t next{ current + 1 };
+				if (next >= sequence_tornado.size()) {
+					break;
+				}
+
+				const auto& data_current = sequence_tornado.at(current);
+				const auto& data_next	 = sequence_tornado.at(next);
+
+				V2_float start_pos;
+				V2_float end_pos;
+
+				start_pos.x = data_current.at("pos").at(0);
+				start_pos.y = data_current.at("pos").at(1);
+
+				end_pos.x = data_next.at("pos").at(0);
+				end_pos.y = data_next.at("pos").at(1);
+
+				int time_to_next_ms = data_current.at("time_to_next");
+				milliseconds time_to_next{ time_to_next_ms };
+
+				sequence.During(time_to_next).OnUpdate([=](float progress) mutable {
+					auto& transform	   = entity.Get<Transform>();
+					transform.position = Lerp(start_pos, end_pos, progress);
+				});
+			}
+			sequence.Start();
 		}
 
 		if (tornado_data.contains("custom") && tornado_data.at("custom")) {
@@ -777,12 +809,19 @@ public:
 
 		float width{ size.x / 2.0f };
 
-		tornado.escape_radius	= tornado_data.at("escape_radius") * width;
-		tornado.turn_speed		= tornado_data.at("turn_speed");
-		tornado.data_radius		= tornado_data.at("data_radius") * width;
-		tornado.gravity_radius	= tornado_data.at("gravity_radius") * width;
-		tornado.warning_radius	= tornado_data.at("warning_radius") * width;
-		tornado.increment_speed = tornado_data.at("increment_speed");
+		float turn_speed	  = tornado_data.at("turn_speed");
+		float increment_speed = tornado_data.at("increment_speed");
+		float escape_radius	  = tornado_data.at("escape_radius");
+		float data_radius	  = tornado_data.at("data_radius");
+		float gravity_radius  = tornado_data.at("gravity_radius");
+		float warning_radius  = tornado_data.at("warning_radius");
+
+		tornado.turn_speed		= turn_speed;
+		tornado.increment_speed = increment_speed;
+		tornado.escape_radius	= escape_radius * width;
+		tornado.data_radius		= data_radius * width;
+		tornado.gravity_radius	= gravity_radius * width;
+		tornado.warning_radius	= warning_radius * width;
 
 		auto& rigid_body = entity.Add<RigidBody>();
 		// rigid_body.max_velocity = 137.0f;
@@ -1529,8 +1568,9 @@ public:
 	void CreateLevelButton(int level) {
 		Rectangle rect;
 
-		auto l			= GetLevel(level);
-		std::size_t key = Hash(l.at("ui_icon"));
+		auto l				  = GetLevel(level);
+		std::string icon_name = l.at("ui_icon");
+		std::size_t key		  = Hash(icon_name);
 
 		PTGN_ASSERT(game.texture.Has(key));
 
