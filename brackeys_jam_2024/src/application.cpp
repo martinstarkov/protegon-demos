@@ -1237,6 +1237,8 @@ TextButton CreateMenuButton(
 	b.SetOnHover(
 		[=]() mutable { text.SetColor(hover_color); }, [=]() mutable { text.SetColor(text_color); }
 	);
+	b.SetOnEnable([=]() mutable { text.SetColor(text_color); });
+	b.SetOnDisable([=]() mutable { text.SetColor(color::Black); });
 	b.SetOnActivate(f);
 	b.SetColor(color);
 	b.SetHoverColor(hover_color);
@@ -1269,7 +1271,7 @@ public:
 	void Init() final {
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Back", color::White,
+			"Back", color::Silver,
 			[&]() {
 				game.scene.RemoveActive(Hash("text_screen"));
 				if (!game.scene.Has(Hash(back_name))) {
@@ -1278,7 +1280,7 @@ public:
 				PTGN_ASSERT(game.scene.Has(Hash(back_name)));
 				game.scene.AddActive(Hash(back_name));
 			},
-			color::LightGrey, color::Black
+			color::Transparent, color::Black
 		));
 
 		buttons[0].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
@@ -1346,10 +1348,6 @@ public:
 	}
 
 	LevelSelect() {
-		completed_levels.emplace(0);
-		completed_levels.emplace(1);
-		// completed_levels.emplace(2);
-
 		if (!game.font.Has(Hash("menu_font"))) {
 			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
 		}
@@ -1393,24 +1391,24 @@ public:
 			rect, std::vector<TextureOrKey>{ texture, texture }
 		);
 
-		Color select_color = color::Black;
-		Color hover_color  = color::Grey;
+		Color tornado_select_color = color::Black;
+		Color tornado_hover_color  = color::Grey;
 
-		button->SetOnActivate([this, button, level, select_color]() {
+		button->SetOnActivate([this, button, level, tornado_select_color]() {
 			selected_level = level;
 			PTGN_INFO("Selected level: ", level);
-			button->SetTintColor(select_color);
+			button->SetTintColor(tornado_select_color);
 			ToggleOtherLevel();
 		});
 		button->SetOnHover(
 			[=]() {
 				if (button->GetTintColor() == color::White) {
-					button->SetTintColor(hover_color);
+					button->SetTintColor(tornado_hover_color);
 					PTGN_INFO("Hover started on button for level: ", level);
 				}
 			},
 			[=]() {
-				if (button->GetTintColor() == hover_color) {
+				if (button->GetTintColor() == tornado_hover_color) {
 					button->SetTintColor(color::White);
 					PTGN_INFO("Hover stopped on button for level: ", level);
 				}
@@ -1459,6 +1457,10 @@ public:
 
 	void Init() final {
 		level_data = GetLevelData();
+
+		for (int l : level_data.at("completed_levels")) {
+			completed_levels.emplace(l);
+		}
 
 		for (const auto& l : level_data.at("levels")) {
 			std::string icon_path = l.at("ui_icon");
@@ -1522,16 +1524,16 @@ public:
 
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Confirm", color::White,
+			"Chase", color::Green,
 			[&]() {
 				auto level = selected_level;
 				ClearChoices();
 				StartGame(level);
 			},
-			color::Blue, color::Black
+			color::Transparent, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Details", color::White,
+			"Details", color::Gold,
 			[&]() {
 				game.scene.RemoveActive(Hash("level_select"));
 				auto screen		  = game.scene.Get<TextScreen>(Hash("text_screen"));
@@ -1540,10 +1542,10 @@ public:
 				screen->text.SetContent(GetDetails(selected_level));
 				game.scene.AddActive(Hash("text_screen"));
 			},
-			color::Gold, color::Black
+			color::Transparent, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Back", color::White,
+			"Back", color::Silver,
 			[&]() {
 				game.scene.RemoveActive(Hash("level_select"));
 				if (!game.scene.Has(Hash("main_menu"))) {
@@ -1551,7 +1553,7 @@ public:
 				}
 				game.scene.AddActive(Hash("main_menu"));
 			},
-			color::LightGrey, color::Black
+			color::Transparent, color::Black
 		));
 
 		buttons[0].button->SetRectangle({ V2_int{ 596, 505 }, button_size, Origin::CenterTop });
@@ -1586,7 +1588,7 @@ public:
 		} else {
 			buttons[0].button->SetInteractable(true);
 			buttons[1].button->SetInteractable(true);
-			buttons[0].text.SetContent("Confirm");
+			buttons[0].text.SetContent("Chase");
 			buttons[1].text.SetContent("Details");
 		}
 
@@ -1639,7 +1641,7 @@ public:
 	void Init() final {
 		buttons.clear();
 		buttons.push_back(CreateMenuButton(
-			"Play", color::White,
+			"Play", color::Cyan,
 			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
 				if (game.scene.Has(Hash("level_select"))) {
@@ -1647,10 +1649,10 @@ public:
 				}
 				game.scene.AddActive(Hash("level_select"));
 			},
-			color::Blue, color::Black
+			color::Transparent, color::Black
 		));
 		buttons.push_back(CreateMenuButton(
-			"Tutorial", color::White,
+			"Tutorial", color::Gold,
 			[&]() {
 				game.scene.RemoveActive(Hash("main_menu"));
 				auto screen		  = game.scene.Get<TextScreen>(Hash("text_screen"));
@@ -1662,7 +1664,7 @@ public:
 				);
 				game.scene.AddActive(Hash("text_screen"));
 			},
-			color::Blue, color::Black
+			color::Transparent, color::Black
 		));
 
 		/*	buttons[0].button->SetRectangle({ V2_int{ 550, 505 }, button_size, Origin::TopLeft });
