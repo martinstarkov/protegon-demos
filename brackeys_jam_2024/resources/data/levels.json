@@ -1,9 +1,9 @@
   {
       "branches": [
               [0],
-              [0, 1, 3],
-              [0, 2, 4, 5],
-              [0, 6, 7, 8]
+              [0, 1, 4],
+              [0, 2, 6, 5],
+              [0, 0, 3, 8]
       ],
       "levels": [
           {
@@ -26,8 +26,8 @@
               "details": "Information: \nThis 'nado is moving! Can you keep up?\nDifficulty: Easy",
               "tornadoes": [{
                   "sequence": [
-                      { "x": 300, "y": 300, "time_to_next": 1000 },
-                      { "x": 300, "y": 300, "time_to_next": 1000 }
+                      { "x": 720, "y": 3500, "time_to_next": 1000 },
+                      { "x": 720, "y": 300, "time_to_next": -1 }
                   ],
                   "texture": "resources/entity/tornado.png",
                   "size": []
@@ -36,26 +36,32 @@
           {
             "id": 2,
               "ui_icon": "resources/ui/tornado2.png",
-              "screen_size": [1, 5],
-              "details": "Information: \nThis tornado moves very quickly! Very difficult to dodge!\nDifficulty: Hard",
+              "screen_size": [1, 3],
+              "details": "Information: \nLook out! Two tornadoes have formed near each other. \nDifficulty: Easy",
               "tornadoes": [{
                   "sequence": [
-                      { "x": 300, "y": 300, "time_to_next": 1000 },
-                      { "x": 300, "y": 300, "time_to_next": 1000 }
+                      { "x": 650, "y": 900, "time_to_next": -1 }
                   ],
                   "texture": "resources/entity/tornado.png",
                   "size": []
+              },
+              {
+                  "sequence": [
+                        { "x": 500, "y": 325, "time_to_next": -1 }
+                    ],
+                    "texture": "resources/entity/tornado.png",
+                    "size": []
               }]
           },
           {
             "id": 3,
               "ui_icon": "resources/ui/tornado3.png",
-              "screen_size": [1, 5],
-              "details": "Information: \nThis is a medium sized tornado.\nDifficulty: Easy",
+              "screen_size": [1, 8],
+              "details": "Information: \nThis tornado is bigger than we've seen before.\nDifficulty: Medium",
               "tornadoes": [{
                   "sequence": [
-                      { "x": 300, "y": 300, "time_to_next": 1000 },
-                      { "x": 300, "y": 300, "time_to_next": 1000 }
+                      { "x": 900, "y": 3600, "time_to_next": 1000 },
+                      { "x": 900, "y": 300, "time_to_next": -1 }
                   ],
                   "texture": "resources/entity/tornado.png",
                   "size": []
