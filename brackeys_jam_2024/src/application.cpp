@@ -5,6 +5,13 @@
 
 using namespace ptgn;
 
+const path level_json = "resources/data/levels.json";
+
+[[nodiscard]] static json GetLevelData() {
+	std::ifstream f(level_json);
+	return json::parse(f);
+}
+
 constexpr V2_int resolution{ 1440, 810 };
 constexpr V2_int center{ resolution / 2 };
 constexpr bool draw_hitboxes{ true };
@@ -326,13 +333,13 @@ void BackToLevelSelect();
 struct Progress {
 	Texture texture;
 
-	std::vector<ecs::Entity> completed_tornados;
-	std::vector<ecs::Entity> required_tornados;
+	std::vector<ecs::Entity> completed_tornadoes;
+	std::vector<ecs::Entity> required_tornadoes;
 
 	ecs::Entity current_tornado;
 
-	Progress(const path& ui_texture_path, const std::vector<ecs::Entity>& required_tornados) :
-		texture{ ui_texture_path }, required_tornados{ required_tornados } {}
+	Progress(const path& ui_texture_path, const std::vector<ecs::Entity>& required_tornadoes) :
+		texture{ ui_texture_path }, required_tornadoes{ required_tornadoes } {}
 
 	float progress{ 0.0f };
 
@@ -355,7 +362,7 @@ struct Progress {
 	void AddTornado(ecs::Entity tornado) {
 		PTGN_ASSERT(tornado == current_tornado);
 		PTGN_ASSERT(current_tornado.Has<TornadoComponent>());
-		completed_tornados.push_back(current_tornado);
+		completed_tornadoes.push_back(current_tornado);
 
 		// TODO: Remove tornado tint once indicators exist.
 		current_tornado.Get<TornadoComponent>().tint = color::Green;
@@ -365,8 +372,8 @@ struct Progress {
 
 		// PTGN_LOG("Completed tornado with EntityID: ", tornado.GetId());
 
-		if (completed_tornados == required_tornados) {
-			// PTGN_LOG("All required tornados completed!");
+		if (completed_tornadoes == required_tornadoes) {
+			// PTGN_LOG("All required tornadoes completed!");
 			BackToLevelSelect();
 		}
 		// TODO: Some kind of particle effects? Change tornado indicator to completed?
@@ -387,13 +394,13 @@ struct Progress {
 
 		const V2_float icon_size{ tornado_icon.GetSize() };
 
-		float total_width{ icon_size.x * required_tornados.size() +
-						   (required_tornados.size() - 1) * icon_x_offset };
+		float total_width{ icon_size.x * required_tornadoes.size() +
+						   (required_tornadoes.size() - 1) * icon_x_offset };
 
 		V2_float start_pos{ center.x - total_width / 2.0f, icon_y_offset };
 
-		for (int i = 0; i < required_tornados.size(); ++i) {
-			auto tornado{ required_tornados[i] };
+		for (int i = 0; i < required_tornadoes.size(); ++i) {
+			auto tornado{ required_tornadoes[i] };
 			Texture t = tornado_icon;
 			if (CompletedTornado(tornado)) {
 				t = game.texture.Get(Hash("tornado_icon_green"));
@@ -438,7 +445,7 @@ struct Progress {
 	}
 
 	[[nodiscard]] bool CompletedTornado(ecs::Entity tornado) {
-		for (const auto& e : completed_tornados) {
+		for (const auto& e : completed_tornadoes) {
 			if (e == tornado) {
 				return true;
 			}
@@ -534,7 +541,9 @@ public:
 
 	std::unordered_set<V2_int> destroyed_tiles;
 
-	std::vector<ecs::Entity> required_tornados;
+	std::vector<ecs::Entity> required_tornadoes;
+
+	json level_data;
 
 	GameScene(int level) {
 		PTGN_LOG("Playing level: ", level);
@@ -544,7 +553,7 @@ public:
 		BackToLevelSelect();
 
 		/*destroyed_tiles.clear();
-		required_tornados.clear();
+		required_tornadoes.clear();
 		manager.Reset();
 		Init();*/
 	}
@@ -556,6 +565,8 @@ public:
 	}
 
 	void Init() final {
+		level_data = GetLevelData();
+
 		auto& primary{ camera.GetCurrent() };
 
 		bounds.pos	  = {};
@@ -585,7 +596,7 @@ public:
 
 		CreateBackground();
 
-		// player must be created after tornados.
+		// player must be created after tornadoes.
 		player = CreatePlayer(
 			V2_float{ grid_size.x / 2.0f, static_cast<float>(grid_size.y) } * tile_size -
 			V2_float{ 0.0f, resolution.y / 2.0f }
@@ -631,8 +642,8 @@ public:
 		Texture wheel_texture{ "resources/entity/wheels.png" };
 
 		entity.Add<Size>(vehicle_texture.GetSize());
-		PTGN_ASSERT(required_tornados.size() != 0);
-		entity.Add<Progress>("resources/ui/tornadometer.png", required_tornados);
+		PTGN_ASSERT(required_tornadoes.size() != 0);
+		entity.Add<Progress>("resources/ui/tornadometer.png", required_tornadoes);
 
 		auto& transform	   = entity.Add<Transform>();
 		transform.position = pos;
@@ -685,7 +696,7 @@ public:
 		PTGN_ASSERT(tornado.data_radius > tornado.escape_radius);
 		PTGN_ASSERT(tornado.gravity_radius >= tornado.data_radius);
 
-		required_tornados.push_back(entity);
+		required_tornadoes.push_back(entity);
 
 		return entity;
 	}
@@ -853,7 +864,7 @@ public:
 	}
 
 	void UpdateTornadoGravity(float dt) {
-		auto tornados = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
+		auto tornadoes = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
 
 		PTGN_ASSERT(player.Has<Transform>());
 		PTGN_ASSERT(player.Has<RigidBody>());
@@ -871,7 +882,7 @@ public:
 
 		bool within_danger{ false };
 
-		for (auto [e, tornado, transform, rigid_body] : tornados) {
+		for (auto [e, tornado, transform, rigid_body] : tornadoes) {
 			if (!game.collision.overlap.PointCircle(
 					player_transform.position, { transform.position, tornado.gravity_radius }
 				)) {
@@ -951,11 +962,11 @@ public:
 	}
 
 	void TornadoMotion(float dt) {
-		auto tornados = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
+		auto tornadoes = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
 
 		const float tornado_move_speed{ 1000.0f };
 
-		for (auto [e, tornado, transform, rigid_body] : tornados) {
+		for (auto [e, tornado, transform, rigid_body] : tornadoes) {
 			// TODO: Remove
 			if (game.input.KeyDown(Key::LEFT)) {
 				rigid_body.velocity.x -= tornado_move_speed * dt;
@@ -1034,9 +1045,9 @@ public:
 	}
 
 	void DrawTornados() {
-		auto tornados = manager.EntitiesWith<TornadoComponent, Texture, Transform, Size>();
+		auto tornadoes = manager.EntitiesWith<TornadoComponent, Texture, Transform, Size>();
 
-		for (auto [e, tornado, texture, transform, size] : tornados) {
+		for (auto [e, tornado, texture, transform, size] : tornadoes) {
 			game.renderer.DrawTexture(
 				texture, transform.position, size, {}, {}, Origin::Center, Flip::None,
 				transform.rotation, { 0.5f, 0.5f }, 2.0f, tornado.tint
@@ -1313,6 +1324,8 @@ public:
 
 	std::set<int> completed_levels;
 
+	json level_data;
+
 	bool CompletedLevel(int level) {
 		return completed_levels.count(level) > 0;
 	}
@@ -1323,69 +1336,27 @@ public:
 		});
 	}
 
-	std::unordered_map<int, std::vector<int>> branches{ { 0, { 0, 1, 2 } },
-														{ 1, { 3, 4, 5 } },
-														{ 2, { 6, 7, 8 } } };
-
-	std::unordered_map<int, std::string> details{
-		{ 0, "Information: \nThis is a slow moving tornado.\nDifficulty: Easy" },
-		{ 1, "Information: \nThis tornado goes at medium speed and has unpredictable movement "
-			 "patterns.\nDifficulty: Medium" },
-		{ 2, "Information: \nThis tornado moves very quickly! Very difficult to "
-			 "dodge!\nDifficulty: Hard" },
-		{ 3, "Information: \nThis is a medium sized tornado.\nDifficulty: Easy" },
-		{ 4, "Information: \nThis tornado is very large and powerful!\nDifficulty: Medium" },
-		{ 5, "Information: \nThe largest tornado ever found with incredibly strong "
-			 "winds!\nDifficulty: Hard" },
-		{ 6, "Information: \nThis is a simple twin tornado system.\nDifficulty: Easy" },
-		{ 7, "Information: \nThis twin system of tornados moves quickly and "
-			 "unpredictably!\nDifficulty: Medium" },
-		{ 8, "Information: \nThis is a system of three aggressive tornados. Watch "
-			 "out!\nDifficulty: Hard" },
-	};
-
-	std::unordered_map<int, std::string> tornado_textures{
-		{ 0, "tornado_ui_0" }, { 1, "tornado_ui_1" }, { 2, "tornado_ui_2" },
-		{ 3, "tornado_ui_3" }, { 4, "tornado_ui_4" }, { 5, "tornado_ui_0" },
-		{ 6, "tornado_ui_1" }, { 7, "tornado_ui_2" }, { 8, "tornado_ui_3" }
-	};
+	json GetLevel(int level) const {
+		for (auto& l : level_data["levels"]) {
+			if (l["id"] == level) {
+				return l;
+			}
+		}
+		PTGN_ERROR("Failed to find level in json");
+	}
 
 	std::string GetDetails(int level) const {
 		PTGN_ASSERT(level != -1);
-		auto it = details.find(level);
-		PTGN_ASSERT(it != details.end(), "No details provided for selected tornado level");
-		return it->second;
+		auto l = GetLevel(level);
+		return l["details"];
 	}
 
-	RNG<int> branch_rng{ 0, static_cast<int>(branches.size()) - 1 };
-	RNG<int> texture_rng{ 0, 4 };
-
-	// level, texture index
-	std::unordered_map<int, std::size_t> level_textures;
-
 	LevelSelect() {
-		for (auto& [branch, levels] : branches) {
-			for (auto level : levels) {
-				auto it = tornado_textures.find(level);
-				PTGN_ASSERT(
-					it != tornado_textures.end(), "Could not find tornado texture for level"
-				);
-				level_textures.emplace(level, Hash(it->second));
-			}
-		}
-
 		if (!game.font.Has(Hash("menu_font"))) {
 			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
 		}
 		if (!game.texture.Has(Hash("level_select_background"))) {
 			game.texture.Load(Hash("level_select_background"), "resources/ui/laptop.png");
-		}
-		if (!game.texture.Has(Hash("tornado_ui_0"))) {
-			game.texture.Load(Hash("tornado_ui_0"), "resources/ui/tornado0.png");
-			game.texture.Load(Hash("tornado_ui_1"), "resources/ui/tornado1.png");
-			game.texture.Load(Hash("tornado_ui_2"), "resources/ui/tornado2.png");
-			game.texture.Load(Hash("tornado_ui_3"), "resources/ui/tornado3.png");
-			game.texture.Load(Hash("tornado_ui_4"), "resources/ui/tornado4.png");
 		}
 	}
 
@@ -1411,11 +1382,12 @@ public:
 
 	void CreateLevelButton(int level) {
 		Rectangle rect;
-		auto it = level_textures.find(level);
-		PTGN_ASSERT(it != level_textures.end());
-		std::size_t key =
-			it->second; // Hash(std::string("tornado_ui_") + std::to_string(texture_index));
+
+		auto l			= GetLevel(level);
+		std::size_t key = Hash(l["ui_icon"]);
+
 		PTGN_ASSERT(game.texture.Has(key));
+
 		Texture texture = game.texture.Get(key);
 		rect.pos		= game.window.GetCenter();
 		rect.size		= texture.GetSize();
@@ -1458,14 +1430,16 @@ public:
 		int i	  = 0;
 		while (i < 3000) {
 			i++;
-			int branch = branch_rng();
-			auto it	   = branches.find(branch);
-			PTGN_ASSERT(it != branches.end());
-			auto& levels = it->second;
+			int branch	   = branch_rng();
+			auto& branches = level_data["branches"];
+			PTGN_ASSERT(
+				branch < branches.size(), "Randomly selected branch out of range of branches"
+			);
+			auto& levels = branches[branch];
 			if (difficulty_layer >= levels.size()) {
 				continue;
 			}
-			auto potential_level = levels[difficulty_layer];
+			int potential_level = levels[difficulty_layer];
 			if (CompletedLevel(potential_level) || ShownLevel(potential_level)) {
 				continue;
 			}
@@ -1474,7 +1448,7 @@ public:
 		return level;
 	}
 
-	V2_float level_button_offset0{ 0, -200 };
+	V2_float level_button_offset0{ 0, -100 };
 	V2_float level_button_offset1{ -100, -170 };
 	V2_float level_button_offset2{ +120, -50 };
 
@@ -1488,8 +1462,23 @@ public:
 		selected_level = -1;
 	}
 
+	RNG<int> branch_rng;
+
 	void Init() final {
-		if (shown_levels.size() == 0) {
+		level_data = GetLevelData();
+
+		branch_rng = { 0, static_cast<int>(level_data["branches"].size()) - 1 };
+
+		for (const auto& l : level_data["levels"]) {
+			std::string icon_path = l["ui_icon"];
+			std::size_t key{ Hash(icon_path) };
+			if (!game.texture.Has(key)) {
+				PTGN_ASSERT(FileExists(icon_path), "Could not find icon for level: ", l["id"]);
+				game.texture.Load(key, icon_path);
+			}
+		}
+
+		if (shown_levels.empty()) {
 			int first_level = GetValidLevel();
 
 			int second_level = -1;
@@ -1774,5 +1763,6 @@ public:
 
 int main() {
 	game.Start<SetupScene>();
+
 	return 0;
 }
