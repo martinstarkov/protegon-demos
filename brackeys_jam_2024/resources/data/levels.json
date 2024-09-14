@@ -65,7 +65,7 @@
           "increment_speed": 0.5,
           "escape_radius": 1.0,
           "warning_radius": 3.0,
-          "data_radius": 4.0,
+          "data_radius": 6.0,
           "gravity_radius": 8.0
         },
         {
@@ -77,7 +77,7 @@
           "increment_speed": 0.5,
           "escape_radius": 1.0,
           "warning_radius": 3.0,
-          "data_radius": 4.0,
+          "data_radius": 6.0,
           "gravity_radius": 8.0
         }
       ]
