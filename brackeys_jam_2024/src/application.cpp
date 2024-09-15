@@ -428,7 +428,8 @@ struct Progress {
 	}
 
 	void DrawTornadoProgress() {
-		if (progress <= 0.0f || current_tornado == ecs::null) {
+		if (progress <= 0.0f || current_tornado == ecs::null ||
+			game.tween.Has(Hash("pulled_in_tween"))) {
 			return;
 		}
 
@@ -456,7 +457,8 @@ struct Progress {
 	}
 
 	void DrawTornadoArrow(const V2_float& player_pos) {
-		if (progress <= 0.0f || current_tornado == ecs::null) {
+		if (progress <= 0.0f || current_tornado == ecs::null ||
+			game.tween.Has(Hash("pulled_in_tween"))) {
 			return;
 		}
 
@@ -585,8 +587,11 @@ struct Progress {
 			(int)Lerp(min_tornado_volume, max_tornado_volume, 1.0f - normalized_sound_dist);
 
 		PTGN_ASSERT(game.sound.Has(Hash("tornado_sound")));
-		auto& sound = game.sound.Get(Hash("tornado_sound"));
+		PTGN_ASSERT(game.sound.Has(Hash("tornado_wind_sound")));
+		auto& sound		 = game.sound.Get(Hash("tornado_sound"));
+		auto& sound_wind = game.sound.Get(Hash("tornado_wind_sound"));
 		sound.SetVolume(volume);
+		sound_wind.SetVolume(volume);
 		// PTGN_LOG("Volume: ", volume);
 
 		if (dist <= tornado_properties.escape_radius) {
@@ -672,8 +677,10 @@ public:
 		game.texture.Unload(Hash("speedometer"));
 
 		game.sound.HaltChannel(1);
+		game.sound.HaltChannel(2);
 
 		game.sound.Unload(Hash("tornado_sound"));
+		game.sound.Unload(Hash("tornado_wind_sound"));
 
 		// TODO: Unload tornado textures.
 	}
@@ -691,6 +698,7 @@ public:
 
 	void Shutdown() final {
 		game.sound.HaltChannel(1);
+		game.sound.HaltChannel(2);
 		game.tween.Clear();
 	}
 
@@ -706,10 +714,17 @@ public:
 		if (!game.sound.Has(Hash("tornado_sound"))) {
 			game.sound.Load(Hash("tornado_sound"), "resources/audio/tornado.ogg");
 		}
+		if (!game.sound.Has(Hash("tornado_wind_sound"))) {
+			game.sound.Load(Hash("tornado_wind_sound"), "resources/audio/wind.ogg");
+		}
 		auto& sound = game.sound.Get(Hash("tornado_sound"));
 		sound.Stop(1);
 		sound.SetVolume(min_tornado_volume);
 		sound.Play(1, -1);
+		auto& sound_wind = game.sound.Get(Hash("tornado_wind_sound"));
+		sound_wind.Stop(2);
+		sound_wind.SetVolume(min_tornado_volume);
+		sound_wind.Play(2, -1);
 
 		level_data = GetLevelData().at("levels").at(level);
 
@@ -1226,6 +1241,8 @@ public:
 		} else {
 			auto& sound = game.sound.Get(Hash("tornado_sound"));
 			sound.SetVolume(min_tornado_volume);
+			auto& sound_wind = game.sound.Get(Hash("tornado_wind_sound"));
+			sound_wind.SetVolume(min_tornado_volume);
 			player.Get<Progress>().DecrementTornadoProgress(dt);
 		}
 
@@ -1767,7 +1784,7 @@ public:
 
 		auto& difficulties = level_data.at("difficulty_layers");
 
-		PTGN_ASSERT(difficulties.size() == furthest_branch + 1);
+		PTGN_ASSERT(difficulties.size() >= furthest_branch + 1);
 
 		PTGN_ASSERT(!difficulties.empty());
 

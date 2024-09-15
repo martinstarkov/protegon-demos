@@ -14,6 +14,9 @@
     },
     {
       "music": "resources/audio/song_3.ogg"
+    },
+    {
+      "music": "resources/audio/song_win.ogg"
     }
   ],
   "branches": [
