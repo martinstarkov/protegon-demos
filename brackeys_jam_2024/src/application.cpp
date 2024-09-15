@@ -543,7 +543,10 @@ struct Progress {
 		progress  = std::clamp(progress, 0.0f, 1.0f);
 	}
 
-	void Update(ecs::Entity tornado, const V2_float& player_pos, float dt) {
+	void Update(
+		ecs::Entity tornado, const V2_float& player_pos, float dt, int min_tornado_volume,
+		int max_tornado_volume
+	) {
 		if (tornado == ecs::null) {
 			DecrementTornadoProgress(dt);
 			return;
@@ -570,12 +573,26 @@ struct Progress {
 		PTGN_ASSERT(tornado_properties.data_radius > tornado_properties.escape_radius);
 		float range{ tornado_properties.data_radius - tornado_properties.escape_radius };
 
+		float volume_range{ tornado_properties.gravity_radius - tornado_properties.escape_radius };
+
+		float dist_from_escape{ std::max(0.0f, dist - tornado_properties.escape_radius) };
+
+		float normalized_sound_dist{ dist_from_escape / range };
+
+		normalized_sound_dist = std::clamp(normalized_sound_dist, 0.0f, 1.0f);
+
+		int volume =
+			(int)Lerp(min_tornado_volume, max_tornado_volume, 1.0f - normalized_sound_dist);
+
+		PTGN_ASSERT(game.sound.Has(Hash("tornado_sound")));
+		auto& sound = game.sound.Get(Hash("tornado_sound"));
+		sound.SetVolume(volume);
+		// PTGN_LOG("Volume: ", volume);
+
 		if (dist <= tornado_properties.escape_radius) {
 			progress = 0.0f;
 			return;
 		}
-
-		float dist_from_escape{ dist - tornado_properties.escape_radius };
 
 		float normalized_dist{ dist_from_escape / range };
 		PTGN_ASSERT(normalized_dist >= 0.0f);
@@ -654,6 +671,10 @@ public:
 		game.texture.Unload(Hash("tornado_icon_green"));
 		game.texture.Unload(Hash("speedometer"));
 
+		game.sound.HaltChannel(1);
+
+		game.sound.Unload(Hash("tornado_sound"));
+
 		// TODO: Unload tornado textures.
 	}
 
@@ -669,6 +690,7 @@ public:
 	Rectangle<float> bounds;
 
 	void Shutdown() final {
+		game.sound.HaltChannel(1);
 		game.tween.Clear();
 	}
 
@@ -677,7 +699,18 @@ public:
 	float zoom_speed{ 0.38f };
 	float zoom{ 1.5f };
 
+	int min_tornado_volume{ 10 };
+	int max_tornado_volume{ 128 };
+
 	void Init() final {
+		if (!game.sound.Has(Hash("tornado_sound"))) {
+			game.sound.Load(Hash("tornado_sound"), "resources/audio/tornado.ogg");
+		}
+		auto& sound = game.sound.Get(Hash("tornado_sound"));
+		sound.Stop(1);
+		sound.SetVolume(min_tornado_volume);
+		sound.Play(1, -1);
+
 		level_data = GetLevelData().at("levels").at(level);
 
 		V2_int screen_size{ level_data.at("screen_size").at(0),
@@ -1186,8 +1219,13 @@ public:
 
 		if (data_tornadoes.size() > 0) {
 			auto closest_tornado = GetClosestTornado(data_tornadoes);
-			player.Get<Progress>().Update(closest_tornado, player_transform.position, dt);
+			player.Get<Progress>().Update(
+				closest_tornado, player_transform.position, dt, min_tornado_volume,
+				max_tornado_volume
+			);
 		} else {
+			auto& sound = game.sound.Get(Hash("tornado_sound"));
+			sound.SetVolume(min_tornado_volume);
 			player.Get<Progress>().DecrementTornadoProgress(dt);
 		}
 
