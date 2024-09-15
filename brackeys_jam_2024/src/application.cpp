@@ -14,7 +14,7 @@ const path level_json = "resources/data/levels.json";
 
 constexpr V2_int resolution{ 1440, 810 };
 constexpr V2_int center{ resolution / 2 };
-constexpr bool draw_hitboxes{ true };
+constexpr bool draw_hitboxes{ false };
 
 static void LoadMainMenu();
 static int GetCurrentGameLevel();
@@ -865,18 +865,20 @@ public:
 			entity.Has<Transform>(), "Failed to create tornado position from given JSON data"
 		);
 
-		auto& size = entity.Add<Size>(texture.GetSize());
-
-		auto& tornado = entity.Add<TornadoComponent>();
-
-		float width{ size.x / 2.0f };
-
 		float turn_speed	  = tornado_data.at("turn_speed");
 		float increment_speed = tornado_data.at("increment_speed");
 		float escape_radius	  = tornado_data.at("escape_radius");
 		float data_radius	  = tornado_data.at("data_radius");
 		float gravity_radius  = tornado_data.at("gravity_radius");
 		float warning_radius  = tornado_data.at("warning_radius");
+
+		V2_float texture_size{ texture.GetSize() };
+
+		auto& size = entity.Add<Size>(escape_radius * texture_size);
+
+		auto& tornado = entity.Add<TornadoComponent>();
+
+		float width{ texture_size.x / 2.0f };
 
 		tornado.turn_speed		= turn_speed;
 		tornado.increment_speed = increment_speed;
