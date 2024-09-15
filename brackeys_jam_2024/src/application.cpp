@@ -625,6 +625,10 @@ public:
 	GameScene(int level) : level{ level } {
 		PTGN_INFO("Starting level: ", level);
 
+		if (level == 0 && !game.texture.Has(Hash("tutorial_text"))) {
+			game.texture.Load(Hash("tutorial_text"), "resources/ui/instructions.png");
+		}
+
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
 		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
 		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
@@ -637,6 +641,10 @@ public:
 	}
 
 	~GameScene() {
+		if (level == 0) {
+			game.texture.Unload(Hash("tutorial_text"));
+		}
+
 		game.texture.Unload(Hash("grass"));
 		game.texture.Unload(Hash("dirt"));
 		game.texture.Unload(Hash("corn"));
@@ -1439,6 +1447,12 @@ public:
 		PTGN_ASSERT(player.Has<Transform>());
 		player.Get<Progress>().Draw(player.Get<Transform>().position);
 		DrawSpeedometer();
+		if (level == 0) {
+			const Texture tutorial_text{ game.texture.Get(Hash("tutorial_text")) };
+			const V2_float text_size{ tutorial_text.GetSize() };
+			const V2_float text_pos{ static_cast<float>(resolution.x), 0.0f };
+			game.renderer.DrawTexture(tutorial_text, text_pos, text_size, {}, {}, Origin::TopRight);
+		}
 
 		game.renderer.Flush();
 		game.camera.SetCameraPrimary();
