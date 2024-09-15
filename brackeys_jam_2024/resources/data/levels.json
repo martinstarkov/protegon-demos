@@ -96,10 +96,10 @@
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
-          "increment_speed": 0.5,
-          "escape_radius": 2.0,
-          "warning_radius": 4.0,
-          "data_radius": 5.0,
+          "increment_speed": 0.3,
+          "escape_radius": 4.0,
+          "warning_radius": 5.0,
+          "data_radius": 7.0,
           "gravity_radius": 10.0
         }
       ]
@@ -233,10 +233,10 @@
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
           "increment_speed": 0.5,
-          "escape_radius": 1.0,
+          "escape_radius": 2.0,
           "warning_radius": 3.0,
-          "data_radius": 4.0,
-          "gravity_radius": 5.0
+          "data_radius": 5.0,
+          "gravity_radius": 6.0
         },
         {
           "sequence": [
@@ -272,10 +272,10 @@
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
           "increment_speed": 0.5,
-          "escape_radius": 1.0,
+          "escape_radius": 2.0,
           "warning_radius": 3.0,
-          "data_radius": 4.0,
-          "gravity_radius": 5.0
+          "data_radius": 5.0,
+          "gravity_radius": 6.0
         }
       ]
     },
@@ -372,10 +372,10 @@
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
-          "increment_speed": 0.5,
-          "escape_radius": 1.0,
+          "increment_speed": 0.8,
+          "escape_radius": 2.5,
           "warning_radius": 3.0,
-          "data_radius": 4.0,
+          "data_radius": 5.0,
           "gravity_radius": 8.0
         },
         {
@@ -387,10 +387,10 @@
           ],
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
-          "increment_speed": 0.5,
-          "escape_radius": 1.0,
+          "increment_speed": 0.8,
+          "escape_radius": 2.5,
           "warning_radius": 3.0,
-          "data_radius": 4.0,
+          "data_radius": 5.0,
           "gravity_radius": 8.0
         }
       ]
