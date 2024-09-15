@@ -451,7 +451,7 @@ struct Progress {
 		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::CenterLeft);
 
 		game.renderer.DrawRectangleFilled(
-			fill_pos, { fill_size.x, fill_size.y * progress }, color, Origin::BottomLeft
+			fill_pos, V2_float{ fill_size.x, fill_size.y * progress }, color, Origin::BottomLeft
 		);
 	}
 
@@ -529,12 +529,6 @@ struct Progress {
 	}
 
 	void DecrementTornadoProgress(float dt) {
-		if (CompletedAllRequired()) {
-			// PTGN_LOG("All required tornadoes completed!");
-			BackToLevelSelect(GetCurrentGameLevel(), true);
-			return;
-		}
-
 		if (current_tornado == ecs::null) {
 			return;
 		}
@@ -1393,54 +1387,46 @@ public:
 
 		Texture texture{ game.texture.Get(Hash("speedometer")) };
 
-		V2_float meter_pos{ V2_float{ static_cast<float>(resolution.x), 0.0f } +
-							V2_float{ -10.0f, 10.0f } };
+		V2_float margin{ 4.0f, 0.0f };
 		V2_float meter_size{ texture.GetSize() };
+		V2_float meter_pos{ resolution - meter_size / 2.0f - margin };
 
-		PTGN_ASSERT(player.Has<RigidBody>());
-		PTGN_ASSERT(player.Has<Transform>());
 		PTGN_ASSERT(player.Has<VehicleComponent>());
 
-		RigidBody rigid_body{ player.Get<RigidBody>() };
-		Transform transform{ player.Get<Transform>() };
 		VehicleComponent vehicle{ player.Get<VehicleComponent>() };
 
-		float forward_velocity =
-			rigid_body.velocity.Dot(V2_float{ 1.0f, 0.0f }.Rotated(transform.rotation));
-
-		// float forward_accel = vehicle.prev_acceleration.Dot(V2_float{ 1.0f, 0.0f
-		// }.Rotated(transform.rotation));
-
 		float fraction{ vehicle.throttle };
-		// float fraction{ forward_velocity / rigid_body.max_velocity };
-		//  float fraction{ forward_accel / vehicle.forward_thrust };
 
 		// TODO: Consider not clamping this to show negative velocity.
 		fraction = std::clamp(fraction, 0.0f, 1.0f);
 
-		Color fill_color = Lerp(color::Red, color::Green, fraction);
+		const float speedometer_radius{ 58.0f };
+		const float start_angle{ DegToRad(63.0f + 51.0f) };
+		const float angle_range{ DegToRad(360.0f) - start_angle + DegToRad(63.0f) };
+		const float end_angle{ start_angle + DegToRad(1.0f) };
 
-		V2_float border_size{ 4, 4 };
+		float red_amount = Lerp(0.0f, angle_range, fraction);
+		float green_amount =
+			Lerp(0.0f, angle_range * (3.0f / 7.0f), std::min(1.0f, fraction / (3.0f / 7.0f)));
+		float yellow_amount =
+			Lerp(0.0f, angle_range * (5.2f / 7.0f), std::min(1.0f, fraction / (5.2f / 7.0f)));
 
-		V2_float fill_size{ meter_size - border_size * 2.0f };
-
-		V2_float fill_pos{ meter_pos.x - border_size.x - fill_size.x,
-						   meter_pos.y + border_size.y + fill_size.y };
-
-		Color meter_background = color::White;
-
-		meter_background.a = 128;
-		fill_color.a	   = 200;
-
-		game.renderer.DrawRectangleFilled(
-			fill_pos, { fill_size.x, fill_size.y }, meter_background, Origin::BottomLeft
+		game.renderer.DrawArcFilled(
+			meter_pos, speedometer_radius, start_angle, end_angle + red_amount, false, color::Red
 		);
 
-		game.renderer.DrawRectangleFilled(
-			fill_pos, { fill_size.x * fraction, fill_size.y }, fill_color, Origin::BottomLeft
+		game.renderer.DrawArcFilled(
+			meter_pos, speedometer_radius, start_angle, end_angle + yellow_amount, false,
+			color::Gold
 		);
 
-		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::TopRight);
+		game.renderer.DrawArcFilled(
+			meter_pos, speedometer_radius, start_angle, end_angle + green_amount, false, color::Lime
+		);
+
+		game.renderer.DrawTexture(
+			texture, meter_pos, meter_size, {}, {}, Origin::Center, Flip::None, 0.0f, {}, 1.0f
+		);
 	}
 
 	void DrawUI() {
