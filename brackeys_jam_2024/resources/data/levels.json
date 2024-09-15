@@ -57,7 +57,7 @@
     {
       "id": 1,
       "seed": 1000,
-      "win_text": "Let's find another storm!",
+      "win_text": "You put the pedal to the metal!",
       "ui_icon": "resources/ui/tornado1.png",
       "screen_size": [ 1, 5 ],
       "details": "Information: \nThis 'nado is moving! Can you keep up?\nDifficulty: Easy",
@@ -86,7 +86,7 @@
     {
       "id": 2,
       "seed": 2000,
-      "win_text": "Let's find another storm!",
+      "win_text": "More tornadoes, more fun!",
       "ui_icon": "resources/ui/tornado2.png",
       "screen_size": [ 1, 3 ],
       "details": "Information: \nLook out! Two tornadoes have formed near each other. \nDifficulty: Easy",
@@ -120,7 +120,7 @@
     {
       "id": 3,
       "seed": 3000,
-      "win_text": "Let's find another storm!",
+      "win_text": "Hey, you're pretty good at this!",
       "ui_icon": "resources/ui/tornado3.png",
       "screen_size": [ 1, 8 ],
       "details": "Information: \nThis tornado is bigger than we've seen before.\nDifficulty: Medium",
@@ -149,7 +149,7 @@
     {
       "id": 4,
       "seed": 4000,
-      "win_text": "Let's find another storm!",
+      "win_text": "Are you pickin up any new skills?",
       "ui_icon": "resources/ui/tornado4.png",
       "screen_size": [ 1, 8 ],
       "details": "Information: \nYou'll need to use some real chasin' skills for this one. \nDifficulty: Medium",
@@ -214,7 +214,7 @@
     {
       "id": 5,
       "seed": 5000,
-      "win_text": "Let's find another storm!",
+      "win_text": "That wasn't so bad!",
       "ui_icon": "resources/ui/tornado5.png",
       "screen_size": [ 1, 5 ],
       "details": "Information: \nHopefully you can navigate three fully developed tornadoes! \nDifficulty: Medium",
@@ -281,7 +281,7 @@
     {
       "id": 6,
       "seed": 6000,
-      "win_text": "Let's find another storm!",
+      "win_text": "These tornadoes are the yin to your yang!",
       "ui_icon": "resources/ui/tornado6.png",
       "screen_size": [ 1, 8 ],
       "details": "Information: \nTwo tornadoes circling each other?! Oh the calamity! \nDifficulty: Hard",
@@ -327,7 +327,7 @@
     {
       "id": 7,
       "seed": 7000,
-      "win_text": "Let's find another storm!",
+      "win_text": "Now that was a thrill!",
       "ui_icon": "resources/ui/tornado7.png",
       "screen_size": [ 1, 10 ],
       "details": "Information: \nNow that's a lot of 'nadoes! \nDifficulty: Hard",
@@ -413,7 +413,7 @@
     {
       "id": 8,
       "seed": 8000,
-      "win_text": "Let's find another storm!",
+      "win_text": "These 'nadoes can't slow you down!",
       "ui_icon": "resources/ui/tornado8.png",
       "screen_size": [ 1, 5 ],
       "details": "Information: \nLooks like a little tornado has linked up with a much stronger one! \nDifficulty: Hard",
