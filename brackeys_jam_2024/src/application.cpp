@@ -14,15 +14,28 @@ constexpr V2_int resolution{ 1440, 810 };
 constexpr V2_int center{ resolution / 2 };
 constexpr bool draw_hitboxes{ false };
 
-int car_volume{ 128 };
-int music_volume{ 50 };
-int min_tornado_volume{ 10 };
-int max_tornado_volume{ 50 };
+const auto& volume_sliders = json_level_data.at("volume");
+
+float car_volume_frac{ volume_sliders.at("car") };
+float music_volume_frac{ volume_sliders.at("music") };
+float tornadoes_max_volume_frac{ volume_sliders.at("tornadoes_max") };
+float tornadoes_ambient_volume_frac{ volume_sliders.at("tornadoes_ambient") };
+
+float car_volume_frac_clamped				= std::clamp(car_volume_frac, 0.0f, 1.0f);
+float music_volume_frac_clamped				= std::clamp(music_volume_frac, 0.0f, 1.0f);
+float tornadoes_max_volume_frac_clamped		= std::clamp(tornadoes_max_volume_frac, 0.0f, 1.0f);
+float tornadoes_ambient_volume_frac_clamped = std::clamp(tornadoes_ambient_volume_frac, 0.0f, 1.0f);
+
+int car_volume{ static_cast<int>(128.0f * car_volume_frac_clamped) };
+int music_volume{ static_cast<int>(128.0f * music_volume_frac_clamped) };
+int min_tornado_volume{ static_cast<int>(128.0f * tornadoes_ambient_volume_frac_clamped) };
+int max_tornado_volume{ static_cast<int>(128.0f * tornadoes_max_volume_frac_clamped) };
 
 static void LoadMainMenu();
 static int GetCurrentGameLevel();
 
 enum class TileType {
+	TallGrass,
 	Grass,
 	Dirt,
 	Corn,
@@ -54,6 +67,7 @@ std::size_t GetTileKey(TileType tile_type) {
 		case TileType::Grass:		   return Hash("grass");
 		case TileType::Corn:		   return Hash("corn");
 		case TileType::Dirt:		   return Hash("dirt");
+		case TileType::TallGrass:	   return Hash("tall_grass");
 		case TileType::House:		   return Hash("house");
 		case TileType::HouseDestroyed: return Hash("house_destroyed");
 		case TileType::None:		   PTGN_ERROR("Cannot return tile key for none type tile");
@@ -343,6 +357,8 @@ struct Progress {
 
 	ecs::Entity current_tornado;
 
+	Timer final_alive_timer;
+
 	Progress(const path& ui_texture_path, const std::vector<ecs::Entity>& required_tornadoes) :
 		texture{ ui_texture_path }, required_tornadoes{ required_tornadoes } {}
 
@@ -390,12 +406,22 @@ struct Progress {
 
 		// PTGN_LOG("Completed tornado with EntityID: ", tornado.GetId());
 
-		if (CompletedAllRequired()) {
-			// PTGN_LOG("All required tornadoes completed!");
-			BackToLevelSelect(GetCurrentGameLevel(), true);
+		if (!final_alive_timer.IsRunning() && CompletedAllRequired()) {
+			final_alive_timer.Start();
 			return;
 		}
 		// TODO: Some kind of particle effects? Change tornado indicator to completed?
+	}
+
+	milliseconds required_time_after_final_completion{ 1000 };
+
+	void CheckWinCondition(int& win) {
+		if (final_alive_timer.IsRunning() && !game.tween.Has(Hash("pulled_in_tween")) &&
+			final_alive_timer.ElapsedPercentage(required_time_after_final_completion) >= 1.0f) {
+			// PTGN_LOG("All required tornadoes completed!");
+			win = 1;
+			final_alive_timer.Stop();
+		}
 	}
 
 	void DrawTornadoIcons() {
@@ -562,6 +588,11 @@ struct Progress {
 	}
 
 	void Update(ecs::Entity tornado, const V2_float& player_pos, float dt) {
+		if (game.tween.Has(Hash("pulled_in_tween"))) {
+			progress = 0.0f;
+			return;
+		}
+
 		if (tornado == ecs::null) {
 			DecrementTornadoProgress(dt);
 			return;
@@ -645,9 +676,14 @@ public:
 	const V2_int tile_size{ 16, 16 };
 	V2_int grid_size{ resolution / tile_size };
 
+	std::unordered_set<V2_int> animated_tiles;
+
 	NoiseProperties noise_properties;
 	std::vector<float> noise_map;
 	ValueNoise noise;
+
+	NoiseProperties grass_noise_properties;
+	std::vector<float> grass_noise_map;
 
 	std::unordered_set<V2_int> destroyed_tiles;
 
@@ -692,6 +728,8 @@ public:
 	float zoom{ 1.5f };
 
 	void Init() final {
+		animated_tiles.reserve(100);
+
 		auto& sound = game.sound.Get(Hash("tornado_sound"));
 		sound.Stop(1);
 		sound.SetVolume(min_tornado_volume);
@@ -726,6 +764,11 @@ public:
 		noise_properties.bias		 = 1.21f;
 		noise_properties.persistence = 0.65f;
 
+		grass_noise_properties.octaves	   = 6;
+		grass_noise_properties.frequency   = 0.57f;
+		grass_noise_properties.bias		   = 4.4f;
+		grass_noise_properties.persistence = 1.7f;
+
 		auto& tornadoes = level_data.at("tornadoes");
 
 		PTGN_ASSERT(
@@ -752,16 +795,22 @@ public:
 	}
 
 	void Update(float dt) final {
-		PlayerInput(dt);
+		PTGN_ASSERT(player.Has<Progress>());
 
-		UpdateTornadoes(dt);
+		player.Get<Progress>().CheckWinCondition(won);
 
-		PlayerPhysics(dt);
+		if (!won) {
+			PlayerInput(dt);
 
-		UpdateBackground();
+			UpdateTornadoes(dt);
 
-		if (game.input.KeyDown(Key::R)) {
-			RestartGame();
+			PlayerPhysics(dt);
+
+			UpdateBackground();
+
+			if (game.input.KeyDown(Key::R)) {
+				RestartGame();
+			}
 		}
 
 		Draw();
@@ -774,7 +823,96 @@ public:
 
 		DrawTornadoes();
 
-		DrawUI();
+		if (!won) {
+			DrawUI();
+		} else {
+			if (!game.tween.Has(Hash("winning_tween"))) {
+				game.tween.Clear();
+
+				std::string icon_path = level_data.at("ui_icon");
+				std::size_t key{ Hash(icon_path) };
+				PTGN_ASSERT(game.texture.Has(key));
+				Texture t = game.texture.Get(key);
+				constexpr float scale{ 3.0f };
+				PTGN_ASSERT(game.font.Has(Hash("menu_font")));
+				std::string win_text = level_data.at("win_text");
+				Font font			 = game.font.Get(Hash("menu_font"));
+				Text text{ font, win_text, color::Silver };
+				V2_float text_size = text.GetSize();
+
+				constexpr float text_offset_y{ 220.0f };
+
+				auto& win_tween = game.tween.Load(Hash("winning_tween"));
+				win_tween.During(milliseconds{ 2000 })
+					.OnUpdate([=](float f) {
+						Color color	 = color::Black;
+						color.a		 = static_cast<std::uint8_t>(Lerp(0.0f, 255.0f, f));
+						auto& camera = game.camera.GetCurrent();
+						game.renderer.DrawRectangleFilled(
+							camera.GetTopLeftPosition(), game.window.GetSize(), color,
+							Origin::TopLeft, 0.0f, {}, 20.0f
+						);
+					})
+					.During(milliseconds{ 1000 })
+					.OnUpdate([=](float f) mutable {
+						auto& camera = game.camera.GetCurrent();
+
+						game.renderer.DrawRectangleFilled(
+							camera.GetTopLeftPosition(), camera.GetSize(), color::Black,
+							Origin::TopLeft, 0.0f, {}, 20.0f
+						);
+
+						Color tint_color = color::White;
+						auto alpha		 = static_cast<std::uint8_t>(Lerp(0.0f, 255.0f, f));
+
+						tint_color.a = alpha;
+
+						V2_float center_pos = camera.GetPosition();
+
+						game.renderer.DrawTexture(
+							t, center_pos, t.GetSize() * scale * 1.5f / zoom, {}, {},
+							Origin::Center, Flip::None, 0.0f, {}, 21.0f, tint_color
+						);
+
+						Rectangle<float> text_rect{ center_pos + V2_float{ 0.0f, text_offset_y *
+																					 1.5f / zoom },
+													text_size, Origin::Center };
+
+						game.renderer.DrawTexture(
+							text.GetTexture(), text_rect.pos, text_rect.size * 1.5f / zoom, {}, {},
+							Origin::Center, Flip::None, 0.0f, {}, 22.0f, tint_color
+						);
+					})
+					.During(milliseconds{ 2000 })
+					.OnStart([=]() mutable {})
+					.OnUpdate([=]() mutable {
+						auto& camera = game.camera.GetCurrent();
+
+						game.renderer.DrawRectangleFilled(
+							camera.GetTopLeftPosition(), camera.GetSize(), color::Black,
+							Origin::TopLeft, 0.0f, {}, 20.0f
+						);
+
+						V2_float center_pos = camera.GetPosition();
+
+						game.renderer.DrawTexture(
+							t, center_pos, t.GetSize() * scale * 1.5f / zoom, {}, {},
+							Origin::Center, Flip::None, 0.0f, {}, 21.0f, color::White
+						);
+
+						Rectangle<float> text_rect{ center_pos + V2_float{ 0.0f, text_offset_y *
+																					 1.5f / zoom },
+													text_size, Origin::Center };
+
+						game.renderer.DrawTexture(
+							text.GetTexture(), text_rect.pos, text_rect.size * 1.5f / zoom, {}, {},
+							Origin::Center, Flip::None, 0.0f, {}, 22.0f, color::White
+						);
+					})
+					.OnComplete([=]() { BackToLevelSelect(level, true); })
+					.Start();
+			}
+		}
 	}
 
 	// Init functions.
@@ -880,8 +1018,55 @@ public:
 			sequence.Start();
 		}
 
-		if (tornado_data.contains("custom") && tornado_data.at("custom")) {
-			/* TODO: custom stuff with tornado */
+		if (tornado_data.contains("custom1")) {
+			std::string sequence_name = "tornado_sequence_" + std::to_string(tornado_id);
+			Tween& sequence			  = game.tween.Load(Hash(sequence_name));
+
+			const auto& custom_sequence = tornado_data.at("custom1");
+			V2_float rotation_point;
+			V2_float end_rotation_point;
+			V2_float end_pos;
+
+			PTGN_ASSERT(entity.Has<Transform>());
+			V2_float start_pos = entity.Get<Transform>().position;
+
+			rotation_point.x = custom_sequence.at("rotation_pos").at(0);
+			rotation_point.y = custom_sequence.at("rotation_pos").at(1);
+			end_pos.x		 = custom_sequence.at("end_pos").at(0);
+			end_pos.y		 = custom_sequence.at("end_pos").at(1);
+
+			end_rotation_point.x = rotation_point.x;
+			end_rotation_point.y = end_pos.y;
+
+			V2_float rotation_dir{ rotation_point - start_pos };
+
+			const float starting_angle{ rotation_dir.Angle() };
+
+			float rotation_distance{ rotation_dir.Magnitude() };
+
+			PTGN_ASSERT(rotation_distance > 0.0f);
+
+			int rotation_time_ms = custom_sequence.at("rotation_time");
+			milliseconds rotation_time{ rotation_time_ms };
+			int linear_time_ms = custom_sequence.at("linear_time");
+			milliseconds linear_time{ linear_time_ms };
+
+			const float rotation_time_factor =
+				static_cast<float>(rotation_time_ms) / static_cast<float>(linear_time_ms);
+			PTGN_ASSERT(rotation_time_factor > 0.0f);
+
+			sequence.During(linear_time).OnUpdate([=](float progress) mutable {
+				V2_float point = Lerp(rotation_point, end_rotation_point, progress);
+				float angle =
+					Lerp(0.0f, two_pi<float>, std::fmod(progress / rotation_time_factor, 1.0f));
+				float x = point.x + std::cos(angle + starting_angle) * rotation_distance;
+				float y = point.y + std::sin(angle + starting_angle) * rotation_distance;
+				PTGN_ASSERT(entity.Has<Transform>());
+				auto& transform	   = entity.Get<Transform>();
+				transform.position = V2_float{ x, y };
+			});
+
+			sequence.Start();
 		}
 
 		PTGN_ASSERT(
@@ -923,8 +1108,9 @@ public:
 	}
 
 	void CreateBackground(std::uint32_t seed) {
-		noise	  = { 256, seed };
-		noise_map = FractalNoise::Generate(noise, {}, grid_size, noise_properties);
+		noise			= { 256, seed };
+		noise_map		= FractalNoise::Generate(noise, {}, grid_size, noise_properties);
+		grass_noise_map = FractalNoise::Generate(noise, {}, grid_size, grass_noise_properties);
 	}
 
 	// Update functions.
@@ -1141,6 +1327,8 @@ public:
 
 	ecs::Entity nearest_uncompleted_tornado_entity = ecs::null;
 
+	int won = 0;
+
 	void UpdateTornadoGravity(float dt) {
 		auto tornadoes = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
 
@@ -1265,10 +1453,15 @@ public:
 		UpdateTornadoGravity(dt);
 	}
 
+	RNG<float> animation_rng{ 0.0f, 1.0f };
+	float tall_grass_animation_probability{ 0.1f };
+
 	void TornadoMotion(float dt) {
 		auto tornadoes = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
 
 		const float tornado_move_speed{ 1000.0f };
+
+		animated_tiles.clear();
 
 		for (auto [e, tornado, transform, rigid_body] : tornadoes) {
 			// TODO: Remove
@@ -1288,27 +1481,56 @@ public:
 
 			transform.position += rigid_body.velocity * dt;
 
-			V2_int min{ (transform.position -
-						 V2_float{ tornado.escape_radius, tornado.escape_radius }) /
-						tile_size };
-			V2_int max{ (transform.position +
-						 V2_float{ tornado.escape_radius, tornado.escape_radius }) /
-						tile_size };
+			V2_int min_gravity{ (transform.position -
+								 V2_float{ tornado.gravity_radius, tornado.gravity_radius }) /
+								tile_size };
+			V2_int max_gravity{ (transform.position +
+								 V2_float{ tornado.gravity_radius, tornado.gravity_radius }) /
+								tile_size };
+
+			V2_int min_escape{ (transform.position -
+								V2_float{ tornado.escape_radius, tornado.escape_radius }) /
+							   tile_size };
+			V2_int max_escape{ (transform.position +
+								V2_float{ tornado.escape_radius, tornado.escape_radius }) /
+							   tile_size };
 
 			Circle<float> tornado_destruction{ transform.position, tornado.escape_radius };
+			Circle<float> tornado_gravity{ transform.position, tornado.gravity_radius };
 
-			PTGN_ASSERT(min.x <= max.x);
-			PTGN_ASSERT(min.y <= max.y);
+			PTGN_ASSERT(min_gravity.x <= max_gravity.x);
+			PTGN_ASSERT(min_gravity.y <= max_gravity.y);
+			PTGN_ASSERT(min_escape.x <= max_escape.x);
+			PTGN_ASSERT(min_escape.y <= max_escape.y);
 
 			// Destroy all tiles within escape radius of tornado
-			for (int i = min.x; i <= max.x; i++) {
-				for (int j = min.y; j <= max.y; j++) {
+			for (int i = min_escape.x; i <= min_escape.x; i++) {
+				for (int j = min_escape.y; j <= min_escape.y; j++) {
 					V2_int tile{ i, j };
 					Rectangle<float> tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
-					auto tile_type = GetTileType(GetNoiseValue(tile));
+					// auto tile_type = GetTileType(GetNoiseValue(tile));
 					if (game.collision.overlap.CircleRectangle(tornado_destruction, tile_rect)) {
-						game.renderer.DrawRectangleFilled(tile_rect, color::Purple);
+						if (draw_hitboxes) {
+							game.renderer.DrawRectangleFilled(tile_rect, color::Purple);
+						}
 						destroyed_tiles.insert(tile);
+					}
+				}
+			}
+
+			// Animate random tiles within tornado radius.
+			for (int i = min_gravity.x; i <= max_gravity.x; i++) {
+				for (int j = min_gravity.y; j <= max_gravity.y; j++) {
+					V2_int tile{ i, j };
+					Rectangle<float> tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
+					// auto tile_type = GetTileType(GetNoiseValue(tile));
+					if (game.collision.overlap.CircleRectangle(tornado_gravity, tile_rect)) {
+						// game.renderer.DrawRectangleFilled(tile_rect, color::Purple, 0.0f,
+						// {}, 40.0f);
+						float p{ animation_rng() };
+						if (p <= tall_grass_animation_probability) {
+							animated_tiles.insert(tile);
+						}
 					}
 				}
 			}
@@ -1338,12 +1560,12 @@ public:
 		game.renderer.DrawTexture(
 			vehicle.wheel_texture, player_transform.position + relative_wheel_pos,
 			vehicle.wheel_texture.GetSize(), {}, {}, Origin::Center, Flip::None,
-			player_transform.rotation + vehicle.wheel_rotation, { 0.5f, 0.5f }, 0.0f, tint
+			player_transform.rotation + vehicle.wheel_rotation, { 0.5f, 0.5f }, 1.0f, tint
 		);
 
 		game.renderer.DrawTexture(
 			vehicle.texture, player_transform.position, size, {}, {}, Origin::Center, Flip::None,
-			player_transform.rotation, { 0.5f, 0.5f }, 0.0f, tint
+			player_transform.rotation, { 0.5f, 0.5f }, 2.0f, tint
 
 		);
 	}
@@ -1386,6 +1608,20 @@ public:
 		PTGN_ASSERT(noise_value <= 1.0f);
 		return noise_value;
 	}
+
+	float GetGrassNoiseValue(const V2_int& tile) {
+		int index{ tile.x + grid_size.x * tile.y };
+		if (index >= grass_noise_map.size() || index < 0) {
+			return -1.0f;
+		}
+		float noise_value{ grass_noise_map[index] };
+		PTGN_ASSERT(noise_value >= 0.0f);
+		PTGN_ASSERT(noise_value <= 1.0f);
+		return noise_value;
+	}
+
+	milliseconds tall_grass_animation_duration{ 300 };
+	const int tall_grass_animation_columns{ 4 };
 
 	void DrawBackground() {
 		const auto& primary{ camera.GetCurrent() };
@@ -1435,12 +1671,44 @@ public:
 					}
 				}
 
+				if (tile_type == TileType::Grass) {
+					float grass_noise_value{ GetGrassNoiseValue(tile) };
+					if (grass_noise_value >= 0.65f) {
+						tile_type = TileType::TallGrass;
+					}
+				}
+
 				Texture t = game.texture.Get(GetTileKey(tile_type));
 
-				game.renderer.DrawTexture(
-					t, tile_rect.pos, size, {}, {}, Origin::TopLeft, Flip::None, 0.0f,
-					{ 0.5f, 0.5f }, z_index
-				);
+				if (tile_type == TileType::TallGrass) {
+					bool animated_tile{ animated_tiles.count(tile) > 0 };
+					if (animated_tile) {
+						game.tween.Load(Hash(tile))
+							.During(tall_grass_animation_duration)
+							.Yoyo()
+							.OnUpdate([=](float f) {
+								auto column = static_cast<int>(
+									f * static_cast<float>(tall_grass_animation_columns - 1)
+								);
+								game.renderer.DrawTexture(
+									t, tile_rect.pos, size, V2_int{ column * tile_size.x, 0 },
+									tile_size, Origin::TopLeft, Flip::None, 0.0f, { 0.5f, 0.5f },
+									1.0f
+								);
+							})
+							.Start();
+					}
+					int column = 0;
+					game.renderer.DrawTexture(
+						t, tile_rect.pos, size, V2_int{ column, 0 }, tile_size, Origin::TopLeft,
+						Flip::None, 0.0f, { 0.5f, 0.5f }, z_index
+					);
+				} else {
+					game.renderer.DrawTexture(
+						t, tile_rect.pos, size, {}, {}, Origin::TopLeft, Flip::None, 0.0f,
+						{ 0.5f, 0.5f }, z_index
+					);
+				}
 			}
 		}
 	}
@@ -1706,8 +1974,21 @@ public:
 		if (!game.texture.Has(Hash("level_select_background"))) {
 			game.texture.Load(Hash("level_select_background"), "resources/ui/laptop.png");
 		}
+
 		if (!game.texture.Has(Hash("win_background"))) {
 			game.texture.Load(Hash("win_background"), "resources/ui/win_screen.png");
+		}
+
+		std::size_t bg_count = 5;
+
+		for (std::size_t i = 0; i < bg_count; i++) {
+			std::string name = "level_select_bg" + std::to_string(i);
+			if (!game.texture.Has(Hash(name))) {
+				game.texture.Load(
+					Hash(name),
+					std::string("resources/ui/bg") + std::to_string(i) + std::string(".png")
+				);
+			}
 		}
 	}
 
@@ -1825,7 +2106,19 @@ public:
 
 	bool won = false;
 
+	Rectangle<float> text_rect;
+
+	Text mirror_text{ Hash("menu_font"), "Final Boss", color::Silver };
+
+	int final_level_number{ 9 };
+
+	bool final_level{ false };
+
+	Texture select_bg;
+
 	void Init() final {
+		text_rect = { V2_int{ 1223, 98 }, button_size, Origin::Center };
+
 		level_data = json_level_data;
 
 		std::size_t furthest_branch = 0;
@@ -1888,6 +2181,16 @@ public:
 			"Difficulty layer exceeded those specified in JSON"
 		);
 
+		std::string bg_name = "level_select_bg" + std::to_string(difficulty_layer);
+		std::size_t bg_key	= Hash(bg_name);
+
+		if (game.texture.Has(bg_key)) {
+			select_bg = game.texture.Get(bg_key);
+		} else {
+			PTGN_ASSERT(game.texture.Has(Hash("level_select_bg0")));
+			select_bg = game.texture.Get(Hash("level_select_bg0"));
+		}
+
 		std::string music_path = difficulties.at(difficulty_layer).at("music");
 		std::size_t music_key  = Hash(music_path);
 
@@ -1904,10 +2207,16 @@ public:
 			won = false;
 		}
 
+		final_level = false;
+
 		if (level_buttons.empty()) {
 			PTGN_INFO("You won! No levels available");
 			won = true;
 		} else if (level_buttons.size() == 1) {
+			if (std::get<0>(level_buttons.at(0)) == final_level_number) {
+				final_level = true;
+			}
+
 			auto& button{ std::get<1>(level_buttons[0]) };
 			auto rect{ button->GetRectangle() };
 			rect.pos = game.window.GetCenter() + level_button_offset0;
@@ -2029,6 +2338,12 @@ public:
 			background = Hash("win_background");
 		}
 
+		// Top left corner of the laptop screen.
+		game.renderer.DrawTexture(
+			select_bg, { 548, 161 }, { 371, 265 }, {}, {}, Origin::TopLeft, Flip::None, 0.0f, {},
+			-2.0f
+		);
+
 		game.renderer.DrawTexture(
 			game.texture.Get(background), game.window.GetCenter(), resolution, {}, {},
 			Origin::Center, Flip::None, 0.0f, {}, -1.0f
@@ -2048,6 +2363,16 @@ public:
 		for (std::size_t i = 0; i < level_buttons.size(); i++) {
 			std::get<1>(level_buttons[i])->Draw();
 		}
+
+		if (final_level) {
+			// Intentionally copying.
+			Rectangle<float> rect  = text_rect;
+			rect.pos.x			  += text_x_offset;
+			rect.size.x =
+				mirror_text.GetSize(Hash("menu_font"), std::string(mirror_text.GetContent())).x *
+				0.5f;
+			mirror_text.Draw(rect);
+		}
 	}
 };
 
@@ -2058,6 +2383,7 @@ public:
 	MainMenu() {
 		game.texture.Load(Hash("tutorial_text"), "resources/ui/instructions.png");
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
+		game.texture.Load(Hash("tall_grass"), "resources/entity/tall_grass.png");
 		game.texture.Load(Hash("dirt"), "resources/entity/dirt.png");
 		game.texture.Load(Hash("corn"), "resources/entity/corn.png");
 		game.texture.Load(Hash("house"), "resources/entity/house.png");

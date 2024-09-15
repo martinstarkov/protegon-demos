@@ -1,4 +1,10 @@
 {
+  "volume": {
+    "car": 1.0,
+    "music": 0.4,
+    "tornadoes_max": 0.4,
+    "tornadoes_ambient": 0.08
+  },
   "difficulty_layers": [
     {
       "music": "resources/audio/song_1.ogg"
@@ -29,6 +35,7 @@
     {
       "id": 0,
       "seed": 0,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado0.png",
       "screen_size": [ 1, 2 ],
       "details": "Information: \nA stagnant tornado. See how close you can get!\nDifficulty: Easy",
@@ -50,6 +57,7 @@
     {
       "id": 1,
       "seed": 1000,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado1.png",
       "screen_size": [ 1, 5 ],
       "details": "Information: \nThis 'nado is moving! Can you keep up?\nDifficulty: Easy",
@@ -78,6 +86,7 @@
     {
       "id": 2,
       "seed": 2000,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado2.png",
       "screen_size": [ 1, 3 ],
       "details": "Information: \nLook out! Two tornadoes have formed near each other. \nDifficulty: Easy",
@@ -111,6 +120,7 @@
     {
       "id": 3,
       "seed": 3000,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado3.png",
       "screen_size": [ 1, 8 ],
       "details": "Information: \nThis tornado is bigger than we've seen before.\nDifficulty: Medium",
@@ -139,6 +149,7 @@
     {
       "id": 4,
       "seed": 4000,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado4.png",
       "screen_size": [ 1, 8 ],
       "details": "Information: \nYou'll need to use some real chasin' skills for this one. \nDifficulty: Medium",
@@ -203,6 +214,7 @@
     {
       "id": 5,
       "seed": 5000,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado5.png",
       "screen_size": [ 1, 5 ],
       "details": "Information: \nHopefully you can navigate three fully developed tornadoes! \nDifficulty: Medium",
@@ -269,6 +281,7 @@
     {
       "id": 6,
       "seed": 6000,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado6.png",
       "screen_size": [ 1, 8 ],
       "details": "Information: \nTwo tornadoes circling each other?! Oh the calamity! \nDifficulty: Hard",
@@ -277,7 +290,12 @@
           "static": {
             "pos": [ 440, 5600 ]
           },
-          "custom": true,
+          "custom1": {
+            "rotation_pos": [720, 5600],
+            "end_pos": [440, 800],
+            "rotation_time": 6000,
+            "linear_time": 70000
+          },
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
           "increment_speed": 0.5,
@@ -290,7 +308,12 @@
           "static": {
             "pos": [ 1000, 5600 ]
           },
-          "custom": true,
+          "custom1": {
+            "rotation_pos": [720, 5600],
+            "end_pos": [1000, 800],
+            "rotation_time": 6000,
+            "linear_time": 70000
+          },
           "texture": "resources/entity/tornado.png",
           "turn_speed": 50.0,
           "increment_speed": 0.5,
@@ -304,6 +327,7 @@
     {
       "id": 7,
       "seed": 7000,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado7.png",
       "screen_size": [ 1, 10 ],
       "details": "Information: \nNow that's a lot of 'nadoes! \nDifficulty: Hard",
@@ -389,6 +413,7 @@
     {
       "id": 8,
       "seed": 8000,
+      "win_text": "Let's find another storm!",
       "ui_icon": "resources/ui/tornado8.png",
       "screen_size": [ 1, 5 ],
       "details": "Information: \nLooks like a little tornado has linked up with a much stronger one! \nDifficulty: Hard",
@@ -444,6 +469,7 @@
     {
       "id": 9,
       "seed": 9000,
+      "win_text": "Yeehaw! That one was tough to tame!",
       "ui_icon": "resources/ui/tornado9.png",
       "screen_size": [ 1, 10 ],
       "details": "Information: \nThis is the craziest system we've ever seen. Watch out!\nDifficulty: Very Hard",
