@@ -1714,8 +1714,34 @@ public:
 		return potential_levels;
 	}
 
+	std::size_t playing_music_key{ 0 };
+
 	void Init() final {
 		level_data = GetLevelData();
+
+		std::size_t furthest_branch = 0;
+
+		for (const auto& b : level_data.at("branches")) {
+			for (std::size_t i = 0; i < b.size(); i++) {
+				furthest_branch = std::max(i, furthest_branch);
+			}
+		}
+
+		auto& difficulties = level_data.at("difficulty_layers");
+
+		PTGN_ASSERT(difficulties.size() == furthest_branch + 1);
+
+		PTGN_ASSERT(!difficulties.empty());
+
+		if (!game.music.IsPlaying()) {
+			std::string music_path = difficulties.at(0).at("music");
+			std::size_t music_key  = Hash(music_path);
+			playing_music_key	   = music_key;
+			if (!game.music.Has(music_key)) {
+				game.music.Load(music_key, music_path);
+			}
+			game.music.Get(music_key).Play(-1);
+		}
 
 		for (int l : level_data.at("completed_levels")) {
 			completed_levels.emplace(l);
@@ -1733,14 +1759,6 @@ public:
 		bool was_cleared{ level_buttons.empty() };
 
 		if (was_cleared) {
-			std::size_t furthest_branch = 0;
-
-			for (const auto& b : level_data.at("branches")) {
-				for (std::size_t i = 0; i < b.size(); i++) {
-					furthest_branch = std::max(i, furthest_branch);
-				}
-			}
-
 			std::set<int> potential_levels;
 
 			while (difficulty_layer <= furthest_branch) {
@@ -1754,6 +1772,23 @@ public:
 			for (int l : potential_levels) {
 				CreateLevelButton(l);
 			}
+		}
+
+		PTGN_ASSERT(
+			difficulty_layer < difficulties.size(),
+			"Difficulty layer exceeded those specified in JSON"
+		);
+
+		std::string music_path = difficulties.at(difficulty_layer).at("music");
+		std::size_t music_key  = Hash(music_path);
+
+		if (playing_music_key != music_key) {
+			game.music.Stop();
+			playing_music_key = music_key;
+			if (!game.music.Has(music_key)) {
+				game.music.Load(music_key, music_path);
+			}
+			game.music.Get(music_key).Play(-1);
 		}
 
 		if (level_buttons.empty()) {
