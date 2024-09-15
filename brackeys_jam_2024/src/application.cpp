@@ -841,6 +841,7 @@ public:
 				V2_float text_size = text.GetSize();
 
 				constexpr float text_offset_y{ 220.0f };
+				constexpr float text_scale{ 0.5f };
 
 				auto& win_tween = game.tween.Load(Hash("winning_tween"));
 				win_tween.During(milliseconds{ 2000 })
@@ -879,8 +880,9 @@ public:
 													text_size, Origin::Center };
 
 						game.renderer.DrawTexture(
-							text.GetTexture(), text_rect.pos, text_rect.size * 1.5f / zoom, {}, {},
-							Origin::Center, Flip::None, 0.0f, {}, 22.0f, tint_color
+							text.GetTexture(), text_rect.pos,
+							text_rect.size * 1.5f / zoom * text_scale, {}, {}, Origin::Center,
+							Flip::None, 0.0f, {}, 22.0f, tint_color
 						);
 					})
 					.During(milliseconds{ 2000 })
@@ -905,8 +907,9 @@ public:
 													text_size, Origin::Center };
 
 						game.renderer.DrawTexture(
-							text.GetTexture(), text_rect.pos, text_rect.size * 1.5f / zoom, {}, {},
-							Origin::Center, Flip::None, 0.0f, {}, 22.0f, color::White
+							text.GetTexture(), text_rect.pos,
+							text_rect.size * 1.5f / zoom * text_scale, {}, {}, Origin::Center,
+							Flip::None, 0.0f, {}, 22.0f, color::White
 						);
 					})
 					.OnComplete([=]() { BackToLevelSelect(level, true); })
