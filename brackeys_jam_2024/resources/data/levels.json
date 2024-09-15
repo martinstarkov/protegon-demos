@@ -149,7 +149,7 @@
     {
       "id": 4,
       "seed": 4000,
-      "win_text": "Are you pickin up any new skills?",
+      "win_text": "Are you pickin' up any new skills?",
       "ui_icon": "resources/ui/tornado4.png",
       "screen_size": [ 1, 8 ],
       "details": "Information: \nYou'll need to use some real chasin' skills for this one. \nDifficulty: Medium",
