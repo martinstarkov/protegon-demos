@@ -75,18 +75,7 @@ std::size_t GetTileKey(TileType tile_type) {
 	}
 }
 
-struct Transform {
-	V2_float position;
-	float rotation{ 0.0f };
-};
-
 struct Size : public V2_float {};
-
-struct RigidBody {
-	V2_float velocity;
-	V2_float acceleration;
-	float max_velocity{ 0.0f };
-};
 
 struct Aerodynamics {
 	float pull_resistance{ 0.0f };
@@ -102,9 +91,6 @@ struct VehicleComponent {
 
 	float inertia{ 0.0f };
 
-	V2_float
-		prev_acceleration; // acceleration in the current frame (cached even after it is cleared).
-
 	Texture texture;
 	Texture vehicle_texture;
 	Texture wheel_texture;
@@ -115,8 +101,6 @@ struct VehicleComponent {
 
 struct TintColor : public Color {
 	using Color::Color;
-
-	TintColor(const Color& color) : Color{ color } {}
 };
 
 struct CameraShake {};
@@ -1299,8 +1283,6 @@ public:
 		if (tile_type == TileType::Corn) {
 			destroyed_tiles.insert(player_tile);
 		}
-
-		vehicle.prev_acceleration = rigid_body.acceleration;
 
 		rigid_body.acceleration = {};
 	}
