@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(brackeys_jam_2024)
+project(template_project)
 
 set(PROTEGON_TESTS OFF CACHE BOOL "")
 

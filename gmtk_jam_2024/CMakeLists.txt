@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 
 project(gmtk_jam_2024)
 
+set(PROTEGON_TESTS OFF CACHE BOOL "")
+
 add_subdirectory(../../protegon binary_dir)
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -26,6 +28,8 @@ if (EMSCRIPTEN)
         set(DEST_SYMLINK ${CMAKE_CURRENT_BINARY_DIR})
         message(STATUS "Creating resources symlink to ${DEST_SYMLINK}")
         create_resource_symlink(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR} ${DEST_SYMLINK} ${ASSETS_DIRECTORY})
+    else()
+        message(STATUS "Failed to create resources symlink to ${CMAKE_CURRENT_SOURCE_DIR}/${ASSETS_DIRECTORY}")
     endif()
     set(SHELL_HTML_FILE "${PROTEGON_ROOT_DIR}/emscripten/shell.html")
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
