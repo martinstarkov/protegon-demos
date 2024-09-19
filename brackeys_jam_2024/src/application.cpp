@@ -75,18 +75,7 @@ std::size_t GetTileKey(TileType tile_type) {
 	}
 }
 
-struct Transform {
-	V2_float position;
-	float rotation{ 0.0f };
-};
-
 struct Size : public V2_float {};
-
-struct RigidBody {
-	V2_float velocity;
-	V2_float acceleration;
-	float max_velocity{ 0.0f };
-};
 
 struct Aerodynamics {
 	float pull_resistance{ 0.0f };
@@ -102,9 +91,6 @@ struct VehicleComponent {
 
 	float inertia{ 0.0f };
 
-	V2_float
-		prev_acceleration; // acceleration in the current frame (cached even after it is cleared).
-
 	Texture texture;
 	Texture vehicle_texture;
 	Texture wheel_texture;
@@ -115,8 +101,6 @@ struct VehicleComponent {
 
 struct TintColor : public Color {
 	using Color::Color;
-
-	TintColor(const Color& color) : Color{ color } {}
 };
 
 struct CameraShake {};
@@ -841,6 +825,7 @@ public:
 				V2_float text_size = text.GetSize();
 
 				constexpr float text_offset_y{ 220.0f };
+				constexpr float text_scale{ 0.5f };
 
 				auto& win_tween = game.tween.Load(Hash("winning_tween"));
 				win_tween.During(milliseconds{ 2000 })
@@ -879,8 +864,9 @@ public:
 													text_size, Origin::Center };
 
 						game.renderer.DrawTexture(
-							text.GetTexture(), text_rect.pos, text_rect.size * 1.5f / zoom, {}, {},
-							Origin::Center, Flip::None, 0.0f, {}, 22.0f, tint_color
+							text.GetTexture(), text_rect.pos,
+							text_rect.size * 1.5f / zoom * text_scale, {}, {}, Origin::Center,
+							Flip::None, 0.0f, {}, 22.0f, tint_color
 						);
 					})
 					.During(milliseconds{ 2000 })
@@ -905,8 +891,9 @@ public:
 													text_size, Origin::Center };
 
 						game.renderer.DrawTexture(
-							text.GetTexture(), text_rect.pos, text_rect.size * 1.5f / zoom, {}, {},
-							Origin::Center, Flip::None, 0.0f, {}, 22.0f, color::White
+							text.GetTexture(), text_rect.pos,
+							text_rect.size * 1.5f / zoom * text_scale, {}, {}, Origin::Center,
+							Flip::None, 0.0f, {}, 22.0f, color::White
 						);
 					})
 					.OnComplete([=]() { BackToLevelSelect(level, true); })
@@ -1296,8 +1283,6 @@ public:
 		if (tile_type == TileType::Corn) {
 			destroyed_tiles.insert(player_tile);
 		}
-
-		vehicle.prev_acceleration = rigid_body.acceleration;
 
 		rigid_body.acceleration = {};
 	}
@@ -1827,14 +1812,6 @@ public:
 	}
 };
 
-struct TextButton {
-	TextButton(const std::shared_ptr<Button>& button, const Text& text) :
-		button{ button }, text{ text } {}
-
-	std::shared_ptr<Button> button;
-	Text text;
-};
-
 const int text_x_offset{ 14 };
 const int button_y_offset{ 14 };
 const V2_int button_size{ 150, 50 };
@@ -1844,8 +1821,9 @@ TextButton CreateMenuButton(
 	const std::string& content_enabled, Color text_color, const ButtonActivateFunction& f,
 	const Color& color, Color hover_color, const std::string& content_disabled = ""
 ) {
-	ColorButton b;
+	TextButton b;
 	Text text{ Hash("menu_font"), content_enabled, text_color };
+	b.SetText(text);
 	b.SetOnHover(
 		[=]() mutable { text.SetColor(hover_color); }, [=]() mutable { text.SetColor(text_color); }
 	);
@@ -1862,7 +1840,7 @@ TextButton CreateMenuButton(
 	b.SetOnActivate(f);
 	b.SetColor(color);
 	b.SetHoverColor(hover_color);
-	return TextButton{ std::make_shared<ColorButton>(b), text };
+	return b;
 }
 
 class TextScreen : public Scene {
@@ -1903,16 +1881,16 @@ public:
 			color::Transparent, color::Black
 		));
 
-		buttons[0].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+		buttons[0].SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
 
 		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->SubscribeToMouseEvents();
+			buttons[i].SubscribeToMouseEvents();
 		}
 	}
 
 	void Shutdown() final {
 		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->UnsubscribeFromMouseEvents();
+			buttons[i].UnsubscribeFromMouseEvents();
 		}
 	}
 
@@ -1923,14 +1901,15 @@ public:
 		);
 
 		for (std::size_t i = 0; i < buttons.size(); i++) {
-			auto rect	= buttons[i].button->GetRectangle();
+			auto rect	= buttons[i].GetRectangle();
 			rect.pos.x += text_x_offset;
 			rect.size.x =
 				buttons[i]
-					.text.GetSize(Hash("menu_font"), std::string(buttons[i].text.GetContent()))
+					.GetText()
+					.GetSize(Hash("menu_font"), std::string(buttons[i].GetText().GetContent()))
 					.x *
 				0.5f;
-			buttons[i].text.Draw(rect);
+			buttons[i].GetText().Draw(rect);
 		}
 		text_rect.size.x = (float)std::clamp(text.GetSize().x, 0, static_cast<int>(max_text_dim.x));
 		text.SetWrapAfter(static_cast<std::uint32_t>(text_rect.size.x));
@@ -2274,9 +2253,9 @@ public:
 				color::Transparent, color::Black
 			));
 
-			buttons[0].button->SetRectangle({ V2_int{ 596, 505 }, button_size, Origin::CenterTop });
-			buttons[1].button->SetRectangle({ V2_int{ 830, 505 }, button_size, Origin::CenterTop });
-			buttons[2].button->SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
+			buttons[0].SetRectangle({ V2_int{ 596, 505 }, button_size, Origin::CenterTop });
+			buttons[1].SetRectangle({ V2_int{ 830, 505 }, button_size, Origin::CenterTop });
+			buttons[2].SetRectangle({ V2_int{ 820, 636 }, button_size, Origin::TopLeft });
 		} else {
 			buttons.push_back(CreateMenuButton(
 				"Restart", color::Blue,
@@ -2291,17 +2270,17 @@ public:
 				},
 				color::Transparent, color::Black
 			));
-			buttons[0].button->SetRectangle({ V2_int{ 1223, 98 }, button_size, Origin::Center });
+			buttons[0].SetRectangle({ V2_int{ 1223, 98 }, button_size, Origin::Center });
 		}
 
 		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->SubscribeToMouseEvents();
+			buttons[i].SubscribeToMouseEvents();
 		}
 	}
 
 	void Shutdown() final {
 		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->UnsubscribeFromMouseEvents();
+			buttons[i].UnsubscribeFromMouseEvents();
 		}
 		for (int i = 0; i < (int)level_buttons.size(); i++) {
 			std::get<1>(level_buttons[i])->UnsubscribeFromMouseEvents();
@@ -2317,17 +2296,17 @@ public:
 				 std::get<1>(level_buttons[0])->GetTintColor() == color::White &&
 				 std::get<1>(level_buttons[1])->GetTintColor() == color::White)) {
 				if (buttons.size() > 0) {
-					buttons[0].button->SetInteractable(false);
+					buttons[0].SetInteractable(false);
 				}
 				if (buttons.size() > 1) {
-					buttons[1].button->SetInteractable(false);
+					buttons[1].SetInteractable(false);
 				}
 			} else {
 				if (buttons.size() > 0) {
-					buttons[0].button->SetInteractable(true);
+					buttons[0].SetInteractable(true);
 				}
 				if (buttons.size() > 1) {
-					buttons[1].button->SetInteractable(true);
+					buttons[1].SetInteractable(true);
 				}
 			}
 		}
@@ -2350,14 +2329,15 @@ public:
 		);
 
 		for (std::size_t i = 0; i < buttons.size(); i++) {
-			auto rect	= buttons[i].button->GetRectangle();
+			auto rect	= buttons[i].GetRectangle();
 			rect.pos.x += text_x_offset;
 			rect.size.x =
 				buttons[i]
-					.text.GetSize(Hash("menu_font"), std::string(buttons[i].text.GetContent()))
+					.GetText()
+					.GetSize(Hash("menu_font"), std::string(buttons[i].GetText().GetContent()))
 					.x *
 				0.5f;
-			buttons[i].text.Draw(rect);
+			buttons[i].GetText().Draw(rect);
 		}
 
 		for (std::size_t i = 0; i < level_buttons.size(); i++) {
@@ -2378,8 +2358,6 @@ public:
 
 class MainMenu : public Scene {
 public:
-	std::vector<TextButton> buttons;
-
 	MainMenu() {
 		game.texture.Load(Hash("tutorial_text"), "resources/ui/instructions.png");
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
@@ -2425,44 +2403,48 @@ public:
 	}
 
 	void Init() final {
-		buttons.clear();
-		buttons.push_back(CreateMenuButton(
-			"Play", color::Cyan,
-			[&]() {
-				game.scene.RemoveActive(Hash("main_menu"));
-				if (game.scene.Has(Hash("level_select"))) {
-					game.scene.Get<LevelSelect>(Hash("level_select"))->ClearChoices();
-				} else {
-					game.scene.Load<LevelSelect>(Hash("level_select"));
-				}
-				game.scene.AddActive(Hash("level_select"));
-			},
-			color::Transparent, color::Black
-		));
-		buttons.push_back(CreateMenuButton(
-			"Tutorial", color::Gold,
-			[&]() {
-				game.scene.RemoveActive(Hash("main_menu"));
-				auto screen		  = game.scene.Get<TextScreen>(Hash("text_screen"));
-				screen->back_name = "main_menu";
-				screen->text.SetContent(
-					"When in level select, click on the storm you wish to chase. "
-					"Then click details for "
-					"info about the chosen storm, then start the chase!"
-				);
-				game.scene.AddActive(Hash("text_screen"));
-			},
-			color::Transparent, color::Black
-		));
+		game.ui.button
+			.Load(
+				Hash("play"),
+				CreateMenuButton(
+					"Play", color::Cyan,
+					[&]() {
+						game.scene.RemoveActive(Hash("main_menu"));
+						if (game.scene.Has(Hash("level_select"))) {
+							game.scene.Get<LevelSelect>(Hash("level_select"))->ClearChoices();
+						} else {
+							game.scene.Load<LevelSelect>(Hash("level_select"));
+						}
+						game.scene.AddActive(Hash("level_select"));
+					},
+					color::Transparent, color::Black
+				)
+			)
+			->SetRectangle({ V2_int{ 560, 505 }, button_size, Origin::TopLeft });
+		game.ui.button
+			.Load(
+				Hash("tutorial"),
+				CreateMenuButton(
+					"Tutorial", color::Gold,
+					[&]() {
+						game.scene.RemoveActive(Hash("main_menu"));
+						auto screen		  = game.scene.Get<TextScreen>(Hash("text_screen"));
+						screen->back_name = "main_menu";
+						screen->text.SetContent(
+							"When in level select, click on the storm you wish to chase. "
+							"Then click details for "
+							"info about the chosen storm, then start the chase!"
+						);
+						game.scene.AddActive(Hash("text_screen"));
+					},
+					color::Transparent, color::Black
+				)
+			)
+			->SetRectangle({ V2_int{ 770, 505 }, button_size, Origin::TopLeft });
 
 		/*	buttons[0].button->SetRectangle({ V2_int{ 550, 505 }, button_size, Origin::TopLeft });
 			buttons[1].button->SetRectangle({ V2_int{ 780, 505 }, button_size, Origin::TopLeft });*/
-		buttons[0].button->SetRectangle({ V2_int{ 560, 505 }, button_size, Origin::TopLeft });
-		buttons[1].button->SetRectangle({ V2_int{ 770, 505 }, button_size, Origin::TopLeft });
 
-		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->SubscribeToMouseEvents();
-		}
 		// buttons.push_back(CreateMenuButton(
 		//	"Settings", color::White,
 		//	[]() {
@@ -2471,16 +2453,11 @@ public:
 		//	},
 		//	color::Red, color::Black
 		//));
-
-		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->SubscribeToMouseEvents();
-		}
 	}
 
 	void Shutdown() final {
-		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].button->UnsubscribeFromMouseEvents();
-		}
+		// TODO: Fix button click crash.
+		game.ui.button.Clear();
 	}
 
 	void Update() final {
@@ -2488,17 +2465,15 @@ public:
 			game.texture.Get(Hash("menu_background")), game.window.GetCenter(), resolution, {}, {},
 			Origin::Center, Flip::None, 0.0f, {}, -1.0f
 		);
-		for (std::size_t i = 0; i < buttons.size(); i++) {
-			// buttons[i].button->DrawHollow(6.0f);
-			auto rect	= buttons[i].button->GetRectangle();
-			rect.pos.x += text_x_offset;
-			rect.size.x =
-				buttons[i]
-					.text.GetSize(Hash("menu_font"), std::string(buttons[i].text.GetContent()))
-					.x *
-				0.5f;
-			buttons[i].text.Draw(rect);
-		}
+		game.ui.button.DrawAllHollow(6.0f);
+		/*rect.pos.x += text_x_offset;
+		rect.size.x =
+			buttons[i]
+				.GetText()
+				.GetSize(Hash("menu_font"), std::string(buttons[i].GetText().GetContent()))
+				.x *
+			0.5f;
+		buttons[i].GetText().Draw(rect);*/
 		// TODO: Make this a texture and global (perhaps run in the start scene?).
 		// Draw Mouse Cursor.
 		// game.renderer.DrawCircleFilled(game.input.GetMousePosition(), 5.0f, color::Red);
