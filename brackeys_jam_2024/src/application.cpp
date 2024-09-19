@@ -237,7 +237,7 @@ struct TornadoComponent {
 
 	milliseconds particle_spawn_cycle{ 100 };
 
-	void CreateParticles(float dt, ecs::Entity tornado) {
+	void CreateParticles(ecs::Entity tornado) {
 		PTGN_ASSERT(tornado.Has<Transform>());
 		PTGN_ASSERT(tornado.Has<RigidBody>());
 		V2_float tornado_pos{ tornado.Get<Transform>().position };
@@ -282,7 +282,7 @@ struct TornadoComponent {
 		}
 	}
 
-	void UpdateParticles(float dt, ecs::Entity tornado) {
+	void UpdateParticles(ecs::Entity tornado) {
 		PTGN_ASSERT(tornado.Has<Transform>());
 
 		V2_float tornado_pos{ tornado.Get<Transform>().position };
@@ -293,6 +293,7 @@ struct TornadoComponent {
 		Circle<float> outer_deletion_circle{ tornado_pos, gravity_radius };
 
 		const float particle_drag_force{ 0.01f };
+		float dt = game.dt();
 
 		auto particles = particle_manager.EntitiesWith<Transform, RigidBody>();
 		for (auto [e, transform, rigid_body] : particles) {
@@ -317,7 +318,7 @@ struct TornadoComponent {
 			}
 		}
 
-		CreateParticles(dt, tornado);
+		CreateParticles(tornado);
 	}
 
 	void DrawParticles() {
@@ -556,10 +557,11 @@ struct Progress {
 		return false;
 	}
 
-	void DecrementTornadoProgress(float dt) {
+	void DecrementTornadoProgress() {
 		if (current_tornado == ecs::null) {
 			return;
 		}
+		float dt = game.dt();
 		PTGN_ASSERT(current_tornado.Has<TornadoComponent>());
 		TornadoComponent tornado_properties{ current_tornado.Get<TornadoComponent>() };
 
@@ -571,14 +573,14 @@ struct Progress {
 		progress  = std::clamp(progress, 0.0f, 1.0f);
 	}
 
-	void Update(ecs::Entity tornado, const V2_float& player_pos, float dt) {
+	void Update(ecs::Entity tornado, const V2_float& player_pos) {
 		if (game.tween.Has(Hash("pulled_in_tween"))) {
 			progress = 0.0f;
 			return;
 		}
 
 		if (tornado == ecs::null) {
-			DecrementTornadoProgress(dt);
+			DecrementTornadoProgress();
 			return;
 		}
 		PTGN_ASSERT(!CompletedTornado(tornado));
@@ -641,6 +643,8 @@ struct Progress {
 			tornado_properties.outermost_increment_ratio, normalized_dist
 		) };
 
+		float dt = game.dt();
+
 		progress += tornado_properties.increment_speed * increment_ratio * dt;
 
 		progress = std::clamp(progress, 0.0f, 1.0f);
@@ -682,9 +686,7 @@ public:
 	}
 
 	~GameScene() {
-		game.sound.HaltChannel(1);
-		game.sound.HaltChannel(2);
-		game.sound.HaltChannel(3);
+		game.sound.Stop(-1);
 
 		// TODO: Unload tornado textures.
 	}
@@ -701,8 +703,8 @@ public:
 	Rectangle<float> bounds;
 
 	void Shutdown() final {
-		game.sound.HaltChannel(1);
-		game.sound.HaltChannel(2);
+		game.sound.Stop(1);
+		game.sound.Stop(2);
 		game.tween.Clear();
 	}
 
@@ -715,11 +717,11 @@ public:
 		animated_tiles.reserve(100);
 
 		auto& sound = game.sound.Get(Hash("tornado_sound"));
-		sound.Stop(1);
+		game.sound.Stop(1);
 		sound.SetVolume(min_tornado_volume);
 		sound.Play(1, -1);
 		auto& sound_wind = game.sound.Get(Hash("tornado_wind_sound"));
-		sound_wind.Stop(2);
+		game.sound.Stop(2);
 		sound_wind.SetVolume(min_tornado_volume);
 		sound_wind.Play(2, -1);
 
@@ -778,17 +780,17 @@ public:
 		manager.Refresh();
 	}
 
-	void Update(float dt) final {
+	void Update() final {
 		PTGN_ASSERT(player.Has<Progress>());
 
 		player.Get<Progress>().CheckWinCondition(won);
 
 		if (!won) {
-			PlayerInput(dt);
+			PlayerInput();
 
-			UpdateTornadoes(dt);
+			UpdateTornadoes();
 
-			PlayerPhysics(dt);
+			PlayerPhysics();
 
 			UpdateBackground();
 
@@ -1104,7 +1106,7 @@ public:
 
 	void UpdateBackground() {}
 
-	void PlayerInput(float dt) {
+	void PlayerInput() {
 		PTGN_ASSERT(player.Has<RigidBody>());
 		PTGN_ASSERT(player.Has<VehicleComponent>());
 		PTGN_ASSERT(player.Has<Transform>());
@@ -1155,7 +1157,7 @@ public:
 		bool throttling{ game.tween.Has(Hash("throttle_tween")) };
 
 		auto play_car_sound = [](std::string_view name) {
-			if (!game.sound.IsPlayingChannel(3)) {
+			if (!game.sound.IsPlaying(3)) {
 				PTGN_ASSERT(game.sound.Has(Hash(name)));
 				auto& sound = game.sound.Get(Hash(name));
 				sound.SetVolume(car_volume);
@@ -1202,8 +1204,8 @@ public:
 				}
 			}
 		} else {
-			if (game.sound.IsPlayingChannel(3)) {
-				game.sound.HaltChannel(3);
+			if (game.sound.IsPlaying(3)) {
+				game.sound.Stop(3);
 			}
 			if (throttling) {
 				auto& throttle = game.tween.Get(Hash("throttle_tween"));
@@ -1225,7 +1227,7 @@ public:
 		rigid_body.acceleration += thrust;
 	}
 
-	void PlayerPhysics(float dt) {
+	void PlayerPhysics() {
 		PTGN_ASSERT(player.Has<RigidBody>());
 		PTGN_ASSERT(player.Has<Transform>());
 		PTGN_ASSERT(player.Has<VehicleComponent>());
@@ -1314,7 +1316,7 @@ public:
 
 	int won = 0;
 
-	void UpdateTornadoGravity(float dt) {
+	void UpdateTornadoGravity() {
 		auto tornadoes = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
 
 		PTGN_ASSERT(player.Has<Transform>());
@@ -1412,13 +1414,13 @@ public:
 
 		if (data_tornadoes.size() > 0) {
 			auto closest_tornado = GetClosestTornado(data_tornadoes);
-			player.Get<Progress>().Update(closest_tornado, player_transform.position, dt);
+			player.Get<Progress>().Update(closest_tornado, player_transform.position);
 		} else {
 			auto& sound = game.sound.Get(Hash("tornado_sound"));
 			sound.SetVolume(min_tornado_volume);
 			auto& sound_wind = game.sound.Get(Hash("tornado_wind_sound"));
 			sound_wind.SetVolume(min_tornado_volume);
-			player.Get<Progress>().DecrementTornadoProgress(dt);
+			player.Get<Progress>().DecrementTornadoProgress();
 		}
 
 		if (within_danger) {
@@ -1433,15 +1435,15 @@ public:
 		}
 	}
 
-	void UpdateTornadoes(float dt) {
-		TornadoMotion(dt);
-		UpdateTornadoGravity(dt);
+	void UpdateTornadoes() {
+		TornadoMotion();
+		UpdateTornadoGravity();
 	}
 
 	RNG<float> animation_rng{ 0.0f, 1.0f };
 	float tall_grass_animation_probability{ 0.1f };
 
-	void TornadoMotion(float dt) {
+	void TornadoMotion() {
 		auto tornadoes = manager.EntitiesWith<TornadoComponent, Transform, RigidBody>();
 
 		const float tornado_move_speed{ 1000.0f };
@@ -1489,8 +1491,8 @@ public:
 			PTGN_ASSERT(min_escape.y <= max_escape.y);
 
 			// Destroy all tiles within escape radius of tornado
-			for (int i = min_escape.x; i <= min_escape.x; i++) {
-				for (int j = min_escape.y; j <= min_escape.y; j++) {
+			for (int i = min_escape.x; i <= max_escape.x; i++) {
+				for (int j = min_escape.y; j <= max_escape.y; j++) {
 					V2_int tile{ i, j };
 					Rectangle<float> tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
 					// auto tile_type = GetTileType(GetNoiseValue(tile));
@@ -1522,7 +1524,7 @@ public:
 
 			transform.rotation += tornado.turn_speed * dt;
 
-			tornado.UpdateParticles(dt, e);
+			tornado.UpdateParticles(e);
 		}
 	}
 
@@ -1824,6 +1826,9 @@ TextButton CreateMenuButton(
 	TextButton b;
 	Text text{ Hash("menu_font"), content_enabled, text_color };
 	b.SetText(text);
+	b.SetTextSize({ text.GetSize(Hash("menu_font"), std::string(text.GetContent())).x * 0.5f, 0.0f }
+	);
+	b.SetBorder(false);
 	b.SetOnHover(
 		[=]() mutable { text.SetColor(hover_color); }, [=]() mutable { text.SetColor(text_color); }
 	);
@@ -1946,7 +1951,7 @@ public:
 		return l.at("details");
 	}
 
-	LevelSelect() {
+	void Preload() {
 		if (!game.font.Has(Hash("menu_font"))) {
 			game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
 		}
@@ -2358,7 +2363,7 @@ public:
 
 class MainMenu : public Scene {
 public:
-	MainMenu() {
+	void Preload() {
 		game.texture.Load(Hash("tutorial_text"), "resources/ui/instructions.png");
 		game.texture.Load(Hash("grass"), "resources/entity/grass.png");
 		game.texture.Load(Hash("tall_grass"), "resources/entity/tall_grass.png");
@@ -2389,11 +2394,6 @@ public:
 		if (!game.texture.Has(Hash("menu_background"))) {
 			game.texture.Load(Hash("menu_background"), "resources/ui/background.png");
 		}
-
-		// TODO: Readd.
-		// game.music.Load(Hash("background_music"),
-		// "resources/sound/background_music.ogg").Play(-1);
-
 		if (!game.scene.Has(Hash("level_select"))) {
 			game.scene.Load<LevelSelect>(Hash("level_select"));
 		}
@@ -2420,7 +2420,7 @@ public:
 					color::Transparent, color::Black
 				)
 			)
-			->SetRectangle({ V2_int{ 560, 505 }, button_size, Origin::TopLeft });
+			->SetRectangle({ V2_int{ 535, 505 }, button_size, Origin::TopLeft });
 		game.ui.button
 			.Load(
 				Hash("tutorial"),
@@ -2441,22 +2441,9 @@ public:
 				)
 			)
 			->SetRectangle({ V2_int{ 770, 505 }, button_size, Origin::TopLeft });
-
-		/*	buttons[0].button->SetRectangle({ V2_int{ 550, 505 }, button_size, Origin::TopLeft });
-			buttons[1].button->SetRectangle({ V2_int{ 780, 505 }, button_size, Origin::TopLeft });*/
-
-		// buttons.push_back(CreateMenuButton(
-		//	"Settings", color::White,
-		//	[]() {
-		//		/*game.scene.RemoveActive(Hash("main_menu"));
-		//		game.scene.AddActive(Hash("game"));*/
-		//	},
-		//	color::Red, color::Black
-		//));
 	}
 
 	void Shutdown() final {
-		// TODO: Fix button click crash.
 		game.ui.button.Clear();
 	}
 
@@ -2466,17 +2453,6 @@ public:
 			Origin::Center, Flip::None, 0.0f, {}, -1.0f
 		);
 		game.ui.button.DrawAllHollow(6.0f);
-		/*rect.pos.x += text_x_offset;
-		rect.size.x =
-			buttons[i]
-				.GetText()
-				.GetSize(Hash("menu_font"), std::string(buttons[i].GetText().GetContent()))
-				.x *
-			0.5f;
-		buttons[i].GetText().Draw(rect);*/
-		// TODO: Make this a texture and global (perhaps run in the start scene?).
-		// Draw Mouse Cursor.
-		// game.renderer.DrawCircleFilled(game.input.GetMousePosition(), 5.0f, color::Red);
 	}
 };
 
