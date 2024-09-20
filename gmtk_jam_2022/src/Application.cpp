@@ -448,11 +448,12 @@ public:
 					auto rotated	  = GetRotatedSequence(sequence, axis_direction.Angle<float>());
 					absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 					if (grid.InBound(absolute_sequence[i])) {
-						auto pos = grid_top_left_offset +
-								   absolute_sequence[i] *
-									   grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
+						auto posi1 =
+							grid_top_left_offset +
+							absolute_sequence[i] *
+								grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
 						game.renderer.DrawTexture(
-							t_nochoice, Rectangle<float>{ pos, grid.GetTileSize() }
+							t_nochoice, Rectangle<float>{ posi1, grid.GetTileSize() }
 						);
 					}
 				}
