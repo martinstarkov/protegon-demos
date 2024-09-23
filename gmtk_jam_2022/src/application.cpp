@@ -10,16 +10,6 @@
 
 using namespace ptgn;
 
-template <typename T>
-inline bool Contains(const std::vector<T>& container, const T& value) {
-	for (const auto& v : container) {
-		if (v == value) {
-			return true;
-		}
-	}
-	return false;
-}
-
 enum class TileType {
 	NONE	 = 0,
 	PLAYER	 = 1,
@@ -56,7 +46,7 @@ struct CustomGrid {
 		for (const auto& coordinate : sequence) {
 			// If tile is being used or if tile is out of bounds.
 			auto it = tiles.find(coordinate);
-			if (!InBound(coordinate) || (it != tiles.end() && !Contains(ignore, it->second.type))) {
+			if (!InBound(coordinate) || (it != tiles.end() && !VectorContains(ignore, it->second.type))) {
 				return false;
 			}
 		}
@@ -76,7 +66,7 @@ struct CustomGrid {
 	bool HasTile(const V2_int& coordinate, const std::vector<TileType>& types = {}) const {
 		assert(InBound(coordinate));
 		auto it = tiles.find(coordinate);
-		return it != tiles.end() && (types.size() == 0 ? true : Contains(types, it->second.type));
+		return it != tiles.end() && (types.size() == 0 ? true : VectorContains(types, it->second.type));
 	}
 
 	const Tile& GetTile(const V2_int& coordinate) const {
@@ -140,7 +130,7 @@ Sequence GetRandomRollSequence(std::size_t count) {
 	start:
 		auto dir			   = rng();
 		auto current_direction = directions[dir] + sequence.back();
-		if (directions[dir] != -previous_direction && !Contains(sequence, current_direction)) {
+		if (directions[dir] != -previous_direction && !VectorContains(sequence, current_direction)) {
 			sequence.emplace_back(current_direction);
 			previous_direction = directions[dir];
 		} else {
@@ -174,7 +164,7 @@ void Combinations(
 		bool invalidate = false;
 		for (int i = 0; i != n; i++) {
 			auto current = directions[pos[i]] + sequence.back();
-			if (directions[pos[i]] == -previous || Contains(sequence, current)) {
+			if (directions[pos[i]] == -previous || VectorContains(sequence, current)) {
 				invalidate = true;
 				break;
 			} else {
@@ -241,7 +231,7 @@ bool CanWin(const CustomGrid& grid, const V2_int& player_tile, const V2_int& win
 		for (int i = 0; i < 4; i++) {
 			// using the direction array
 			V2_int t = p + directions[i];
-			if (grid.InBound(t) && !Contains(visited, t) &&
+			if (grid.InBound(t) && !VectorContains(visited, t) &&
 				!grid.HasTile(t, { TileType::OBSTACLE, TileType::USED })) {
 				q.push(t);
 			}
@@ -367,7 +357,7 @@ public:
 				previous_direction = axis_direction;
 			}
 
-			turn_allowed = Contains(directions, axis_direction);
+			turn_allowed = VectorContains(directions, axis_direction);
 
 			if (turn_allowed || previous_direction != axis_direction) {
 				auto rotated	  = GetRotatedSequence(sequence, axis_direction.Angle<float>());
