@@ -140,7 +140,7 @@ struct Warning {
 	void Shutdown() {
 		PTGN_ASSERT(game.tween.Has(Hash("warning_flash")));
 		game.tween.Get(Hash("warning_flash")).Stop();
-		game.tween.Unload(Hash("warning_flash"));
+		game.tween.Unload("warning_flash");
 	}
 };
 
@@ -1191,8 +1191,8 @@ public:
 						}
 					})
 					.OnStop(reset_throttle)
+					.KeepAlive()
 					.Start();
-				game.tween.KeepAlive(Hash("throttle_tween"));
 				play_car_sound("car_start");
 			} else {
 				auto& throttle = game.tween.Get(Hash("throttle_tween"));
