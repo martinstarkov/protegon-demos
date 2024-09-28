@@ -537,17 +537,6 @@ struct Progress {
 		);
 	}
 
-	void Draw(const V2_float& player_pos) {
-		DrawTornadoProgress();
-		DrawTornadoIcons();
-
-		game.renderer.Flush();
-		game.camera.SetCameraPrimary();
-		DrawTornadoArrow(player_pos);
-		game.renderer.Flush();
-		game.camera.SetCameraWindow();
-	}
-
 	[[nodiscard]] bool CompletedTornado(ecs::Entity tornado) {
 		for (const auto& e : completed_tornadoes) {
 			if (e == tornado) {
@@ -736,7 +725,7 @@ public:
 
 		// PTGN_LOG(level_data.dump(4));
 
-		auto& primary{ camera.GetCurrent() };
+		auto& primary{ camera.GetPrimary() };
 
 		bounds.pos	  = {};
 		bounds.size	  = grid_size * tile_size;
@@ -834,7 +823,7 @@ public:
 					.OnUpdate([=](float f) {
 						Color color	 = color::Black;
 						color.a		 = static_cast<std::uint8_t>(Lerp(0.0f, 255.0f, f));
-						auto& camera = game.camera.GetCurrent();
+						auto& camera = game.camera.GetPrimary();
 						game.renderer.DrawRectangleFilled(
 							camera.GetTopLeftPosition(), game.window.GetSize(), color,
 							Origin::TopLeft, 0.0f, {}, 20.0f
@@ -842,7 +831,7 @@ public:
 					})
 					.During(milliseconds{ 1000 })
 					.OnUpdate([=](float f) mutable {
-						auto& camera = game.camera.GetCurrent();
+						auto& camera = game.camera.GetPrimary();
 
 						game.renderer.DrawRectangleFilled(
 							camera.GetTopLeftPosition(), camera.GetSize(), color::Black,
@@ -874,7 +863,7 @@ public:
 					.During(milliseconds{ 2000 })
 					.OnStart([=]() mutable {})
 					.OnUpdate([=]() mutable {
-						auto& camera = game.camera.GetCurrent();
+						auto& camera = game.camera.GetPrimary();
 
 						game.renderer.DrawRectangleFilled(
 							camera.GetTopLeftPosition(), camera.GetSize(), color::Black,
@@ -1122,7 +1111,7 @@ public:
 		bool q{ game.input.KeyPressed(Key::Q) };
 		bool e{ game.input.KeyPressed(Key::E) };
 
-		auto& primary{ camera.GetCurrent() };
+		auto& primary{ camera.GetPrimary() };
 
 		if (q) {
 			zoom += zoom_speed * dt;
@@ -1267,7 +1256,7 @@ public:
 		ApplyBounds(player, bounds);
 
 		// Center camera on player.
-		auto& primary{ camera.GetCurrent() };
+		auto& primary{ camera.GetPrimary() };
 
 		V2_float shake;
 
@@ -1611,7 +1600,7 @@ public:
 	const int tall_grass_animation_columns{ 4 };
 
 	void DrawBackground() {
-		const auto& primary{ camera.GetCurrent() };
+		const auto& primary{ camera.GetPrimary() };
 		Rectangle<float> camera_rect{ primary.GetRectangle() };
 
 		// game.renderer.DrawRectangleHollow(camera_rect, color::Blue, 3.0f);
@@ -1791,16 +1780,17 @@ public:
 	void DrawUI() {
 		PTGN_ASSERT(player.Has<Progress>());
 		PTGN_ASSERT(player.Has<Transform>());
+		auto& progress	 = player.Get<Progress>();
 		auto& player_pos = player.Get<Transform>().position;
 
 		DrawTornadoArrowGlobal(player_pos);
 
-		game.renderer.Flush();
-		game.camera.SetCameraWindow();
+		progress.DrawTornadoArrow(player_pos);
 
 		// Draw UI here...
 
-		player.Get<Progress>().Draw(player_pos);
+		progress.DrawTornadoIcons();
+		progress.DrawTornadoProgress();
 		DrawSpeedometer();
 		if (level == 0 && !game.tween.Has(Hash("pulled_in_tween"))) {
 			const Texture tutorial_text{ game.texture.Get(Hash("tutorial_text")) };
@@ -1808,9 +1798,6 @@ public:
 			const V2_float text_pos{ static_cast<float>(resolution.x), 0.0f };
 			game.renderer.DrawTexture(tutorial_text, text_pos, text_size, {}, {}, Origin::TopRight);
 		}
-
-		game.renderer.Flush();
-		game.camera.SetCameraPrimary();
 	}
 };
 
