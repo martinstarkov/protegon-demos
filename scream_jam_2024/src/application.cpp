@@ -42,7 +42,7 @@ public:
 	ecs::Entity boss1_entity;
 
 	float gravity{ 10000.0f };
-	V2_float player_acceleration{ 500000.0f, 18000000.0f };
+	V2_float player_acceleration{ 5000.0f, 5000.0f };
 
 	GameScene() {}
 
@@ -145,21 +145,22 @@ public:
 		PTGN_ASSERT(player.Has<RigidBody>());
 		auto& player_rb = player.Get<RigidBody>();
 
-		/*player_rb.acceleration = {};
+		float dt = game.physics.dt();
+
 		if (game.input.KeyDown(Key::W)) {
-			player_rb.acceleration.y = -player_acceleration.y * dt;
+			player_rb.velocity.y += -player_acceleration.y * dt;
 		}
 		if (game.input.KeyPressed(Key::S)) {
-			player_rb.acceleration.y = player_acceleration.y * dt;
+			player_rb.velocity.y += player_acceleration.y * dt;
 		}
 		if (game.input.KeyPressed(Key::A)) {
-			player_rb.acceleration.x = -player_acceleration.x * dt;
+			player_rb.velocity.x += -player_acceleration.x * dt;
 		}
 		if (game.input.KeyPressed(Key::D)) {
-			player_rb.acceleration.x = player_acceleration.x * dt;
-		}*/
+			player_rb.velocity.x += player_acceleration.x * dt;
+		}
 		for (auto [e, t, rb, m] : manager.EntitiesWith<Transform, RigidBody, Movement>()) {
-			m.Update(t, rb);
+			// m.Update(t, rb);
 		}
 		for (auto [e, t, rb] : manager.EntitiesWith<Transform, RigidBody>()) {
 			rb.Update();
