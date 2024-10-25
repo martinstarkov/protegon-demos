@@ -86,31 +86,41 @@ public:
 		auto& rb   = entity.Add<RigidBody>();
 		rb.gravity = 1.0f;
 		auto& m	   = entity.Add<PlatformerMovement>();
+		auto& j	   = entity.Add<PlatformerJump>();
 
 		auto& cg = entity.Add<ColliderGroup>(entity, manager);
 		cg.AddBox(
 			  "body", { 70 - 0 * 0, 88 }, 0, { 55, 129 }, Origin::Center, true, 0, {},
 			  [](Collision c) {
 				  PTGN_LOG(
-					  "collision started between ", c.entity1.GetId(), " and ", c.entity2.GetId()
+					  "collision started between ", c.entity1.GetId(), " and ", c.entity2.GetId(),
+					  ", normal: ", c.normal
 				  );
+				  PTGN_ASSERT(c.entity2.Has<BoxCollider>());
 				  if (c.entity2.Get<BoxCollider>().IsCategory(ground_category)) {
-					  if (c.entity1.Has<PlatformerMovement>()) {
+					  if (c.entity1.Has<PlatformerMovement>() &&
+						  c.normal == V2_float{ 0.0f, -1.0f }) {
+						  PTGN_LOG("Grounded");
 						  c.entity1.Get<PlatformerMovement>().onGround = true;
 					  }
 				  }
 			  },
 			  [=](Collision c) {
+				  PTGN_ASSERT(c.entity2.Has<BoxCollider>());
 				  if (c.entity2.Get<BoxCollider>().IsCategory(ground_category)) {
-					  if (c.entity1.Has<PlatformerMovement>()) {
+					  if (c.entity1.Has<PlatformerMovement>() &&
+						  c.normal == V2_float{ 0.0f, -1.0f }) {
+						  // PTGN_LOG("Grounded");
 						  c.entity1.Get<PlatformerMovement>().onGround = true;
 					  }
 				  }
 			  },
 			  [](Collision c) {
 				  PTGN_LOG(
-					  "collision stopped between ", c.entity1.GetId(), " and ", c.entity2.GetId()
+					  "collision stopped between ", c.entity1.GetId(), " and ", c.entity2.GetId(),
+					  ", normal: ", c.normal
 				  );
+				  PTGN_ASSERT(c.entity2.Has<BoxCollider>());
 				  if (c.entity2.Get<BoxCollider>().IsCategory(ground_category)) {
 					  if (c.entity1.Has<PlatformerMovement>()) {
 						  c.entity1.Get<PlatformerMovement>().onGround = false;
@@ -170,9 +180,10 @@ public:
 		if (game.input.KeyPressed(Key::D)) {
 			player_rb.velocity.x += player_acceleration.x * dt;
 		}*/
-		for (auto [e, t, rb, m] :
-			 manager.EntitiesWith<Transform, RigidBody, PlatformerMovement>()) {
+		for (auto [e, t, rb, m, j] :
+			 manager.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
 			m.Update(t, rb);
+			j.Update(rb, m.onGround);
 		}
 		for (auto [e, t, rb] : manager.EntitiesWith<Transform, RigidBody>()) {
 			rb.Update();
