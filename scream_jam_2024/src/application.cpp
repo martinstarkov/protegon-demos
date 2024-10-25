@@ -28,6 +28,8 @@
 
 using namespace ptgn;
 
+constexpr CollisionCategory ground_category{ 1 };
+
 constexpr V2_float resolution{ 960, 540 };
 
 class GameScene : public Scene {
@@ -71,7 +73,8 @@ public:
 	ecs::Entity CreatePlatform(const Rect& r) {
 		ecs::Entity entity = manager.CreateEntity();
 		entity.Add<Transform>(r.position, r.rotation);
-		entity.Add<BoxCollider>(entity, r.size, r.origin);
+		auto& box = entity.Add<BoxCollider>(entity, r.size, r.origin);
+		box.SetCollisionCategory(ground_category);
 		entity.Add<DrawColor>(color::White);
 		return entity;
 	}
@@ -96,12 +99,14 @@ public:
 
 		auto& cg = entity.Add<ColliderGroup>(entity, manager);
 		cg.AddBox(
-			  "body", { 70 - 0 * 0, 88 }, 0, { 55, 129 }, Origin::Center, true,
+			  "body", { 70 - 0 * 0, 88 }, 0, { 55, 129 }, Origin::Center, true, 0, {},
 			  [](ecs::Entity e1, ecs::Entity e2) {
 				  PTGN_LOG("collision started between ", e1.GetId(), " and ", e2.GetId());
 			  },
-			  [](ecs::Entity e1, ecs::Entity e2) {
-				  PTGN_LOG("collision between ", e1.GetId(), " and ", e2.GetId());
+			  [=](ecs::Entity e1, ecs::Entity e2) {
+				  if (e2.Get<BoxCollider>().IsCategory(ground_category)) {
+					  PTGN_LOG("Grounded");
+				  }
 			  },
 			  [](ecs::Entity e1, ecs::Entity e2) {
 				  PTGN_LOG("collision stopped between ", e1.GetId(), " and ", e2.GetId());
