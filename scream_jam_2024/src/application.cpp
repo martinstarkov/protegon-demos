@@ -83,33 +83,39 @@ public:
 		ecs::Entity entity = manager.CreateEntity();
 
 		entity.Add<Transform>(resolution / 2.0f + V2_float{ 100, 100 });
-		auto& rb				 = entity.Add<RigidBody>();
-		rb.gravity				 = 1.0f;
-		auto& m					 = entity.Add<Movement>();
-		m.data.run_max_speed	 = 9;
-		m.data.run_acceleration	 = 13;
-		m.data.run_decceleration = 16;
-
-		rb.drag						  = 0.22f;
-		m.data.jump_force			  = 13;
-		m.data.jump_cut_gravity		  = 0.4f;
-		m.data.coyote_time			  = 0.15f;
-		m.data.jump_input_buffer_time = 0.1f;
-		m.data.fall_gravity			  = 2.0f;
+		auto& rb   = entity.Add<RigidBody>();
+		rb.gravity = 1.0f;
+		auto& m	   = entity.Add<PlatformerMovement>();
 
 		auto& cg = entity.Add<ColliderGroup>(entity, manager);
 		cg.AddBox(
 			  "body", { 70 - 0 * 0, 88 }, 0, { 55, 129 }, Origin::Center, true, 0, {},
-			  [](ecs::Entity e1, ecs::Entity e2) {
-				  PTGN_LOG("collision started between ", e1.GetId(), " and ", e2.GetId());
-			  },
-			  [=](ecs::Entity e1, ecs::Entity e2) {
-				  if (e2.Get<BoxCollider>().IsCategory(ground_category)) {
-					  PTGN_LOG("Grounded");
+			  [](Collision c) {
+				  PTGN_LOG(
+					  "collision started between ", c.entity1.GetId(), " and ", c.entity2.GetId()
+				  );
+				  if (c.entity2.Get<BoxCollider>().IsCategory(ground_category)) {
+					  if (c.entity1.Has<PlatformerMovement>()) {
+						  c.entity1.Get<PlatformerMovement>().onGround = true;
+					  }
 				  }
 			  },
-			  [](ecs::Entity e1, ecs::Entity e2) {
-				  PTGN_LOG("collision stopped between ", e1.GetId(), " and ", e2.GetId());
+			  [=](Collision c) {
+				  if (c.entity2.Get<BoxCollider>().IsCategory(ground_category)) {
+					  if (c.entity1.Has<PlatformerMovement>()) {
+						  c.entity1.Get<PlatformerMovement>().onGround = true;
+					  }
+				  }
+			  },
+			  [](Collision c) {
+				  PTGN_LOG(
+					  "collision stopped between ", c.entity1.GetId(), " and ", c.entity2.GetId()
+				  );
+				  if (c.entity2.Get<BoxCollider>().IsCategory(ground_category)) {
+					  if (c.entity1.Has<PlatformerMovement>()) {
+						  c.entity1.Get<PlatformerMovement>().onGround = false;
+					  }
+				  }
 			  },
 			  nullptr, false, true
 		)
@@ -152,7 +158,7 @@ public:
 
 		float dt = game.physics.dt();
 
-		if (game.input.KeyDown(Key::W)) {
+		/*if (game.input.KeyDown(Key::W)) {
 			player_rb.velocity.y += -player_acceleration.y * dt;
 		}
 		if (game.input.KeyPressed(Key::S)) {
@@ -163,9 +169,10 @@ public:
 		}
 		if (game.input.KeyPressed(Key::D)) {
 			player_rb.velocity.x += player_acceleration.x * dt;
-		}
-		for (auto [e, t, rb, m] : manager.EntitiesWith<Transform, RigidBody, Movement>()) {
-			// m.Update(t, rb);
+		}*/
+		for (auto [e, t, rb, m] :
+			 manager.EntitiesWith<Transform, RigidBody, PlatformerMovement>()) {
+			m.Update(t, rb);
 		}
 		for (auto [e, t, rb] : manager.EntitiesWith<Transform, RigidBody>()) {
 			rb.Update();
