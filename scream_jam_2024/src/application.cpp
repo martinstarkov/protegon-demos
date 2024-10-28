@@ -156,6 +156,8 @@ public:
 		player = CreatePlayer();
 		platform1 =
 			CreatePlatform({ { 0, resolution.y - 10 }, { resolution.x, 10 }, Origin::TopLeft });
+		CreatePlatform({ { 0, resolution.y / 2.0f }, { 200, 10 }, Origin::TopLeft });
+		CreatePlatform({ { resolution.x, resolution.y / 2.0f }, { 200, 10 }, Origin::TopRight });
 		boss1_entity = CreateBoss1();
 		manager.Refresh();
 	}
