@@ -52,31 +52,6 @@ struct Wife {
 	bool voice_heard{ false };
 };
 
-struct SpriteSheet {
-	SpriteSheet(
-		const Texture& texture, const V2_int& source_pos = {}, const V2_int& animation_count = {}
-	) :
-		texture{ texture },
-		source_pos{ source_pos },
-		animation_count{ animation_count },
-		source_size{ std::invoke([&]() {
-			if (animation_count.IsZero()) {
-				return V2_int{};
-			}
-			PTGN_ASSERT(animation_count.x != 0 && animation_count.y != 0);
-			return texture.GetSize() / animation_count;
-		}) }
-
-	{}
-
-	int row{ 0 };
-	V2_int animation_count; // in each direction of the sprite sheet.
-	V2_int source_pos;
-	// Empty vector defaults to entire texture size.
-	V2_int source_size;
-	Texture texture;
-};
-
 struct ItemComponent {
 	ItemComponent() = default;
 	bool held{ false };
@@ -86,40 +61,10 @@ struct ItemComponent {
 
 struct SortByZ {};
 
-struct Size {
-	Size(const V2_float& size) : s{ size } {}
-
-	V2_float s;
-};
-
 struct Direction {
 	Direction(const V2_int& dir) : dir{ dir } {}
 
 	V2_int dir;
-};
-
-struct Hitbox {
-	Hitbox(ecs::Entity parent, const V2_float& size, const V2_float& offset = {}) :
-		parent{ parent }, size{ size }, offset{ offset } {}
-
-	V2_float GetPosition() const {
-		PTGN_ASSERT(parent.IsAlive());
-		PTGN_ASSERT(parent.Has<Transform>());
-		return parent.Get<Transform>().position + offset;
-	}
-
-	Color color{ color::Blue };
-	ecs::Entity parent;
-	V2_float size;
-	V2_float offset;
-};
-
-struct PickupHitbox : public Hitbox {
-	using Hitbox::Hitbox;
-};
-
-struct InteractHitbox : public Hitbox {
-	using Hitbox::Hitbox;
 };
 
 struct HandComponent {
@@ -147,35 +92,9 @@ struct HandComponent {
 	float radius{ 0.0f };
 };
 
-struct AnimationComponent {
-	AnimationComponent(
-		std::size_t tween_key, int column_count, milliseconds duration, int column = 0
-	) :
-		tween_key{ tween_key },
-		column_count{ column_count },
-		duration{ duration },
-		column{ column } {}
-
-	void Pause() {
-		game.tween.Get(tween_key).Pause();
-	}
-
-	void Resume() {
-		game.tween.Get(tween_key).Resume();
-	}
-
-	// duration of one whole animation.
-	milliseconds duration{ 1000 };
-	std::size_t tween_key{ 0 };
-	int column_count{ 1 };
-	int column{ 0 };
-};
-
 static bool OutOfBounds(ecs::Entity e, const V2_float& pos, const V2_float& max_bounds) {
-	const auto& hitbox = e.Get<Hitbox>();
-	const auto& origin = e.Get<Origin>();
-	V2_float size{ hitbox.size };
-	Rectangle<float> h{ pos + hitbox.offset, size, origin };
+	const auto& hitbox = e.Get<BoxCollider>();
+	Rect h{ hitbox.GetAbsoluteRect() };
 	V2_float min{ h.Min() };
 	V2_float max{ h.Max() };
 	return min.x < 0 || max.x > max_bounds.x || min.y < 0 || max.y > max_bounds.y;
@@ -185,17 +104,12 @@ static void ApplyBounds(ecs::Entity e, const V2_float& max_bounds) {
 	if (!e.Has<Transform>()) {
 		return;
 	}
-	if (!e.Has<Hitbox>()) {
-		return;
-	}
-	if (!e.Has<Origin>()) {
+	if (!e.Has<BoxCollider>()) {
 		return;
 	}
 	auto& pos		   = e.Get<Transform>();
-	const auto& hitbox = e.Get<Hitbox>();
-	const auto& origin = e.Get<Origin>();
-	V2_float size{ hitbox.size };
-	Rectangle<float> h{ hitbox.GetPosition(), size, origin };
+	const auto& hitbox = e.Get<BoxCollider>();
+	Rect h{ hitbox.GetAbsoluteRect() };
 	V2_float min{ h.Min() };
 	V2_float max{ h.Max() };
 	if (min.x < 0) {
@@ -211,27 +125,7 @@ static void ApplyBounds(ecs::Entity e, const V2_float& max_bounds) {
 }
 
 auto GetWalls(ecs::Manager& manager) {
-	return manager.EntitiesWith<Transform, Hitbox, Origin, DynamicCollisionShape, WallComponent>();
-}
-
-void ResolveStaticWallCollisions(ecs::Entity obj) {
-	auto& hitbox	  = obj.Get<Hitbox>();
-	bool intersecting = false;
-	IntersectCollision max;
-	Rectangle<float> rect{ hitbox.GetPosition(), hitbox.size, obj.Get<Origin>() };
-	for (auto [e, p, h, o, s, w] : GetWalls(obj.GetManager())) {
-		Rectangle<float> r{ h.GetPosition(), h.size, o };
-		IntersectCollision c;
-		if (game.collision.intersect.RectangleRectangle(rect, r, c)) {
-			intersecting = true;
-			if (c.depth > max.depth) {
-				max = c;
-			}
-		}
-	}
-	if (intersecting) {
-		obj.Get<Transform>().position += max.depth * max.normal;
-	}
+	return manager.EntitiesWith<Transform, BoxCollider, WallComponent>();
 }
 
 bool IsRequest(BubbleAnimation anim) {
@@ -282,9 +176,9 @@ static void SpawnBubbleAnimation(
 			V2_float source_pos = { column * source_size.x, 0.0f };
 
 			// TODO: Move this to draw functions and use an entity instead.
-			game.renderer.DrawTexture(
-				t, get_pos_callback(), source_size, source_pos, source_size, entity.Get<Origin>(),
-				entity.Get<SpriteFlip>(), 0.0f, {}, 1.0f
+			game.draw.Texture(
+				t, Rect{ get_pos_callback(), source_size, entity.Get<Origin>(), 0.0f },
+				{ source_pos, source_size, entity.Get<SpriteFlip>() }, { 1.0f, 0 }
 			);
 		})
 		.During(total_duration - popup_duration)
@@ -299,9 +193,9 @@ static void SpawnBubbleAnimation(
 			V2_float source_pos = { column * source_size.x, 0.0f };
 
 			// TODO: Move this to draw functions and use an entity instead.
-			game.renderer.DrawTexture(
-				t, get_pos_callback(), source_size, source_pos, source_size, entity.Get<Origin>(),
-				entity.Get<SpriteFlip>(), 0.0f, {}, 1.0f
+			game.draw.Texture(
+				t, Rect{ get_pos_callback(), source_size, entity.Get<Origin>(), 0.0f },
+				{ source_pos, source_size, entity.Get<SpriteFlip>() }, { 1.0f, 0 }
 			);
 		})
 		.OnComplete(complete_callback)
@@ -324,7 +218,6 @@ struct Dog {
 		bark_keys{ bark_keys },
 		whine_key{ whine_key },
 		bark_offset{ bark_offset } {
-		animations_to_goal = e.Get<AnimationComponent>().column_count;
 		/*for (std::size_t i = 0; i < bark_keys.size(); i++) {
 			PTGN_ASSERT(game.sound.Has(bark_keys[i]));
 		}*/
@@ -344,7 +237,7 @@ struct Dog {
 			[=](Tween& tw, float f) mutable { e.Get<Dog>().whined = false; },
 			[=]() {
 				if (e.IsAlive() && IsRequest(e.Get<Dog>().request)) {
-					auto& h{ e.Get<Hitbox>() };
+					auto& h{ e.Get<BoxCollider>() };
 					auto flip{ e.Get<SpriteFlip>() };
 					float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
 					auto offset = GetOffsetFromCenter(h.size, e.Get<Origin>());
@@ -384,17 +277,15 @@ struct Dog {
 				Texture t{ game.texture.Get(bark_texture_key) };
 				V2_float source_size{ t.GetSize() / V2_float{ count, 1 } };
 				V2_float source_pos = { column * source_size.x, 0.0f };
-				auto& h{ e.Get<Hitbox>() };
+				auto& h{ e.Get<BoxCollider>() };
 				auto flip{ e.Get<SpriteFlip>() };
 				float sign	= (flip == Flip::Horizontal ? -1.0f : 1.0f);
 				auto offset = GetOffsetFromCenter(h.size, e.Get<Origin>());
-				V2_float pos{ e.Get<Transform>().position + offset +
-							  V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y } };
+				Rect rect{ h.GetAbsoluteRect() };
+				rect.position += V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y };
+				rect.size	   = source_size;
 				// TODO: Move this to draw functions and use an entity instead.
-				game.renderer.DrawTexture(
-					t, pos, source_size, source_pos, source_size, e.Get<Origin>(), flip, 0.0f, {},
-					0.8f
-				);
+				game.draw.Texture(t, rect, { source_pos, source_size, flip }, { 1.0f, 0 });
 			})
 			.Start();
 	}
@@ -427,14 +318,11 @@ struct Dog {
 			// an.column_count;
 		} else {
 			// dog.Get<::SpriteSheet>().row = 0:
-			e.Get<Transform>().position = Lerp(start, target, progress) - e.Get<Hitbox>().offset;
+			e.Get<Transform>().position = Lerp(start, target, progress);
 			ApplyBounds(e, game.texture.Get(Hash("house_background")).GetSize());
-			// ResolveStaticWallCollisions(e);
 			if (draw_hitboxes) {
-				game.renderer.DrawLine(start, target, color::Purple, 5.0f);
+				game.draw.Line(start, target, color::Purple, 5.0f);
 			}
-			auto& an{ e.Get<AnimationComponent>() };
-			an.column = static_cast<int>(animations_to_goal * progress) % an.column_count;
 		}
 	}
 
@@ -466,15 +354,14 @@ struct Dog {
 		}
 
 		if (start.IsZero()) {
-			start  = e.Get<Hitbox>().GetPosition();
+			start  = e.Get<BoxCollider>().GetAbsoluteRect().position;
 			target = start;
 		}
-		// ResolveStaticWallCollisions(e);
 		//  Reset lingering state.
 		lingering = false;
 		SetNewTarget(e);
 		// Reset animation.
-		e.Get<AnimationComponent>().column = 0;
+		e.Get<Animation>().Start();
 	}
 
 	void SetNewTarget(ecs::Entity e) {
@@ -486,12 +373,12 @@ struct Dog {
 		PTGN_ASSERT(max_length != 0.0f);
 
 		auto viable_path = [=](const V2_float& vel) mutable {
-			auto& hitbox{ e.Get<Hitbox>() };
-			Rectangle<float> dog_rect{ hitbox.GetPosition(), hitbox.size, e.Get<Origin>() };
-			for (auto [en, p, h, o, s, w] : GetWalls(e.GetManager())) {
-				Rectangle<float> r{ h.GetPosition(), h.size, o };
-				DynamicCollision c;
-				if (game.collision.dynamic.RectangleRectangle(dog_rect, vel, r, c)) {
+			auto& hitbox{ e.Get<BoxCollider>() };
+			Rect dog_rect{ hitbox.GetAbsoluteRect() };
+			for (auto [en, t, b, w] : GetWalls(e.GetManager())) {
+				Rect r{ b.GetAbsoluteRect() };
+				Raycast c{ dog_rect.Raycast(vel, r) };
+				if (c.Occurred()) {
 					return false;
 				}
 			}
@@ -566,17 +453,6 @@ struct Dog {
 
 			PTGN_ASSERT(path_duration > microseconds{ 100 });
 			tween.SetDuration(std::chrono::duration_cast<milliseconds>(path_duration));
-
-			auto& anim{ e.Get<AnimationComponent>() };
-
-			int animation_cycles =
-				static_cast<int>(std::ceilf(path_duration / duration<float>(anim.duration)));
-
-			if (run) {
-				animation_cycles = static_cast<int>(animation_cycles * run_factor);
-			}
-
-			animations_to_goal = std::max(1, animation_cycles) * anim.column_count;
 		}
 	}
 
@@ -624,6 +500,8 @@ struct Dog {
 	V2_float target;
 	V2_float start;
 };
+
+/*
 
 class GameScene : public Scene {
 public:
@@ -761,8 +639,6 @@ public:
 		auto& rb		= player.Add<RigidBody>();
 		rb.velocity		= {};
 		rb.max_velocity = 700.0f;
-		rb.acceleration = {};
-		player.Add<Origin>(Origin::CenterBottom);
 		player.Add<SpriteFlip>(Flip::None);
 		player.Add<Direction>(V2_int{ 0, 1 });
 		player.Add<Human>();
@@ -771,40 +647,16 @@ public:
 		V2_int player_animation_count{ 4, 3 };
 
 		// Must be added before AnimationComponent as it pauses the animation immediately.
-		player.Add<::SpriteSheet>(
-			Texture{ "resources/entity/player.png" }, V2_int{}, player_animation_count
+		player.Add<Animation>(
+			Texture{ "resources/entity/player.png" }, V2_int{ 16, 32 }, player_animation_count,
+			milliseconds{ 400 }
 		);
 
-		milliseconds animation_duration{ 400 };
-
-		game.tween.Load(Hash("player_movement_animation"), animation_duration)
-			.OnPause([=](auto& t, auto v) { player.Get<AnimationComponent>().column = 0; })
-			.OnUpdate([=](auto& t, auto v) {
-				player.Get<AnimationComponent>().column =
-					static_cast<int>(std::floorf(v * player_animation_count.x));
-			})
-			.Repeat(-1)
-			.OnRepeat([=](auto& t, auto v) { player.Get<AnimationComponent>().column = 0; })
-			.Start();
-
-		auto& anim = player.Add<AnimationComponent>(
-			Hash("player_movement_animation"), player_animation_count.x, animation_duration
-		);
-		anim.Pause();
-
-		V2_int size{ tile_size.x, 2 * tile_size.y };
-
-		auto& s = player.Add<Size>(size);
-		V2_float hitbox_size{ 8, 8 };
-		auto& box  = player.Add<BoxCollider>();
-		box.size   = hitbox_size;
+		auto& box  = player.Add<BoxCollider>(player, V2_int{ 8, 8 }, Origin::TopLeft);
 		box.offset = { -4, -8 };
-		box.origin = Origin::TopLeft;
-		player.Add<Hitbox>(player, hitbox_size, V2_float{ 0.0f, 0.0f });
-		player.Add<HandComponent>(8.0f, V2_float{ 8.0f, -s.s.y * 0.3f });
-		player.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
+		player.Add<HandComponent>(8.0f, V2_float{ 8.0f, -2.0f * tile_size.y * 0.3f });
 		player.Add<SortByZ>();
-		player.Add<SpriteZ>(0.0f);
+		player.Add<LayerInfo>(0.0f, 0);
 
 		manager.Refresh();
 	}
@@ -830,28 +682,24 @@ public:
 		auto& tween =
 			game.tween.Load(Hash(dog), seconds{ 1 })
 				.Repeat(-1)
-				.OnPause([=](Tween& tw, float f) mutable {
-					dog.Get<AnimationComponent>().column = 0;
-				})
+				.OnPause([=](Tween& tw, float f) mutable { dog.Get<Animation>().Start(); })
 				.OnStart(start_walk)
 				.OnResume(start_walk)
 				.OnRepeat(start_walk)
 				.OnUpdate([=](Tween& tw, float f) mutable { dog.Get<Dog>().Update(dog, f); });
 
 		dog.Add<Transform>(pos);
-		dog.Add<Size>(size);
-		dog.Add<::SpriteSheet>(t, V2_int{}, animation_count);
-		dog.Add<Origin>(Origin::CenterBottom);
-		dog.Add<AnimationComponent>(Hash(dog), animation_count.x, milliseconds{ 2000 });
+		dog.Add<Animation>(
+			t, t.GetSize() / animation_count, animation_count.x, milliseconds{ 2000 }
+		);
 		dog.Add<Dog>(dog, V2_float{}, Hash(dog), bark_sound_keys, whine_sound_key, bark_offset);
-
-		dog.Add<InteractHitbox>(dog, size);
-		dog.Add<Hitbox>(dog, hitbox_size, hitbox_offset);
+		auto& b	 = dog.Add<BoxCollider>(dog, hitbox_size, Origin::CenterBottom);
+		b.offset = hitbox_offset;
 		dog.Add<SortByZ>();
-		dog.Add<SpriteZ>(0.0f);
+		dog.Add<LayerInfo>(0.0f, 0);
 		auto& rb		= dog.Add<RigidBody>();
 		rb.max_velocity = 700.0f;
-		dog.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
+		dog.Add<BoxCollider>();
 		dog.Add<SpriteFlip>(Flip::None);
 
 		manager.Refresh();
@@ -873,17 +721,14 @@ public:
 		i.type			= type;
 		i.weight_factor = weight_factor;
 		V2_float size{ texture_size };
-		item.Add<Size>(size);
-		item.Add<PickupHitbox>(item, size * hitbox_scale);
-		item.Add<Hitbox>(item, size);
-		item.Add<Origin>(Origin::Center);
+		item.Add<BoxCollider>(item, size, Origin::Center);
 		item.Add<Transform>(pos);
-		item.Add<::SpriteSheet>(t, V2_int{}, V2_int{});
+		item.Add<Sprite>(t);
 		item.Add<SortByZ>();
-		item.Add<SpriteZ>(0.0f);
+		item.Add<LayerInfo>(0.0f, 0);
 		auto& rb		= item.Add<RigidBody>();
 		rb.max_velocity = 700.0f;
-		item.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
+		item.Add<BoxCollider>();
 
 		manager.Refresh();
 
@@ -893,14 +738,8 @@ public:
 	void CreateWall(const V2_int& hitbox_size, const V2_int& cell) {
 		auto wall = manager.CreateEntity();
 		wall.Add<WallComponent>();
-		wall.Add<Size>(hitbox_size);
-		auto& box  = wall.Add<BoxCollider>();
-		box.size   = hitbox_size;
-		box.origin = Origin::TopLeft;
-		wall.Add<Hitbox>(wall, hitbox_size);
 		wall.Add<Transform>(cell * hitbox_size);
-		wall.Add<Origin>(Origin::TopLeft);
-		wall.Add<DynamicCollisionShape>(DynamicCollisionShape::Rectangle);
+		wall.Add<BoxCollider>(wall, hitbox_size, Origin::TopLeft);
 
 		manager.Refresh();
 	}
@@ -977,8 +816,11 @@ public:
 		daughter_camera_pos.y = game.window.GetSize().y + 100.0f;
 
 		// Must be added before AnimationComponent as it pauses the animation immediately.
-		auto& spritesheet =
-			daughter.Add<::SpriteSheet>(girl_texture, V2_int{}, daughter_animation_count);
+		auto& spritesheet = daughter.Add<Animation>(
+			girl_texture, girl_texture.GetSize() / daughter_animation_count,
+			daughter_animation_count.x, milliseconds{ 200 }
+		);
+		spritesheet.Start();
 
 		V2_float daughter_start_pos{ daughter_camera_pos.x,
 									 daughter_camera_pos.y + spritesheet.source_size.y };
@@ -990,22 +832,6 @@ public:
 		daughter.Add<SpriteFlip>(Flip::None);
 		daughter.Add<Human>();
 		daughter.Add<SpriteTint>(color::White);
-
-		milliseconds animation_duration{ 200 };
-
-		game.tween.Load(Hash("daughter_movement_animation"), animation_duration)
-			.Repeat(-1)
-			.OnPause([=](auto& t, auto v) { daughter.Get<AnimationComponent>().column = 0; })
-			.OnUpdate([=](auto& t, auto v) {
-				daughter.Get<AnimationComponent>().column =
-					static_cast<int>(std::floorf(v * daughter_animation_count.x));
-			})
-			.OnRepeat([=](auto& t, auto v) { daughter.Get<AnimationComponent>().column = 0; })
-			.Start();
-
-		auto& anim = daughter.Add<AnimationComponent>(
-			Hash("daughter_movement_animation"), daughter_animation_count.x, animation_duration
-		);
 
 		V2_float neighbot_walk_start_pos = ppos.position;
 
@@ -1021,13 +847,14 @@ public:
 				daughter, anger, love_key, bubble_pop_duration,
 				bubble_hold_duration + bubble_pop_duration, [=](Tween& tw, float f) {},
 				[=]() {
-					V2_float pos = daughter.Get<Transform>().position -
-								   V2_float{ 0.0f, daughter.Get<Size>().s.y + love_bubble_offset };
+					V2_float pos =
+						daughter.Get<Transform>().position -
+						V2_float{ 0.0f, daughter.Get<BoxCollider>().size.y + love_bubble_offset };
 					return pos;
 				},
 				[=]() {},
 				[=](auto& tw, float f) {
-					daughter.Get<AnimationComponent>().Resume();
+					daughter.Get<Animation>().Resume();
 					// game.tween.Get(Hash("daughter_animation")).Resume();
 				}
 			);
@@ -1045,7 +872,7 @@ public:
 				V2_float end   = daughter_walk_end_pos;
 
 				if (f > 0.5f) {
-					daughter.Get<::SpriteSheet>().row = 0;
+					daughter.Get<Animation>().= 0;
 					// daughter.Get<SpriteFlip>() = Flip::None;
 					end	  = neighbot_walk_start_pos;
 					start = daughter_walk_end_pos;
@@ -1072,7 +899,7 @@ public:
 		box.size   = hitbox_size;
 		box.offset = { -4, -8 };
 		box.origin = Origin::TopLeft;
-		daughter.Add<SpriteZ>(1.0f);
+		daughter.Add<LayerInfo>(1.0f, 0);
 
 		manager.Refresh();
 	};
@@ -1129,8 +956,8 @@ public:
 		CreateItem({ 250, 290 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f, BubbleAnimation::Toy);
 		CreateItem({ 100, 140 }, "resources/entity/dog_toy2.png", 1.0f, 1.0f, BubbleAnimation::Toy);
 
-		Rectangle<float> garden{ V2_float{ 347, 332 }, V2_float{ 568, 368 } - V2_float{ 347, 332 },
-								 Origin::TopLeft };
+		Rect garden{ V2_float{ 347, 332 }, V2_float{ 568, 368 } - V2_float{ 347, 332 },
+					 Origin::TopLeft };
 		std::size_t flowers = 10;
 		RNG<int> flower_ring{ 0, 2 };
 
@@ -1251,10 +1078,6 @@ public:
 		int side_row{ 1 };
 		int back_row{ 2 };
 
-		/*if (t.row != 2) {
-			t.row = 0;
-		}*/
-
 		// Sideways movement / animation prioritized over up and down.
 
 		if (dir.x != 0) {
@@ -1265,8 +1088,7 @@ public:
 			t.row = 2;
 		}
 		// PTGN_INFO("Animation frame: ", anim.column);
-
-		rb.acceleration = d.Normalized() * 1200.0f * hand.GetWeightFactor();
+		rb.AddAcceleration(d.Normalized() * 1200.0f * hand.GetWeightFactor());
 	}
 
 	void UpdateAnimations() {
@@ -1276,43 +1098,8 @@ public:
 		}
 	}
 
-	void ResolveWallCollisions(
-		V2_float& position, ecs::Entity entity, bool reset_velocity = false
-	) {
-		entity.Get<RigidBody>().velocity =
-			game.collision.dynamic.Sweep(entity, manager, DynamicCollisionResponse::Slide);
-
-		// ResolveStaticWallCollisions(entity);
-	}
-
 	void UpdatePhysics() {
-		float drag{ 10.0f };
-
-		for (auto [e, p, rb] : manager.EntitiesWith<Transform, RigidBody>()) {
-			rb.velocity += rb.acceleration * dt;
-
-			if (rb.velocity.MagnitudeSquared() > rb.max_velocity * rb.max_velocity) {
-				rb.velocity = rb.velocity.Normalized() * rb.max_velocity;
-			}
-
-			rb.velocity.x -= drag * rb.velocity.x * dt;
-			rb.velocity.y -= drag * rb.velocity.y * dt;
-
-			bool is_player{ e == player };
-
-			if (is_player) {
-				if (e.Has<ItemComponent>()) {
-					auto& item = e.Get<ItemComponent>();
-					if (!item.held) {
-						ResolveWallCollisions(p.position, e, true);
-					}
-				} else {
-					ResolveWallCollisions(p.position, e);
-				}
-			}
-
-			p.position += rb.velocity * dt;
-		}
+		game.physics.Update(manager);
 
 		if (player_can_move) {
 			ApplyBounds(player, world_bounds);
@@ -1322,7 +1109,7 @@ public:
 	void UpdatePlayerHand() {
 		auto& hand	 = player.Get<HandComponent>();
 		auto& hitbox = player.Get<Hitbox>();
-		Circle<float> circle{
+		Circle circle{
 			hand.GetPosition(player),
 			hand.radius,
 		};
@@ -1330,11 +1117,11 @@ public:
 			if (!hand.HasItem()) {
 				for (auto [e, p, h, o, i] :
 					 manager.EntitiesWith<Transform, PickupHitbox, Origin, ItemComponent>()) {
-					Rectangle<float> r{ h.GetPosition(), h.size, o };
+					Rect r{ h.GetPosition(), h.size, o };
 					if (draw_hitboxes) {
-						game.renderer.DrawRectangleHollow(r, color::Red);
+						r.Draw(color::Red, 1.0f);
 					}
-					if (game.collision.overlap.CircleRectangle(circle, r)) {
+					if (circle.Overlaps(r)) {
 						// hitbox.color	  = color::Red;
 						// h.color			  = color::Red;
 						hand.current_item = e;
@@ -1353,37 +1140,17 @@ public:
 				auto& o_item{ hand.current_item.Get<Origin>() };
 
 				auto h_pos{ h_item.GetPosition() };
-				Rectangle<float> r_item{ { h_pos.x - hand.offset.y, h_pos.y },
-										 h_item.size,
-										 o_item };
+				Rect r_item{ { h_pos.x - hand.offset.y, h_pos.y }, h_item.size, o_item };
 
-				// If item is not in the wall, throw it, otherwise push it out of the wall.
-				bool wall{ false };
-				IntersectCollision max;
-				for (auto [e, p, h, o, s, w] : GetWalls(manager)) {
-					Rectangle<float> r{ h.GetPosition(), h.size, o };
-					r_item = { h_pos, h_item.size, o_item };
-					IntersectCollision c;
-					if (game.collision.intersect.RectangleRectangle(r_item, r, c)) {
-						wall = true;
-						if (c.depth > max.depth) {
-							max = c;
-						}
-					}
-				}
-				if (wall) {
-					hand.current_item.Get<Transform>().position += max.depth * max.normal;
+				auto& item_rb{ hand.current_item.Get<RigidBody>() };
+				auto& rb{ player.Get<RigidBody>() };
+				if (FastAbs(rb.velocity.x) == 0.0f && FastAbs(rb.velocity.y) == 0.0f) {
+					// Throw item from ground (at low velocities).
 				} else {
-					auto& item_rb{ hand.current_item.Get<RigidBody>() };
-					auto& rb{ player.Get<RigidBody>() };
-					if (FastAbs(rb.acceleration.x) == 0.0f && FastAbs(rb.acceleration.y) == 0.0f) {
-						// Throw item from ground (at low velocities).
-					} else {
-						// Throw item from hand.
-						hand.current_item.Get<Transform>().position.y += hand.offset.y;
-					}
-					item_rb.velocity = rb.velocity.Normalized() * rb.max_velocity * 0.65f;
+					// Throw item from hand.
+					hand.current_item.Get<Transform>().position.y += hand.offset.y;
 				}
+				item_rb.velocity = rb.velocity.Normalized() * rb.max_velocity * 0.65f;
 				//  TODO: Add effect to throw item in direction player is facing.
 				hand.current_item = {};
 			}
@@ -1391,11 +1158,11 @@ public:
 		if (hand.HasItem()) {
 			hand.current_item.Get<Transform>().position = player.Get<Hitbox>().GetPosition();
 			if (player.Get<Direction>().dir.y == -1) {
-				player.Get<SpriteZ>()			 = 0.1f;
-				hand.current_item.Get<SpriteZ>() = 0.0f;
+				player.Get<LayerInfo>().z_index			   = 0.1f;
+				hand.current_item.Get<LayerInfo>().z_index = 0.0f;
 			} else {
-				player.Get<SpriteZ>()			 = 0.0f;
-				hand.current_item.Get<SpriteZ>() = 0.1f;
+				player.Get<LayerInfo>().z_index			   = 0.0f;
+				hand.current_item.Get<LayerInfo>().z_index = 0.1f;
 			}
 		}
 	}
@@ -1405,23 +1172,6 @@ public:
 			h.color = color::Blue;
 		}
 	}
-
-	/*void UpdateZIndices() {
-		auto entities				= manager.EntitiesWith<Transform, Hitbox, SpriteZ, SortByZ>();
-		std::vector<ecs::Entity> ev = entities.GetVector();
-
-		std::sort(ev.begin(), ev.end(), [=](ecs::Entity a, ecs::Entity b) {
-			return a.Get<Transform>().position.y < b.Get<Transform>().position.y;
-		});
-
-		const float z_delta{ 1.0f / (ev.size() - 1) };
-
-		for (std::size_t i = 0; i < ev.size(); ++i) {
-			ev[i].Get<SpriteZ>() = z_delta * static_cast<float>(i);
-			Print(ev[i].GetId(), ", ");
-		}
-		PrintLine();
-	}*/
 
 	void Update() final {
 		if (!game.tween.Has(Hash("neighbor_cutscene"))) {
@@ -1441,8 +1191,6 @@ public:
 			UpdatePlayerHand();
 		}
 
-		// UpdateZIndices();
-
 		UpdateAnimations();
 
 		float dist{ (daughter.Get<Transform>().position - daughter_walk_end_pos).Magnitude() };
@@ -1452,38 +1200,14 @@ public:
 			SpawnDog(daughter.Get<Transform>().position);
 		}
 
-		// Debug testing dog graphical bug:
-		/*
-		RNG<int> dog_rng{ 0, 3 };
-
-		for (size_t i = 0; i < dog_counter; i++) {
-			Texture t;
-			int dog_index = dog_rng();
-			if (dog_index == 0) {
-				t = Texture{ "resources/dog/vizsla.png" };
-			} else if (dog_index == 1) {
-				t = Texture{ "resources/dog/dachshund_purple.png" };
-			} else if (dog_index == 2) {
-				t = Texture{ "resources/dog/great_dane.png" };
-			} else if (dog_index == 3) {
-				t = Texture{ "resources/dog/maltese.png" };
-			}
-
-			game.renderer.DrawTexture(
-				t, V2_float::Random({ 0.0f, 0.0f }, game.window.GetSize()),
-				V2_float::Random({ 10.0f, 10.0f }, V2_float{ 30.0f, 30.0f }), {}, {},
-				Origin::TopLeft, Flip::None, 0.0f, {},
-				0.0f //, Color{ 255, 255, 255, 30 }
-			);
-		}*/
-
 		Draw();
 	}
 
 	void DrawWalls() {
 		for (auto [e, p, s, h, origin, w] :
 			 manager.EntitiesWith<Transform, Size, Hitbox, Origin, WallComponent>()) {
-			game.renderer.DrawRectangleHollow(p.position, h.size, h.color, origin, 1.0f);
+			Rect r{ p.position, h.size, origin };
+			r.Draw(h.color, 1.0f);
 		}
 	}
 
@@ -1492,16 +1216,18 @@ public:
 			 manager.EntitiesWith<Transform, Size, Hitbox, Origin, ::SpriteSheet, ItemComponent>(
 			 )) {
 			if (draw_hitboxes) {
-				game.renderer.DrawRectangleHollow(p.position + h.offset, h.size, h.color, o, 1.0f);
+				Rect r{ p.position + h.offset, h.size, o };
+				r.Draw(h.color, 1.0f);
 			}
 			V2_float offset;
 			if (item.held) {
 				auto& hand{ player.Get<HandComponent>() };
 				offset = { player.Get<Direction>().dir.x * hand.offset.x, hand.offset.y };
 			}
-			game.renderer.DrawTexture(
-				ss.texture, p.position + offset, s.s, ss.source_pos, ss.source_size, Origin::Center,
-				Flip::None, 0.0f, {}, e.Has<SpriteZ>() ? e.Get<SpriteZ>() : 0.0f
+			game.draw.Texture(
+				ss.texture, { p.position + offset, s.s, Origin::Center },
+				{ ss.source_pos, ss.source_size, Flip::None },
+				e.Has<LayerInfo>() ? e.Get<LayerInfo>() : LayerInfo{}
 			);
 		}
 	}
@@ -1509,17 +1235,11 @@ public:
 	void DrawDogs() {
 		for (auto [e, p, s, o, ss, dog] :
 			 manager.EntitiesWith<Transform, Size, Origin, ::SpriteSheet, Dog>()) {
-			/*if (draw_hitboxes) {
-				game.renderer.DrawRectangleHollow(p.position + h.offset, h.size, h.color, o, 1.0f);
-			}*/
-			game.renderer.DrawTexture(
-				ss.texture, p.position, s.s, ss.source_pos, ss.source_size, o,
-				e.Has<Flip>() ? e.Get<SpriteFlip>() : Flip::None, 0.0f, {},
-				e.Has<SpriteZ>() ? e.Get<SpriteZ>() : 0.0f //, Color{ 255, 255, 255, 30 }
+			game.draw.Texture(
+				ss.texture, { p.position, s.s, o },
+				{ ss.source_pos, ss.source_size, e.Has<Flip>() ? e.Get<SpriteFlip>() : Flip::None },
+				e.Has<LayerInfo>() ? e.Get<LayerInfo>() : LayerInfo{} //, Color{ 255, 255, 255, 30 }
 			);
-			/*if (draw_hitboxes) {
-				game.renderer.DrawLine(dog.start, dog.target, color::Red, 3.0f);
-			}*/
 		}
 	}
 
@@ -1529,25 +1249,24 @@ public:
 			 )) {
 			if (e.Has<HandComponent>() && draw_hitboxes) {
 				const auto& hand = e.Get<HandComponent>();
-				game.renderer.DrawCircleHollow(hand.GetPosition(e), hand.radius, color::Red);
+				Circle circle{ hand.GetPosition(e), hand.radius };
+				circle.Draw(color::Red);
 			}
 			if (draw_hitboxes) {
-				game.renderer.DrawRectangleHollow(
-					pos.position + hitbox.offset, hitbox.size, color::Blue, hitbox.origin, 1.0f
-				);
+				Rect rect{ pos.position + hitbox.offset, hitbox.size, hitbox.origin };
+				rect.Draw(color::Blue, 1.0f);
 			}
-			game.renderer.DrawTexture(
-				t.texture, pos.position, size.s, t.source_pos, t.source_size, origin, flip, 0.0f,
-				{ 0.5f, 0.5f }, (e.Has<SpriteZ>() ? e.Get<SpriteZ>() : 0.0f),
-				(e.Has<SpriteTint>() ? e.Get<SpriteTint>() : color::White)
+			game.draw.Texture(
+				t.texture, { pos.position, size.s, origin },
+				{ t.source_pos, t.source_size, flip,
+				  e.Has<SpriteTint>() ? e.Get<SpriteTint>() : color::White },
+				e.Has<LayerInfo>() ? e.Get<LayerInfo>() : LayerInfo{}
 			);
 		}
 	}
 
 	void DrawBackground() {
-		game.renderer.DrawTexture(
-			house_background, {}, house_background.GetSize(), {}, {}, Origin::TopLeft
-		);
+		game.draw.Texture(house_background);
 	}
 
 	void WifeReturn() {
@@ -1592,13 +1311,11 @@ public:
 	}
 
 	void DrawProgressBar() {
-		V2_float cs{ game.camera.GetCurrent().GetSize() };
+		V2_float cs{ game.camera.GetPrimary().GetSize() };
 		float y_offset{ 0.0f };
 		V2_float bar_size{ progress_bar_texture.GetSize() };
 		V2_float bar_pos{ cs.x / 2.0f, y_offset };
-		game.renderer.DrawTexture(
-			progress_bar_texture, bar_pos, bar_size, {}, {}, Origin::CenterTop
-		);
+		game.draw.Texture(progress_bar_texture, { bar_pos, bar_size, Origin::CenterTop });
 		V2_float car_size{ progress_car_texture.GetSize() };
 		V2_float start{ bar_pos.x - bar_size.x / 2.0f + car_size.x / 2,
 						bar_pos.y + bar_size.y / 2.0f };
@@ -1610,20 +1327,20 @@ public:
 			WifeReturn();
 		}
 		V2_float car_pos{ Lerp(start, end, elapsed) };
-		game.renderer.DrawTexture(progress_car_texture, car_pos, car_size, {}, {}, Origin::Center);
+		game.draw.Texture(progress_car_texture, { car_pos, car_size, Origin::Center });
 	}
 
 	void DrawDogCounter() {
 		std::size_t dog_count = manager.EntitiesWith<Dog>().Count();
-		V2_float cs{ game.camera.GetCurrent().GetSize() };
+		V2_float cs{ game.camera.GetPrimary().GetSize() };
 		V2_float ui_offset{ -12.0f, 12.0f };
 		V2_float counter_size{ dog_counter_texture.GetSize() };
 		V2_float text_offset{ -counter_size.x / 2,
 							  counter_size.y - 14.0f }; // relative to counter ui top right
-		Text t{ counter_font, std::to_string(dog_count), color::Black };
+		Text t{ std::to_string(dog_count), color::Black, counter_font };
 		V2_float pos{ cs.x + ui_offset.x, ui_offset.y };
 		V2_float counter_text_size{ 20, 25 };
-		game.renderer.DrawTexture(dog_counter_texture, pos, counter_size, {}, {}, Origin::TopRight);
+		game.draw.Texture(dog_counter_texture, { pos, counter_size, Origin::TopRight });
 		t.Draw({ pos + text_offset, counter_text_size, Origin::Center });
 	}
 
@@ -1765,7 +1482,7 @@ public:
 		box.size   = hitbox_size;
 		box.offset = { -4, -8 };
 		box.origin = Origin::TopLeft;
-		neighbor.Add<SpriteZ>(1.0f);
+		neighbor.Add<LayerInfo>(1.0f, 0);
 
 		manager.Refresh();
 	}
@@ -1838,7 +1555,7 @@ public:
 
 		// TODO: If bark_progress > 0.8f (etc) give a warning to player.
 
-		Color color = Lerp(color::Grey, color::Red, bark_progress);
+		Color color = Lerp(color::Gray, color::Red, bark_progress);
 
 		V2_float border_size{ 4, 4 };
 
@@ -1846,20 +1563,18 @@ public:
 
 		V2_float fill_pos{ meter_pos.x, meter_pos.y - border_size.y };
 
-		game.renderer.DrawTexture(
-			barkometer_texture, meter_pos, meter_size, {}, {}, Origin::CenterBottom
-		);
+		game.draw.Texture(barkometer_texture, { meter_pos, meter_size, Origin::CenterBottom });
 
-		game.renderer.DrawRectangleFilled(
-			fill_pos, { barkometer_fill_size.x, barkometer_fill_size.y * bark_progress }, color,
-			Origin::CenterBottom
-		);
+		Rect rect{ fill_pos,
+				   { barkometer_fill_size.x, barkometer_fill_size.y * bark_progress },
+				   Origin::CenterBottom };
+		rect.Draw(color, -1.0f);
 	}
 
 	void DrawUI() {
-		auto prev_primary = game.camera.GetCurrent();
+		auto prev_primary = game.camera.GetPrimary();
 
-		game.renderer.Flush();
+		game.draw.Flush();
 
 		OrthographicCamera c;
 		c.SetPosition(game.window.GetCenter());
@@ -1874,9 +1589,9 @@ public:
 		DrawBarkometer();
 		DrawFadeEntity();
 
-		game.renderer.Flush();
+		game.draw.Flush();
 
-		if (game.camera.GetCurrent() == c) {
+		if (game.camera.GetPrimary() == c) {
 			game.camera.SetPrimary(prev_primary);
 		}
 	}
@@ -1886,19 +1601,18 @@ public:
 
 	void DrawFadeEntity() {
 		PTGN_ASSERT(fade_entity.Has<SpriteTint>());
-		auto& cam = game.camera.GetCurrent();
-		game.renderer.DrawRectangleFilled(
-			{ {}, cam.GetSize(), Origin::TopLeft }, fade_entity.Get<SpriteTint>()
-		);
+		auto cam = game.camera.GetPrimary();
+		Rect rect{ {}, cam.GetSize(), Origin::TopLeft };
+		rect.Draw(fade_entity.Get<SpriteTint>(), -1.0f);
 		auto fade_state = fade_text.Get<FadeComponent>().state;
 		if (fade_state != FadeState::None) {
 			Texture t = lose;
 			if (fade_state == FadeState::Win) {
 				t = win;
 			}
-			game.renderer.DrawTexture(
-				t, { cam.GetPosition().x, cam.GetPosition().y }, cam.GetSize(), {}, {},
-				Origin::Center, Flip::None, 0.0f, {}, 1.0f, fade_text.Get<SpriteTint>()
+			game.draw.Texture(
+				t, { cam.GetPosition(), cam.GetSize(), Origin::Center },
+				{ {}, {}, Flip::None, fade_text.Get<SpriteTint>() }, LayerInfo{ 1.0f, 0 }
 			);
 		}
 	}
@@ -1928,10 +1642,9 @@ public:
 			}
 			auto& h	 = e.Get<Hitbox>();
 			auto& ph = player.Get<Hitbox>();
-			Rectangle<float> dog_rect{ h.GetPosition(), h.size, e.Get<Origin>() };
-			Rectangle<float> player_rect{ ph.GetPosition(), ph.size, player.Get<Origin>() };
-			if (game.collision.overlap.RectangleRectangle(player_rect, dog_rect) &&
-				player.Has<HandComponent>()) {
+			Rect dog_rect{ h.GetPosition(), h.size, e.Get<Origin>() };
+			Rect player_rect{ ph.GetPosition(), ph.size, player.Get<Origin>() };
+			if (player_rect.Overlaps(dog_rect) && player.Has<HandComponent>()) {
 				ecs::Entity item{ player.Get<HandComponent>().current_item };
 
 				auto reset_patience_request = [&]() {
@@ -1993,75 +1706,33 @@ public:
 		DrawUI();
 	}
 };
+*/
 
 const int button_y_offset{ 14 };
 const V2_int button_size{ 250, 50 };
 const V2_int first_button_coordinate{ 250, 220 };
 
-TextButton CreateMenuButton(
-	const std::string& content, const Color& text_color, const ButtonActivateFunction& f,
+static Button CreateMenuButton(
+	const std::string& content, const Color& text_color, const ButtonCallback& f,
 	const Color& color, const Color& hover_color
 ) {
-	TextButton b;
-	b.SetOnActivate(f);
-	b.SetColor(color);
-	b.SetHoverColor(hover_color);
-	Text text{ Hash("menu_font"), content, color };
-	b.SetText(text);
+	Button b;
+	b.Set<ButtonProperty::OnActivate>(f);
+	b.Set<ButtonProperty::BackgroundColor>(color);
+	b.Set<ButtonProperty::BackgroundColor>(hover_color, ButtonState::Hover);
+	Text text{ content, color, Hash("menu_font") };
+	b.Set<ButtonProperty::Text>(text);
+	b.Set<ButtonProperty::TextSize>(V2_float{
+		static_cast<float>(b.Get<ButtonProperty::Text>().GetSize().x), 0.0f });
+	b.Set<ButtonProperty::LineThickness>(7.0f);
 	return b;
 }
 
 class LevelSelect : public Scene {
 public:
-	std::vector<TextButton> buttons;
+	std::vector<Button> buttons;
 
-	bool fade_in_on_init{ false };
-
-	LevelSelect(bool f = false) : fade_in_on_init{ f } {}
-
-	void StartGame(Difficulty difficulty) {
-		game.scene.RemoveActive(Hash("level_select"));
-		game.scene.Load<GameScene>(Hash("game"), difficulty);
-		game.scene.AddActive(Hash("game"));
-	}
-
-	ecs::Manager manager;
-
-	ecs::Entity fade_entity;
-	OrthographicCamera camera;
-
-	void Init() final {
-		camera.SetSizeToWindow();
-		camera.SetPosition(game.window.GetCenter());
-		game.camera.SetPrimary(camera);
-		if (fade_in_on_init) {
-			// fade_entity = manager.CreateEntity();
-			// fade_entity.Add<SpriteTint>(Color{ 0, 0, 0, 255 });
-
-			// fade_to_black_config_select.on_update = [=](auto& tw, float f) {
-			//	fade_entity.Get<SpriteTint>().a =
-			//		static_cast<std::uint8_t>((1.0f - f) * 255.0f);
-			//	// PTGN_LOG("Update Tint: ", fade_entity.Get<SpriteTint>(), ", f: ", f);
-			// };
-			// fade_to_black_config_select.on_complete = [=](auto& tw, float f) {
-			//	fade_entity.Get<SpriteTint>().a = 0;
-			//	// PTGN_LOG("Complete Tint: ", fade_entity.Get<SpriteTint>(), ", f: ", f);
-			// };
-			// fade_to_black_config_select.on_stop = fade_to_black_config_select.on_complete;
-
-			// milliseconds fade_duration{ 500 };
-
-			// game.tween
-			//	.Load(
-			//		Hash("fade_to_black_level_select"), 0.0f, 1.0f, fade_duration,
-			//		fade_to_black_config_select
-			//	)
-			//	.Start();
-
-			//// TODO: Add fade in.
-			// fade_in_on_init = false;
-		}
-		buttons.clear();
+	LevelSelect() {
 		buttons.push_back(CreateMenuButton(
 			"Easy", color::Blue, [&]() { StartGame(Difficulty::Easy); }, color::Blue, color::Black
 		));
@@ -2074,127 +1745,102 @@ public:
 		));
 		buttons.push_back(CreateMenuButton(
 			"Back", color::Black,
-			[]() {
-				game.scene.RemoveActive(Hash("level_select"));
-				game.scene.AddActive(Hash("main_menu"));
-			},
-			color::LightGrey, color::Black
+			[]() { game.scene.TransitionActive("level_select", "main_menu"); }, color::LightGray,
+			color::Black
 		));
 
-		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].SetRectangle({ V2_int{ first_button_coordinate.x,
-											  first_button_coordinate.y +
-												  i * (button_size.y + button_y_offset) },
-									  button_size, Origin::CenterTop });
-			buttons[i].SubscribeToMouseEvents();
+		for (std::size_t i = 0; i < buttons.size(); i++) {
+			buttons[i].SetRect({ V2_int{ first_button_coordinate.x,
+										 first_button_coordinate.y +
+											 (int)i * (button_size.y + button_y_offset) },
+								 button_size, Origin::CenterTop });
+			buttons[i].Disable();
+		}
+	}
+
+	void StartGame(Difficulty difficulty) {
+		// TODO: Re-enable.
+		// game.scene.Load<GameScene>("game", difficulty);
+		// game.scene.TransitionActive("level_select", "game");
+	}
+
+	void Init() final {
+		for (auto& b : buttons) {
+			b.Enable();
 		}
 	}
 
 	void Shutdown() final {
-		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].UnsubscribeFromMouseEvents();
+		for (auto& b : buttons) {
+			b.Disable();
 		}
-		manager.Clear();
 	}
 
 	void Update() final {
-		game.scene.Get(Hash("level_select"))->camera.SetPrimary(camera);
-
-		game.renderer.DrawTexture(
-			game.texture.Get(Hash("menu_background")), game.window.GetCenter(), resolution, {}, {},
-			Origin::Center, Flip::None, 0.0f, {}, -1.0f
+		game.draw.Texture(
+			game.texture.Get("menu_background"),
+			Rect{ game.window.GetCenter(), resolution, Origin::Center }, {}, LayerInfo{ -1.0f, 0 }
 		);
-		for (std::size_t i = 0; i < buttons.size(); i++) {
-			auto rect = buttons[i].GetRectangle();
-			rect.size.x =
-				buttons[i]
-					.GetText()
-					.GetSize(Hash("menu_font"), std::string(buttons[i].GetText().GetContent()))
-					.x *
-				0.5f;
-			buttons[i].SetTextSize({ rect.size.x, 0.0f });
-			buttons[i].DrawHollow(6.0f);
-		}
-
-		if (fade_entity.IsAlive() && fade_entity.Has<SpriteTint>()) {
-			game.renderer.DrawRectangleFilled(
-				{ {}, game.window.GetSize(), Origin::TopLeft }, fade_entity.Get<SpriteTint>()
-			);
+		for (auto& b : buttons) {
+			b.Draw();
 		}
 	}
 };
 
-void GameScene::BackToMenu() {
-	game.scene.Unload(Hash("game"));
-	game.scene.Get<LevelSelect>(Hash("level_select"))->fade_in_on_init = true;
-	game.scene.AddActive(Hash("level_select"));
-}
+// TODO: Re-enable.
+// void GameScene::BackToMenu() {
+//	game.scene.TransitionActive(
+//		"game", "level_select",
+//		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
+//	);
+//	game.scene.Unload("game");
+//}
 
 class MainMenu : public Scene {
 public:
-	std::vector<TextButton> buttons;
+	std::vector<Button> buttons;
 
 	MainMenu() {
-		// TODO: If has.
-		game.font.Load(Hash("menu_font"), "resources/font/retro_gaming.ttf", button_size.y);
-		game.texture.Load(Hash("menu_background"), "resources/ui/background.png");
-		game.music.Load(Hash("background_music"), "resources/sound/background_music.ogg").Play(-1);
-		game.scene.Load<LevelSelect>(Hash("level_select"));
+		// TODO: Add if has not check.
+		game.font.Load("menu_font", "resources/font/retro_gaming.ttf", button_size.y);
+		game.texture.Load("menu_background", "resources/ui/background.png");
+		game.music.Load("background_music", "resources/sound/background_music.ogg").Play(-1);
+		game.scene.Load<LevelSelect>("level_select");
+
+		buttons.push_back(CreateMenuButton(
+			"Play", color::Blue, []() { game.scene.TransitionActive("main_menu", "level_select"); },
+			color::Blue, color::Black
+		));
+
+		for (int i = 0; i < buttons.size(); i++) {
+			buttons[i].SetRect({ V2_int{ first_button_coordinate.x,
+										 first_button_coordinate.y +
+											 (int)i * (button_size.y + button_y_offset) },
+								 button_size, Origin::CenterTop });
+			buttons[i].Disable();
+		}
 	}
 
 	void Init() final {
-		buttons.clear();
-		buttons.push_back(CreateMenuButton(
-			"Play", color::Blue,
-			[]() {
-				game.scene.RemoveActive(Hash("main_menu"));
-				game.scene.AddActive(Hash("level_select"));
-			},
-			color::Blue, color::Black
-		));
-		// buttons.push_back(CreateMenuButton(
-		//	"Settings", color::Red,
-		//	[]() {
-		//		/*game.scene.RemoveActive(Hash("main_menu"));
-		//		game.scene.SetActive(Hash("game"));*/
-		//	},
-		//	color::Red, color::Black
-		//));
-
-		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].SetRectangle({ V2_int{ first_button_coordinate.x,
-											  first_button_coordinate.y +
-												  i * (button_size.y + button_y_offset) },
-									  button_size, Origin::CenterTop });
-			buttons[i].SubscribeToMouseEvents();
+		for (auto& b : buttons) {
+			b.Enable();
 		}
 	}
 
 	void Shutdown() final {
-		for (int i = 0; i < (int)buttons.size(); i++) {
-			buttons[i].UnsubscribeFromMouseEvents();
+		for (auto& b : buttons) {
+			b.Disable();
 		}
 	}
 
 	void Update() final {
-		game.renderer.DrawTexture(
-			game.texture.Get(Hash("menu_background")), game.window.GetCenter(), resolution, {}, {},
-			Origin::Center, Flip::None, 0.0f, {}, -1.0f
-		);
-		for (std::size_t i = 0; i < buttons.size(); i++) {
-			auto rect = buttons[i].GetRectangle();
-			rect.size.x =
-				buttons[i]
-					.GetText()
-					.GetSize(Hash("menu_font"), std::string(buttons[i].GetText().GetContent()))
-					.x *
-				0.5f;
-			buttons[i].SetTextSize({ rect.size.x, 0.0f });
-			buttons[i].DrawHollow(7.0f);
+		game.texture.Get("menu_background")
+			.Draw(
+				{ game.window.GetCenter(), resolution, Origin::Center }, {}, LayerInfo{ -1.0f, 0 }
+			);
+		for (const auto& b : buttons) {
+			b.Draw();
 		}
-		// TODO: Make this a texture and global (perhaps run in the start scene?).
-		// Draw Mouse Cursor.
-		// game.renderer.DrawCircleFilled(game.input.GetMousePosition(), 5.0f, color::Red);
 	}
 };
 
@@ -2203,12 +1849,11 @@ public:
 	SetupScene() {}
 
 	void Init() final {
-		game.renderer.SetClearColor(color::Silver);
+		game.draw.SetClearColor(color::Silver);
 		game.window.SetSize(resolution);
 
-		std::size_t initial_scene{ Hash("main_menu") };
-		game.scene.Load<MainMenu>(initial_scene);
-		game.scene.AddActive(initial_scene);
+		game.scene.Load<MainMenu>("main_menu");
+		game.scene.AddActive("main_menu");
 	}
 };
 
