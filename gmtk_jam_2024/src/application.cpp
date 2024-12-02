@@ -6,6 +6,10 @@ constexpr const V2_int resolution{ 960, 540 };
 constexpr const V2_int center{ resolution / 2 };
 constexpr const bool draw_hitboxes{ true };
 
+const int button_y_offset{ 14 };
+const V2_int button_size{ 250, 50 };
+const V2_int first_button_coordinate{ 250, 220 };
+
 enum class Difficulty {
 	Easy,
 	Medium,
@@ -501,14 +505,14 @@ struct Dog {
 	V2_float start;
 };
 
-/*
-
 class GameScene : public Scene {
 public:
 	ecs::Manager manager;
 
 	V2_int tile_size{ V2_int{ 16, 16 } };
 	V2_int grid_size{ V2_int{ 60, 34 } };
+
+	constexpr static const float scale = 2.0f;
 
 	Key item_interaction_key{ Key::E };
 
@@ -546,6 +550,19 @@ public:
 	seconds dog_spawn_rate{ 10 };
 
 	seconds bark_reset_time{ 3 };
+
+	ecs::Entity neighbor;
+	V2_float neighbor_camera_pos{ 150, 0.0f };
+	V2_float neighbor_walk_end_pos{ 150, 360.0f };
+
+	Texture win{ "resources/ui/win.png" };
+	Texture lose{ "resources/ui/lose.png" };
+	Texture player_texture{ "resources/entity/player.png" };
+
+	// V2_float neighbor_pos{ 150, 0.0f };
+
+	std::array<std::string_view, 3> yell_keys{ "neighbor_yell0", "neighbor_yell1",
+											   "neighbor_yell2" };
 
 	~GameScene() {
 		game.tween.Clear();
@@ -585,13 +602,12 @@ public:
 		barkometer_texture	 = Texture{ "resources/ui/barkometer.png" };
 		level				 = Surface{ "resources/level/house_hitbox.png" };
 
-		game.texture.Load(Hash("bark"), "resources/entity/bark.png");
+		game.texture.Load("bark", "resources/entity/bark.png");
 
-		std::size_t r{ Hash("bubble") };
 		auto load_request = [&](BubbleAnimation animation_type, const std::string& name) {
 			path p{ "resources/ui/bubble_" + name + ".png" };
 			PTGN_ASSERT(FileExists(p));
-			game.texture.Load(r + static_cast<std::size_t>(animation_type), p);
+			game.texture.Load(Hash("bubble") + static_cast<std::size_t>(animation_type), p);
 		};
 		load_request(BubbleAnimation::Food, "food");
 		load_request(BubbleAnimation::Cleanup, "cleanup");
@@ -606,30 +622,26 @@ public:
 		load_request(BubbleAnimation::Anger3, "anger3");
 		load_request(BubbleAnimation::Anger4, "anger4");
 
-		house_background = game.texture.Load(Hash("house_background"), "resources/level/house.png");
+		house_background = game.texture.Load("house_background", "resources/level/house.png");
 		world_bounds	 = house_background.GetSize();
-		// TODO: Populate with actual barks.
-		game.sound.Load(Hash("vizsla_bark1"), "resources/sound/bark_1.ogg");
-		game.sound.Load(Hash("vizsla_bark2"), "resources/sound/bark_2.ogg");
-		game.sound.Load(Hash("great_dane_bark1"), "resources/sound/bark_1.ogg");
-		game.sound.Load(Hash("great_dane_bark2"), "resources/sound/bark_2.ogg");
-		game.sound.Load(Hash("maltese_bark1"), "resources/sound/small_bark.ogg");
-		game.sound.Load(Hash("maltese_bark2"), "resources/sound/small_bark.ogg");
-		game.sound.Load(Hash("dachshund_bark1"), "resources/sound/small_bark.ogg");
-		game.sound.Load(Hash("dachshund_bark2"), "resources/sound/small_bark.ogg");
-		// TODO: Populate with actual whines.
-		game.sound.Load(Hash("vizsla_whine"), "resources/sound/dog_whine.ogg");
-		game.sound.Load(Hash("great_dane_whine"), "resources/sound/dog_whine.ogg");
-		game.sound.Load(Hash("maltese_whine"), "resources/sound/small_dog_whine.ogg");
-		game.sound.Load(Hash("dachshund_whine"), "resources/sound/small_dog_whine.ogg");
-		// TODO: Populate with actual complaining.
-		game.sound.Load(Hash("neighbor_yell0"), "resources/sound/yell0.ogg");
-		game.sound.Load(Hash("neighbor_yell1"), "resources/sound/yell1.ogg");
-		game.sound.Load(Hash("neighbor_yell2"), "resources/sound/yell2.ogg");
-
-		game.sound.Load(Hash("door_close"), "resources/sound/door_close.ogg");
-		game.sound.Load(Hash("door_open"), "resources/sound/door_open.ogg");
-		game.sound.Load(Hash("wife_arrives"), "resources/sound/wife_arrives.ogg");
+		game.sound.Load("vizsla_bark1", "resources/sound/bark_1.ogg");
+		game.sound.Load("vizsla_bark2", "resources/sound/bark_2.ogg");
+		game.sound.Load("great_dane_bark1", "resources/sound/bark_1.ogg");
+		game.sound.Load("great_dane_bark2", "resources/sound/bark_2.ogg");
+		game.sound.Load("maltese_bark1", "resources/sound/small_bark.ogg");
+		game.sound.Load("maltese_bark2", "resources/sound/small_bark.ogg");
+		game.sound.Load("dachshund_bark1", "resources/sound/small_bark.ogg");
+		game.sound.Load("dachshund_bark2", "resources/sound/small_bark.ogg");
+		game.sound.Load("vizsla_whine", "resources/sound/dog_whine.ogg");
+		game.sound.Load("great_dane_whine", "resources/sound/dog_whine.ogg");
+		game.sound.Load("maltese_whine", "resources/sound/small_dog_whine.ogg");
+		game.sound.Load("dachshund_whine", "resources/sound/small_dog_whine.ogg");
+		game.sound.Load("neighbor_yell0", "resources/sound/yell0.ogg");
+		game.sound.Load("neighbor_yell1", "resources/sound/yell1.ogg");
+		game.sound.Load("neighbor_yell2", "resources/sound/yell2.ogg");
+		game.sound.Load("door_close", "resources/sound/door_close.ogg");
+		game.sound.Load("door_open", "resources/sound/door_open.ogg");
+		game.sound.Load("wife_arrives", "resources/sound/wife_arrives.ogg");
 	}
 
 	void CreatePlayer() {
@@ -637,30 +649,28 @@ public:
 
 		auto& ppos		= player.Add<Transform>(V2_float{ 215, 290 });
 		auto& rb		= player.Add<RigidBody>();
-		rb.velocity		= {};
 		rb.max_velocity = 700.0f;
-		player.Add<SpriteFlip>(Flip::None);
 		player.Add<Direction>(V2_int{ 0, 1 });
-		player.Add<Human>();
-		player.Add<Wife>();
+		player.Add<SpriteFlip>(Flip::None);
+		/*player.Add<Human>();
+		player.Add<Wife>();*/
 
 		V2_int player_animation_count{ 4, 3 };
 
-		// Must be added before AnimationComponent as it pauses the animation immediately.
-		player.Add<Animation>(
-			Texture{ "resources/entity/player.png" }, V2_int{ 16, 32 }, player_animation_count,
-			milliseconds{ 400 }
-		);
+		Animation anim1{ player_texture, static_cast<std::size_t>(player_animation_count.x),
+						 V2_int{ 16, 32 }, milliseconds{ 400 } };
 
-		auto& box  = player.Add<BoxCollider>(player, V2_int{ 8, 8 }, Origin::TopLeft);
-		box.offset = { -4, -8 };
+		auto& anim_map = player.Add<AnimationMap>("default", anim1);
+
+		auto& box = player.Add<BoxCollider>(player, V2_int{ 8, 8 });
 		player.Add<HandComponent>(8.0f, V2_float{ 8.0f, -2.0f * tile_size.y * 0.3f });
-		player.Add<SortByZ>();
-		player.Add<LayerInfo>(0.0f, 0);
+		// player.Add<SortByZ>();
+		// player.Add<LayerInfo>(0.0f, 0);
 
 		manager.Refresh();
 	}
 
+	/*
 	ecs::Entity CreateDog(
 		const V2_float& pos, const path& texture, const V2_float& hitbox_size,
 		const V2_float& hitbox_offset, V2_int animation_count,
@@ -904,26 +914,21 @@ public:
 		manager.Refresh();
 	};
 
-	constexpr static const float scale = 2.0f;
+	*/
 
 	void Init() final {
 		CreatePlayer();
 
-		player_camera = game.camera.Load(Hash("player_camera"));
-		// player_camera.SetSizeToWindow();
+		player_camera = game.camera.Load("player_camera");
 		player_camera.SetSize(game.window.GetSize() / scale);
-		game.camera.SetPrimary(Hash("player_camera"));
+		game.camera.SetPrimary("player_camera");
 		player_camera.SetBounds({ {}, world_bounds, Origin::TopLeft });
 		player_camera.SetPosition(player.Get<Transform>().position);
 
-		neighbor_camera = game.camera.Load(Hash("neighbor_camera"));
+		neighbor_camera = game.camera.Load("neighbor_camera");
 		neighbor_camera.SetSize(game.window.GetSize() / scale);
 
-		// camera_motion = game.tween.Load(Hash("camera_tween"), 0.0f, 800.0f, seconds{ 10 });
-		// camera_motion.SetCallback(TweenEvent::Update, [=](auto& t, auto v) {
-		//	player_camera.SetPosition(V2_float{ v, v });
-		// });
-
+		/*
 		level.ForEachPixel([&](const V2_int& cell, const Color& color) {
 			if (color == color::Black) {
 				CreateWall(V2_int{ 8, 8 }, cell);
@@ -1013,26 +1018,24 @@ public:
 		CreateDaughter();
 
 		spawn_timer.Start();
+		*/
 	}
 
 	void PlayerMovementInput() {
-		if (!player_can_move) {
+		if (!player.Has<RigidBody>()) {
 			return;
 		}
 
-		PTGN_ASSERT(player.Has<RigidBody>());
-		PTGN_ASSERT(player.Has<Flip>());
-		PTGN_ASSERT(player.Has<::SpriteSheet>());
+		PTGN_ASSERT(player.Has<SpriteFlip>());
 		PTGN_ASSERT(player.Has<HandComponent>());
-		PTGN_ASSERT(player.Has<AnimationComponent>());
+		PTGN_ASSERT(player.Has<AnimationMap>());
 		PTGN_ASSERT(player.Has<Direction>());
 
-		auto& rb   = player.Get<RigidBody>();
-		auto& f	   = player.Get<SpriteFlip>();
-		auto& t	   = player.Get<::SpriteSheet>();
-		auto& hand = player.Get<HandComponent>();
-		auto& anim = player.Get<AnimationComponent>();
-		auto& dir  = player.Get<Direction>().dir;
+		auto& rb		 = player.Get<RigidBody>();
+		auto& f			 = player.Get<SpriteFlip>();
+		const auto& hand = player.Get<HandComponent>();
+		auto& anim		 = player.Get<AnimationMap>();
+		auto& dir		 = player.Get<Direction>().dir;
 
 		bool up{ game.input.KeyPressed(Key::W) };
 		bool down{ game.input.KeyPressed(Key::S) };
@@ -1041,10 +1044,12 @@ public:
 
 		bool movement{ up || down || right || left };
 
+		auto& active_anim{ anim.GetActive() };
+
 		if (movement) {
-			anim.Resume();
+			active_anim.Start();
 		} else {
-			anim.Pause();
+			active_anim.Stop();
 		}
 
 		V2_int d;
@@ -1080,32 +1085,23 @@ public:
 
 		// Sideways movement / animation prioritized over up and down.
 
-		if (dir.x != 0) {
+		/*if (dir.x != 0) {
 			t.row = 1;
 		} else if (dir.y == 1) {
 			t.row = 0;
 		} else if (dir.y == -1) {
 			t.row = 2;
-		}
+		}*/
 		// PTGN_INFO("Animation frame: ", anim.column);
 		rb.AddAcceleration(d.Normalized() * 1200.0f * hand.GetWeightFactor());
 	}
 
-	void UpdateAnimations() {
-		for (auto [e, t, anim] : manager.EntitiesWith<::SpriteSheet, AnimationComponent>()) {
-			t.source_pos.x = t.source_size.x * anim.column;
-			t.source_pos.y = t.source_size.y * t.row;
-		}
-	}
-
 	void UpdatePhysics() {
 		game.physics.Update(manager);
-
-		if (player_can_move) {
-			ApplyBounds(player, world_bounds);
-		}
+		// ApplyBounds(player, world_bounds);
 	}
 
+	/*
 	void UpdatePlayerHand() {
 		auto& hand	 = player.Get<HandComponent>();
 		auto& hitbox = player.Get<Hitbox>();
@@ -1166,52 +1162,47 @@ public:
 			}
 		}
 	}
-
-	void ResetHitboxColors() {
-		for (auto [e, h] : manager.EntitiesWith<Hitbox>()) {
-			h.color = color::Blue;
-		}
-	}
+	*/
 
 	void Update() final {
-		if (!game.tween.Has(Hash("neighbor_cutscene"))) {
+		if (!game.tween.Has("neighbor_cutscene")) {
 			//  Camera follows the player.
 			player_camera.SetPosition(player.Get<Transform>().position);
 		}
 
-		DrawBackground();
+		if (game.input.KeyDown(Key::ESCAPE)) {
+			BackToMenu();
+		}
 
-		ResetHitboxColors();
+		DrawBackground();
 
 		PlayerMovementInput();
 
 		UpdatePhysics();
 
-		if (player_can_move) {
+		/*if (player_can_move) {
 			UpdatePlayerHand();
-		}
+		}*/
 
-		UpdateAnimations();
-
-		float dist{ (daughter.Get<Transform>().position - daughter_walk_end_pos).Magnitude() };
+		/*float dist{ (daughter.Get<Transform>().position - daughter_walk_end_pos).Magnitude() };
 
 		if (spawn_timer.ElapsedPercentage(dog_spawn_rate) >= 1.0f && dist < 60.0f) {
 			spawn_timer.Start();
 			SpawnDog(daughter.Get<Transform>().position);
-		}
+		}*/
 
 		Draw();
 	}
 
-	void DrawWalls() {
+	/*void DrawWalls() {
 		for (auto [e, p, s, h, origin, w] :
 			 manager.EntitiesWith<Transform, Size, Hitbox, Origin, WallComponent>()) {
 			Rect r{ p.position, h.size, origin };
 			r.Draw(h.color, 1.0f);
 		}
-	}
+	}*/
 
-	void DrawItems() {
+	/*void DrawItems() {
 		for (auto [e, p, s, h, o, ss, item] :
 			 manager.EntitiesWith<Transform, Size, Hitbox, Origin, ::SpriteSheet, ItemComponent>(
 			 )) {
@@ -1230,46 +1221,33 @@ public:
 				e.Has<LayerInfo>() ? e.Get<LayerInfo>() : LayerInfo{}
 			);
 		}
-	}
+	}*/
 
-	void DrawDogs() {
-		for (auto [e, p, s, o, ss, dog] :
-			 manager.EntitiesWith<Transform, Size, Origin, ::SpriteSheet, Dog>()) {
-			game.draw.Texture(
-				ss.texture, { p.position, s.s, o },
-				{ ss.source_pos, ss.source_size, e.Has<Flip>() ? e.Get<SpriteFlip>() : Flip::None },
-				e.Has<LayerInfo>() ? e.Get<LayerInfo>() : LayerInfo{} //, Color{ 255, 255, 255, 30 }
-			);
+	// void DrawDogs() {
+	//	for (auto [e, p, s, o, ss, dog] :
+	//		 manager.EntitiesWith<Transform, Size, Origin, ::SpriteSheet, Dog>()) {
+	//		game.draw.Texture(
+	//			ss.texture, { p.position, s.s, o },
+	//			{ ss.source_pos, ss.source_size, e.Has<Flip>() ? e.Get<SpriteFlip>() : Flip::None },
+	//			e.Has<LayerInfo>() ? e.Get<LayerInfo>() : LayerInfo{} //, Color{ 255, 255, 255, 30 }
+	//		);
+	//	}
+	// }
+
+	void DrawAnimations() {
+		for (const auto [e, anim] : manager.EntitiesWith<Animation>()) {
+			anim.Draw(e);
+		}
+		for (const auto [e, anim_map] : manager.EntitiesWith<AnimationMap>()) {
+			anim_map.Draw(e);
 		}
 	}
 
-	void DrawHumans() {
-		for (auto [e, pos, size, hitbox, origin, t, flip, human] :
-			 manager.EntitiesWith<Transform, Size, BoxCollider, Origin, ::SpriteSheet, Flip, Human>(
-			 )) {
-			if (e.Has<HandComponent>() && draw_hitboxes) {
-				const auto& hand = e.Get<HandComponent>();
-				Circle circle{ hand.GetPosition(e), hand.radius };
-				circle.Draw(color::Red);
-			}
-			if (draw_hitboxes) {
-				Rect rect{ pos.position + hitbox.offset, hitbox.size, hitbox.origin };
-				rect.Draw(color::Blue, 1.0f);
-			}
-			game.draw.Texture(
-				t.texture, { pos.position, size.s, origin },
-				{ t.source_pos, t.source_size, flip,
-				  e.Has<SpriteTint>() ? e.Get<SpriteTint>() : color::White },
-				e.Has<LayerInfo>() ? e.Get<LayerInfo>() : LayerInfo{}
-			);
-		}
-	}
-
-	void DrawBackground() {
+	void DrawBackground() const {
 		game.draw.Texture(house_background);
 	}
 
-	void WifeReturn() {
+	/*void WifeReturn() {
 		player_can_move = false;
 		game.tween.Get(Hash("player_movement_animation")).Pause();
 		player.Remove<RigidBody>();
@@ -1308,9 +1286,9 @@ public:
 				game.tween.Get(Hash("fade_to_black")).Start();
 			})
 			.Start();
-	}
+	}*/
 
-	void DrawProgressBar() {
+	/*void DrawProgressBar() {
 		V2_float cs{ game.camera.GetPrimary().GetSize() };
 		float y_offset{ 0.0f };
 		V2_float bar_size{ progress_bar_texture.GetSize() };
@@ -1328,32 +1306,23 @@ public:
 		}
 		V2_float car_pos{ Lerp(start, end, elapsed) };
 		game.draw.Texture(progress_car_texture, { car_pos, car_size, Origin::Center });
-	}
+	}*/
 
-	void DrawDogCounter() {
-		std::size_t dog_count = manager.EntitiesWith<Dog>().Count();
-		V2_float cs{ game.camera.GetPrimary().GetSize() };
-		V2_float ui_offset{ -12.0f, 12.0f };
-		V2_float counter_size{ dog_counter_texture.GetSize() };
-		V2_float text_offset{ -counter_size.x / 2,
-							  counter_size.y - 14.0f }; // relative to counter ui top right
-		Text t{ std::to_string(dog_count), color::Black, counter_font };
-		V2_float pos{ cs.x + ui_offset.x, ui_offset.y };
-		V2_float counter_text_size{ 20, 25 };
-		game.draw.Texture(dog_counter_texture, { pos, counter_size, Origin::TopRight });
-		t.Draw({ pos + text_offset, counter_text_size, Origin::Center });
-	}
+	// void DrawDogCounter() {
+	//	std::size_t dog_count = manager.EntitiesWith<Dog>().Count();
+	//	V2_float cs{ game.camera.GetPrimary().GetSize() };
+	//	V2_float ui_offset{ -12.0f, 12.0f };
+	//	V2_float counter_size{ dog_counter_texture.GetSize() };
+	//	V2_float text_offset{ -counter_size.x / 2,
+	//						  counter_size.y - 14.0f }; // relative to counter ui top right
+	//	Text t{ std::to_string(dog_count), color::Black, counter_font };
+	//	V2_float pos{ cs.x + ui_offset.x, ui_offset.y };
+	//	V2_float counter_text_size{ 20, 25 };
+	//	game.draw.Texture(dog_counter_texture, { pos, counter_size, Origin::TopRight });
+	//	t.Draw({ pos + text_offset, counter_text_size, Origin::Center });
+	// }
 
-	ecs::Entity neighbor;
-	V2_float neighbor_camera_pos{ 150, 0.0f };
-	V2_float neighbor_walk_end_pos{ 150, 360.0f };
-
-	// V2_float neighbor_pos{ 150, 0.0f };
-
-	std::array<std::size_t, 3> yell_keys{ Hash("neighbor_yell0"), Hash("neighbor_yell1"),
-										  Hash("neighbor_yell2") };
-
-	void NeighborYell() {
+	/*void NeighborYell() {
 		for (std::size_t i = 0; i < yell_keys.size(); i++) {
 			PTGN_ASSERT(game.sound.Has(yell_keys[i]));
 		}
@@ -1367,350 +1336,315 @@ public:
 		}
 		PTGN_ASSERT(game.sound.Has(yell_key));
 		game.sound.Get(yell_key).Play(-1);
-	}
+	}*/
 
-	void CreateNeighbor(milliseconds scene_duration) {
-		neighbor = manager.CreateEntity();
+	// void CreateNeighbor(milliseconds scene_duration) {
+	//	neighbor = manager.CreateEntity();
 
-		V2_int neighbor_animation_count{ 4, 1 };
+	//	V2_int neighbor_animation_count{ 4, 1 };
 
-		Texture neighbor_texture{ "resources/entity/neighbor.png" };
+	//	Texture neighbor_texture{ "resources/entity/neighbor.png" };
 
-		// Must be added before AnimationComponent as it pauses the animation immediately.
-		auto& spritesheet =
-			neighbor.Add<::SpriteSheet>(neighbor_texture, V2_int{}, neighbor_animation_count);
+	//	// Must be added before AnimationComponent as it pauses the animation immediately.
+	//	auto& spritesheet =
+	//		neighbor.Add<::SpriteSheet>(neighbor_texture, V2_int{}, neighbor_animation_count);
 
-		V2_float neighbor_start_pos{ neighbor_camera_pos.x,
-									 neighbor_camera_pos.y + spritesheet.source_size.y };
+	//	V2_float neighbor_start_pos{ neighbor_camera_pos.x,
+	//								 neighbor_camera_pos.y + spritesheet.source_size.y };
 
-		auto& ppos		= neighbor.Add<Transform>(neighbor_start_pos);
-		auto& rb		= neighbor.Add<RigidBody>();
-		rb.max_velocity = 700.0f;
-		neighbor.Add<Origin>(Origin::CenterBottom);
-		neighbor.Add<SpriteFlip>(Flip::None);
-		neighbor.Add<Human>();
-		neighbor.Add<SpriteTint>(color::White);
+	//	auto& ppos		= neighbor.Add<Transform>(neighbor_start_pos);
+	//	auto& rb		= neighbor.Add<RigidBody>();
+	//	rb.max_velocity = 700.0f;
+	//	neighbor.Add<Origin>(Origin::CenterBottom);
+	//	neighbor.Add<SpriteFlip>(Flip::None);
+	//	neighbor.Add<Human>();
+	//	neighbor.Add<SpriteTint>(color::White);
 
-		milliseconds animation_duration{ 400 };
+	//	milliseconds animation_duration{ 400 };
 
-		game.tween.Load(Hash("neighbor_movement_animation"), animation_duration)
-			.Repeat(-1)
-			.OnPause([=]() { neighbor.Get<AnimationComponent>().column = 0; })
-			.OnUpdate([=](float v) {
-				neighbor.Get<AnimationComponent>().column =
-					static_cast<int>(std::floorf(neighbor_animation_count.x * v));
-			})
-			.OnRepeat([=]() { neighbor.Get<AnimationComponent>().column = 0; })
-			.Start();
+	//	game.tween.Load(Hash("neighbor_movement_animation"), animation_duration)
+	//		.Repeat(-1)
+	//		.OnPause([=]() { neighbor.Get<AnimationComponent>().column = 0; })
+	//		.OnUpdate([=](float v) {
+	//			neighbor.Get<AnimationComponent>().column =
+	//				static_cast<int>(std::floorf(neighbor_animation_count.x * v));
+	//		})
+	//		.OnRepeat([=]() { neighbor.Get<AnimationComponent>().column = 0; })
+	//		.Start();
 
-		auto& anim = neighbor.Add<AnimationComponent>(
-			Hash("neighbor_movement_animation"), neighbor_animation_count.x, animation_duration
-		);
+	//	auto& anim = neighbor.Add<AnimationComponent>(
+	//		Hash("neighbor_movement_animation"), neighbor_animation_count.x, animation_duration
+	//	);
 
-		V2_float neighbot_walk_start_pos = ppos.position;
+	//	V2_float neighbot_walk_start_pos = ppos.position;
 
-		std::size_t anger_key{ neighbor.GetId() + Hash("anger") };
+	//	std::size_t anger_key{ neighbor.GetId() + Hash("anger") };
 
-		milliseconds bubble_pop_duration{ 300 };
+	//	milliseconds bubble_pop_duration{ 300 };
 
-		float yell_bubble_offset{ 2.0f };
+	//	float yell_bubble_offset{ 2.0f };
 
-		auto neighbor_complain_bubble = [=](BubbleAnimation anger,
-											milliseconds bubble_hold_duration) {
-			SpawnBubbleAnimation(
-				neighbor, anger, anger_key, bubble_pop_duration,
-				bubble_hold_duration + bubble_pop_duration,
-				[=]() { neighbor.Get<AngerComponent>().yelling = false; },
-				[=]() {
-					V2_float pos = neighbor.Get<Transform>().position -
-								   V2_float{ 0.0f, neighbor.Get<Size>().s.y + yell_bubble_offset };
-					return pos;
-				},
-				[=]() {
-					auto& b{ neighbor.Get<AngerComponent>() };
-					if (!b.yelling) {
-						// TODO: Add a check that this only plays once upon hold start.
-						NeighborYell();
-						b.yelling = true;
-					}
-				},
-				[=]() {
-					auto& b{ neighbor.Get<AngerComponent>() };
-					auto new_bubble = static_cast<BubbleAnimation>(static_cast<int>(b.bubble) + 1);
-					if (new_bubble != BubbleAnimation::AngerStop) {
-						b.bubble = new_bubble;
-					}
-				}
-			);
-		};
+	//	auto neighbor_complain_bubble = [=](BubbleAnimation anger,
+	//										milliseconds bubble_hold_duration) {
+	//		SpawnBubbleAnimation(
+	//			neighbor, anger, anger_key, bubble_pop_duration,
+	//			bubble_hold_duration + bubble_pop_duration,
+	//			[=]() { neighbor.Get<AngerComponent>().yelling = false; },
+	//			[=]() {
+	//				V2_float pos = neighbor.Get<Transform>().position -
+	//							   V2_float{ 0.0f, neighbor.Get<Size>().s.y + yell_bubble_offset };
+	//				return pos;
+	//			},
+	//			[=]() {
+	//				auto& b{ neighbor.Get<AngerComponent>() };
+	//				if (!b.yelling) {
+	//					// TODO: Add a check that this only plays once upon hold start.
+	//					NeighborYell();
+	//					b.yelling = true;
+	//				}
+	//			},
+	//			[=]() {
+	//				auto& b{ neighbor.Get<AngerComponent>() };
+	//				auto new_bubble = static_cast<BubbleAnimation>(static_cast<int>(b.bubble) + 1);
+	//				if (new_bubble != BubbleAnimation::AngerStop) {
+	//					b.bubble = new_bubble;
+	//				}
+	//			}
+	//		);
+	//	};
 
-		const float anger_bubble_count{ 5.0f };
+	//	const float anger_bubble_count{ 5.0f };
 
-		neighbor.Add<AngerComponent>(BubbleAnimation::Anger0);
+	//	neighbor.Add<AngerComponent>(BubbleAnimation::Anger0);
 
-		float walk_frac{ 0.2f };
-		float bubble_frac{ 1.0f - walk_frac };
-		auto bubble_duration{ bubble_frac * (scene_duration - milliseconds{ 100 }) /
-							  (anger_bubble_count + 1) };
+	//	float walk_frac{ 0.2f };
+	//	float bubble_frac{ 1.0f - walk_frac };
+	//	auto bubble_duration{ bubble_frac * (scene_duration - milliseconds{ 100 }) /
+	//						  (anger_bubble_count + 1) };
 
-		game.tween.Load(Hash("neighbor_animation"))
-			.During(std::chrono::duration_cast<milliseconds>(walk_frac * scene_duration))
-			.OnUpdate([=](float f) {
-				neighbor.Get<AnimationComponent>().Resume();
-				neighbor.Get<Transform>().position =
-					Lerp(neighbot_walk_start_pos, neighbor_walk_end_pos, f);
-			})
-			.During(std::chrono::duration_cast<milliseconds>(bubble_frac * scene_duration))
-			.OnStart([=]() {
-				neighbor.Get<AnimationComponent>().Pause();
-				neighbor.Get<SpriteTint>() = color::Red;
-			})
-			.OnUpdate([=]() {
-				neighbor_complain_bubble(
-					neighbor.Get<AngerComponent>().bubble,
-					std::chrono::duration_cast<milliseconds>(bubble_duration)
-				);
-			})
-			.Start();
+	//	game.tween.Load(Hash("neighbor_animation"))
+	//		.During(std::chrono::duration_cast<milliseconds>(walk_frac * scene_duration))
+	//		.OnUpdate([=](float f) {
+	//			neighbor.Get<AnimationComponent>().Resume();
+	//			neighbor.Get<Transform>().position =
+	//				Lerp(neighbot_walk_start_pos, neighbor_walk_end_pos, f);
+	//		})
+	//		.During(std::chrono::duration_cast<milliseconds>(bubble_frac * scene_duration))
+	//		.OnStart([=]() {
+	//			neighbor.Get<AnimationComponent>().Pause();
+	//			neighbor.Get<SpriteTint>() = color::Red;
+	//		})
+	//		.OnUpdate([=]() {
+	//			neighbor_complain_bubble(
+	//				neighbor.Get<AngerComponent>().bubble,
+	//				std::chrono::duration_cast<milliseconds>(bubble_duration)
+	//			);
+	//		})
+	//		.Start();
 
-		V2_int size{ tile_size.x, 2 * tile_size.y };
+	//	V2_int size{ tile_size.x, 2 * tile_size.y };
 
-		auto& s = neighbor.Add<Size>(size);
-		V2_float hitbox_size{ 8, 8 };
-		neighbor.Add<Hitbox>(neighbor, hitbox_size, V2_float{ 0.0f, 0.0f });
-		auto& box  = neighbor.Add<BoxCollider>();
-		box.size   = hitbox_size;
-		box.offset = { -4, -8 };
-		box.origin = Origin::TopLeft;
-		neighbor.Add<LayerInfo>(1.0f, 0);
+	//	auto& s = neighbor.Add<Size>(size);
+	//	V2_float hitbox_size{ 8, 8 };
+	//	neighbor.Add<Hitbox>(neighbor, hitbox_size, V2_float{ 0.0f, 0.0f });
+	//	auto& box  = neighbor.Add<BoxCollider>();
+	//	box.size   = hitbox_size;
+	//	box.offset = { -4, -8 };
+	//	box.origin = Origin::TopLeft;
+	//	neighbor.Add<LayerInfo>(1.0f, 0);
 
-		manager.Refresh();
-	}
+	//	manager.Refresh();
+	//}
 
 	void BackToMenu();
 
-	void StartNeighborCutscene() {
-		// Starting point for camera pan.
-		auto player_pos = player.Get<Transform>().position;
+	// void StartNeighborCutscene() {
+	//	// Starting point for camera pan.
+	//	auto player_pos = player.Get<Transform>().position;
 
-		player_can_move = false;
+	//	player_can_move = false;
 
-		game.tween.Get(Hash("player_movement_animation")).Pause();
-		player.Remove<RigidBody>();
-		player.Get<AnimationComponent>().column = 0;
-		player.Get<::SpriteSheet>().row			= 0;
-		neighbor_camera_pos.y					= world_bounds.y;
-		// player_camera.SetBounds({});
+	//	game.tween.Get(Hash("player_movement_animation")).Pause();
+	//	player.Remove<RigidBody>();
+	//	player.Get<AnimationComponent>().column = 0;
+	//	player.Get<::SpriteSheet>().row			= 0;
+	//	neighbor_camera_pos.y					= world_bounds.y;
+	//	// player_camera.SetBounds({});
 
-		auto completed = [=]() {
-			auto& fade							 = game.tween.Get(Hash("fade_to_black"));
-			fade_text.Get<FadeComponent>().state = FadeState::Lose;
-			fade.Start();
-		};
+	//	auto completed = [=]() {
+	//		auto& fade							 = game.tween.Get(Hash("fade_to_black"));
+	//		fade_text.Get<FadeComponent>().state = FadeState::Lose;
+	//		fade.Start();
+	//	};
 
-		// TODO: Simplify using tween points.
-		game.tween.Load(Hash("neighbor_cutscene"), seconds{ 10 })
-			.OnUpdate([=](auto& tw, auto f) {
-				// how far into the tween these things happen:
-				const float shift_frac{ 0.2f };			 // move cam to neighbor.
-				const float backshift_frac{ 0.8f };		 // move cam back to player.
-				const float neighbor_move_start{ 0.1f }; // spawn and start moving neighbor.
-				if (f > neighbor_move_start && neighbor == ecs::Entity{}) {
-					float scene_frac{ backshift_frac - neighbor_move_start };
-					PTGN_ASSERT(scene_frac >= 0.01f);
-					CreateNeighbor(
-						std::chrono::duration_cast<milliseconds>(tw.GetDuration() * scene_frac)
-					);
-					// TODO: Neighbor complaint stuff here.
-				}
-				if (f <= shift_frac || f >= backshift_frac) {
-					float shift_progress = std::clamp(f / shift_frac, 0.0f, 1.0f);
-					V2_float start		 = player_pos;
-					V2_float end		 = neighbor_camera_pos;
-					// Camera moving back and then forth between player and neighbor.
-					if (f >= backshift_frac) {
-						shift_progress =
-							std::clamp((f - backshift_frac) / (1.0f - backshift_frac), 0.0f, 1.0f);
-						start = neighbor_camera_pos;
-						end	  = player.Get<Transform>().position;
-					}
-					V2_float pos = Lerp(start, end, shift_progress);
-					player_camera.SetPosition(pos);
-				}
-			})
-			.OnComplete(completed)
-			.OnStop(completed)
-			.Start();
-	}
+	//	// TODO: Simplify using tween points.
+	//	game.tween.Load(Hash("neighbor_cutscene"), seconds{ 10 })
+	//		.OnUpdate([=](auto& tw, auto f) {
+	//			// how far into the tween these things happen:
+	//			const float shift_frac{ 0.2f };			 // move cam to neighbor.
+	//			const float backshift_frac{ 0.8f };		 // move cam back to player.
+	//			const float neighbor_move_start{ 0.1f }; // spawn and start moving neighbor.
+	//			if (f > neighbor_move_start && neighbor == ecs::Entity{}) {
+	//				float scene_frac{ backshift_frac - neighbor_move_start };
+	//				PTGN_ASSERT(scene_frac >= 0.01f);
+	//				CreateNeighbor(
+	//					std::chrono::duration_cast<milliseconds>(tw.GetDuration() * scene_frac)
+	//				);
+	//				// TODO: Neighbor complaint stuff here.
+	//			}
+	//			if (f <= shift_frac || f >= backshift_frac) {
+	//				float shift_progress = std::clamp(f / shift_frac, 0.0f, 1.0f);
+	//				V2_float start		 = player_pos;
+	//				V2_float end		 = neighbor_camera_pos;
+	//				// Camera moving back and then forth between player and neighbor.
+	//				if (f >= backshift_frac) {
+	//					shift_progress =
+	//						std::clamp((f - backshift_frac) / (1.0f - backshift_frac), 0.0f, 1.0f);
+	//					start = neighbor_camera_pos;
+	//					end	  = player.Get<Transform>().position;
+	//				}
+	//				V2_float pos = Lerp(start, end, shift_progress);
+	//				player_camera.SetPosition(pos);
+	//			}
+	//		})
+	//		.OnComplete(completed)
+	//		.OnStop(completed)
+	//		.Start();
+	//}
 
-	void DrawBarkometer() {
-		V2_float meter_pos{ 25, 258 };
-		V2_float meter_size{ barkometer_texture.GetSize() };
+	// void DrawBarkometer() {
+	//	V2_float meter_pos{ 25, 258 };
+	//	V2_float meter_size{ barkometer_texture.GetSize() };
 
-		float bark_progress = std::clamp(bark_count / bark_threshold, 0.0f, 1.0f);
+	//	float bark_progress = std::clamp(bark_count / bark_threshold, 0.0f, 1.0f);
 
-		if (bark_progress >= 1.0f && neighbor == ecs::Entity{} && player.Has<RigidBody>()) {
-			StartNeighborCutscene();
-		}
+	//	if (bark_progress >= 1.0f && neighbor == ecs::Entity{} && player.Has<RigidBody>()) {
+	//		StartNeighborCutscene();
+	//	}
 
-		// TODO: If bark_progress > 0.8f (etc) give a warning to player.
+	//	// TODO: If bark_progress > 0.8f (etc) give a warning to player.
 
-		Color color = Lerp(color::Gray, color::Red, bark_progress);
+	//	Color color = Lerp(color::Gray, color::Red, bark_progress);
 
-		V2_float border_size{ 4, 4 };
+	//	V2_float border_size{ 4, 4 };
 
-		V2_float barkometer_fill_size{ meter_size - border_size * 2.0f };
+	//	V2_float barkometer_fill_size{ meter_size - border_size * 2.0f };
 
-		V2_float fill_pos{ meter_pos.x, meter_pos.y - border_size.y };
+	//	V2_float fill_pos{ meter_pos.x, meter_pos.y - border_size.y };
 
-		game.draw.Texture(barkometer_texture, { meter_pos, meter_size, Origin::CenterBottom });
+	//	game.draw.Texture(barkometer_texture, { meter_pos, meter_size, Origin::CenterBottom });
 
-		Rect rect{ fill_pos,
-				   { barkometer_fill_size.x, barkometer_fill_size.y * bark_progress },
-				   Origin::CenterBottom };
-		rect.Draw(color, -1.0f);
-	}
+	//	Rect rect{ fill_pos,
+	//			   { barkometer_fill_size.x, barkometer_fill_size.y * bark_progress },
+	//			   Origin::CenterBottom };
+	//	rect.Draw(color, -1.0f);
+	//}
 
-	void DrawUI() {
-		auto prev_primary = game.camera.GetPrimary();
+	// void DrawUI() {
+	//	auto prev_primary = game.camera.GetPrimary();
 
-		game.draw.Flush();
+	//	game.draw.Flush();
 
-		OrthographicCamera c;
-		c.SetPosition(game.window.GetCenter());
-		c.SetSizeToWindow();
-		c.SetBounds({});
-		game.camera.SetPrimary(c);
+	//	OrthographicCamera c;
+	//	c.SetPosition(game.window.GetCenter());
+	//	c.SetSizeToWindow();
+	//	c.SetBounds({});
+	//	game.camera.SetPrimary(c);
 
-		// Draw UI here...
+	//	// Draw UI here...
 
-		DrawProgressBar();
-		DrawDogCounter();
-		DrawBarkometer();
-		DrawFadeEntity();
+	//	DrawProgressBar();
+	//	DrawDogCounter();
+	//	DrawBarkometer();
+	//	DrawFadeEntity();
 
-		game.draw.Flush();
+	//	game.draw.Flush();
 
-		if (game.camera.GetPrimary() == c) {
-			game.camera.SetPrimary(prev_primary);
-		}
-	}
-
-	Texture win{ "resources/ui/win.png" };
-	Texture lose{ "resources/ui/lose.png" };
-
-	void DrawFadeEntity() {
-		PTGN_ASSERT(fade_entity.Has<SpriteTint>());
-		auto cam = game.camera.GetPrimary();
-		Rect rect{ {}, cam.GetSize(), Origin::TopLeft };
-		rect.Draw(fade_entity.Get<SpriteTint>(), -1.0f);
-		auto fade_state = fade_text.Get<FadeComponent>().state;
-		if (fade_state != FadeState::None) {
-			Texture t = lose;
-			if (fade_state == FadeState::Win) {
-				t = win;
-			}
-			game.draw.Texture(
-				t, { cam.GetPosition(), cam.GetSize(), Origin::Center },
-				{ {}, {}, Flip::None, fade_text.Get<SpriteTint>() }, LayerInfo{ 1.0f, 0 }
-			);
-		}
-	}
+	//	if (game.camera.GetPrimary() == c) {
+	//		game.camera.SetPrimary(prev_primary);
+	//	}
+	//}
 
 	void Draw() {
 		// For debugging purposes:
-		if (draw_hitboxes) {
+		/*if (draw_hitboxes) {
 			DrawWalls();
-		}
+		}*/
 
-		DrawHumans();
-		DrawDogs();
-		DrawItems();
+		DrawAnimations();
+		/*DrawDogs();
+		DrawItems();*/
 
-		for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-			if (d.spawn_thingy) {
-				d.SpawnRequestAnimation(e, d.req);
-				d.spawn_thingy = false;
-			}
-			if (IsRequest(d.request) && !d.patience.IsRunning()) {
-				d.patience.Start();
-			}
-			if (d.patience.ElapsedPercentage(d.patience_duration) >= 1.0f) {
-				d.Bark(e);
-				bark_count++;
-				d.patience.Start();
-			}
-			auto& h	 = e.Get<Hitbox>();
-			auto& ph = player.Get<Hitbox>();
-			Rect dog_rect{ h.GetPosition(), h.size, e.Get<Origin>() };
-			Rect player_rect{ ph.GetPosition(), ph.size, player.Get<Origin>() };
-			if (player_rect.Overlaps(dog_rect) && player.Has<HandComponent>()) {
-				ecs::Entity item{ player.Get<HandComponent>().current_item };
+		// for (auto [e, d] : manager.EntitiesWith<Dog>()) {
+		//	if (d.spawn_thingy) {
+		//		d.SpawnRequestAnimation(e, d.req);
+		//		d.spawn_thingy = false;
+		//	}
+		//	if (IsRequest(d.request) && !d.patience.IsRunning()) {
+		//		d.patience.Start();
+		//	}
+		//	if (d.patience.ElapsedPercentage(d.patience_duration) >= 1.0f) {
+		//		d.Bark(e);
+		//		bark_count++;
+		//		d.patience.Start();
+		//	}
+		//	auto& h	 = e.Get<Hitbox>();
+		//	auto& ph = player.Get<Hitbox>();
+		//	Rect dog_rect{ h.GetPosition(), h.size, e.Get<Origin>() };
+		//	Rect player_rect{ ph.GetPosition(), ph.size, player.Get<Origin>() };
+		//	if (player_rect.Overlaps(dog_rect) && player.Has<HandComponent>()) {
+		//		ecs::Entity item{ player.Get<HandComponent>().current_item };
 
-				auto reset_patience_request = [&]() {
-					d.patience.Stop();
-					d.request = BubbleAnimation::None;
-					// PTGN_INFO("Resetting dog patience!");
-				};
+		//		auto reset_patience_request = [&]() {
+		//			d.patience.Stop();
+		//			d.request = BubbleAnimation::None;
+		//			// PTGN_INFO("Resetting dog patience!");
+		//		};
 
-				if (item != ecs::Entity{}) {
-					if (item.Has<ItemComponent>()) {
-						auto& i = item.Get<ItemComponent>();
+		//		if (item != ecs::Entity{}) {
+		//			if (item.Has<ItemComponent>()) {
+		//				auto& i = item.Get<ItemComponent>();
 
-						if (d.request == i.type) {
-							switch (i.type) {
-								case BubbleAnimation::Food: {
-									reset_patience_request();
-									break;
-								}
-								case BubbleAnimation::Bone: {
-									reset_patience_request();
-									break;
-								}
-								case BubbleAnimation::Cleanup: {
-									reset_patience_request();
-									break;
-								}
-								case BubbleAnimation::Toy: {
-									reset_patience_request();
-									break;
-								}
-								case BubbleAnimation::Outside: {
-									reset_patience_request();
-									break;
-								}
-								default: break;
-							}
-						}
-					}
-				} else if (d.request == BubbleAnimation::Pet) {
-					reset_patience_request();
-				}
-			}
-		}
+		//				if (d.request == i.type) {
+		//					switch (i.type) {
+		//						case BubbleAnimation::Food: {
+		//							reset_patience_request();
+		//							break;
+		//						}
+		//						case BubbleAnimation::Bone: {
+		//							reset_patience_request();
+		//							break;
+		//						}
+		//						case BubbleAnimation::Cleanup: {
+		//							reset_patience_request();
+		//							break;
+		//						}
+		//						case BubbleAnimation::Toy: {
+		//							reset_patience_request();
+		//							break;
+		//						}
+		//						case BubbleAnimation::Outside: {
+		//							reset_patience_request();
+		//							break;
+		//						}
+		//						default: break;
+		//					}
+		//				}
+		//			}
+		//		} else if (d.request == BubbleAnimation::Pet) {
+		//			reset_patience_request();
+		//		}
+		//	}
+		//}
 
 		if (bark_timer.ElapsedPercentage(bark_reset_time) >= 1.0f) {
 			bark_count--;
 			bark_timer.Start();
 		}
 
-		// TODO: Move out of here.
-		// TODO: Remove bark button.
-		if (game.input.KeyDown(Key::B)) {
-			bark_count += 30.0f;
-			for (auto [e, d] : manager.EntitiesWith<Dog>()) {
-				d.Bark(e);
-			}
-		}
-
-		DrawUI();
+		// DrawUI();
 	}
 };
-*/
-
-const int button_y_offset{ 14 };
-const V2_int button_size{ 250, 50 };
-const V2_int first_button_coordinate{ 250, 220 };
 
 static Button CreateMenuButton(
 	const std::string& content, const Color& text_color, const ButtonCallback& f,
@@ -1759,9 +1693,8 @@ public:
 	}
 
 	void StartGame(Difficulty difficulty) {
-		// TODO: Re-enable.
-		// game.scene.Load<GameScene>("game", difficulty);
-		// game.scene.TransitionActive("level_select", "game");
+		game.scene.Load<GameScene>("game", difficulty);
+		game.scene.TransitionActive("level_select", "game");
 	}
 
 	void Init() final {
@@ -1788,13 +1721,13 @@ public:
 };
 
 // TODO: Re-enable.
-// void GameScene::BackToMenu() {
-//	game.scene.TransitionActive(
-//		"game", "level_select",
-//		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
-//	);
-//	game.scene.Unload("game");
-//}
+void GameScene::BackToMenu() {
+	game.scene.TransitionActive(
+		"game", "level_select",
+		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
+	);
+	game.scene.Unload("game");
+}
 
 class MainMenu : public Scene {
 public:
