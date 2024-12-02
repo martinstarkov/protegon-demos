@@ -46,7 +46,8 @@ struct CustomGrid {
 		for (const auto& coordinate : sequence) {
 			// If tile is being used or if tile is out of bounds.
 			auto it = tiles.find(coordinate);
-			if (!InBound(coordinate) || (it != tiles.end() && !VectorContains(ignore, it->second.type))) {
+			if (!InBound(coordinate) ||
+				(it != tiles.end() && !VectorContains(ignore, it->second.type))) {
 				return false;
 			}
 		}
@@ -66,7 +67,8 @@ struct CustomGrid {
 	bool HasTile(const V2_int& coordinate, const std::vector<TileType>& types = {}) const {
 		assert(InBound(coordinate));
 		auto it = tiles.find(coordinate);
-		return it != tiles.end() && (types.size() == 0 ? true : VectorContains(types, it->second.type));
+		return it != tiles.end() &&
+			   (types.size() == 0 ? true : VectorContains(types, it->second.type));
 	}
 
 	const Tile& GetTile(const V2_int& coordinate) const {
@@ -130,7 +132,8 @@ Sequence GetRandomRollSequence(std::size_t count) {
 	start:
 		auto dir			   = rng();
 		auto current_direction = directions[dir] + sequence.back();
-		if (directions[dir] != -previous_direction && !VectorContains(sequence, current_direction)) {
+		if (directions[dir] != -previous_direction &&
+			!VectorContains(sequence, current_direction)) {
 			sequence.emplace_back(current_direction);
 			previous_direction = directions[dir];
 		} else {
@@ -272,7 +275,7 @@ public:
 	std::size_t current_moves = 0;
 	std::size_t best_moves	  = 1000000;
 	CustomGrid& grid;
-	Text text7{ game.font.Get(Hash("1")), "Press 'i' to see instructions", color::Gold };
+	Text text7{ "Press 'i' to see instructions", color::Gold, game.font.Get(Hash("1")) };
 	Sound s_select{ "resources/sound/select_click.wav" };
 	Sound s_move{ "resources/sound/move_click.wav" };
 	Sound s_win{ "resources/sound/win.wav" };
@@ -306,6 +309,7 @@ public:
 	void Update() final {
 		auto mouse = game.input.GetMousePosition();
 		if (game.input.KeyDown(Key::I)) {
+			game.scene.RemoveActive(Hash("game"));
 			game.scene.AddActive(Hash("menu"));
 		}
 		if (game.input.KeyDown(Key::R) || game_over) {
@@ -400,25 +404,24 @@ public:
 				for (auto j = 0; j < grid.GetSize().x; j++) {
 					V2_int tile_position{ i, j };
 
-					game.renderer.DrawTexture(
-						t_grid,
-						Rectangle<float>{ grid_top_left_offset + tile_position * grid.GetTileSize(),
-										  grid.GetTileSize() }
+					game.draw.Texture(
+						t_grid, Rect{ grid_top_left_offset + tile_position * grid.GetTileSize(),
+									  grid.GetTileSize(), Origin::TopLeft }
 					);
 
 					if (grid.HasTile(tile_position)) {
 						auto& tile = grid.GetTile(tile_position);
 						if (tile.type == TileType::USED) {
-							game.renderer.DrawTexture(
-								t_used, Rectangle<float>{ grid_top_left_offset +
-															  tile_position * grid.GetTileSize(),
-														  grid.GetTileSize() }
+							game.draw.Texture(
+								t_used,
+								Rect{ grid_top_left_offset + tile_position * grid.GetTileSize(),
+									  grid.GetTileSize(), Origin::TopLeft }
 							);
 						} else if (tile.type == TileType::WIN) {
-							game.renderer.DrawTexture(
-								t_win, Rectangle<float>{ grid_top_left_offset +
-															 tile_position * grid.GetTileSize(),
-														 grid.GetTileSize() }
+							game.draw.Texture(
+								t_win,
+								Rect{ grid_top_left_offset + tile_position * grid.GetTileSize(),
+									  grid.GetTileSize(), Origin::TopLeft }
 							);
 						}
 					}
@@ -429,11 +432,10 @@ public:
 						   absolute_sequence[i] *
 							   grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
 				if (turn_allowed) {
-					game.renderer.DrawTexture(
-						t_choice, Rectangle<float>{ pos, grid.GetTileSize() }
-					);
-					Text t{ Hash("0"), std::to_string(i + 1).c_str(), color::Yellow };
-					t.Draw({ pos + (grid.GetTileSize() - dice_size) / 2, dice_size });
+					game.draw.Texture(t_choice, Rect{ pos, grid.GetTileSize(), Origin::TopLeft });
+					Text t{ std::to_string(i + 1).c_str(), color::Yellow, Hash("0") };
+					t.Draw({ pos + (grid.GetTileSize() - dice_size) / 2, dice_size,
+							 Origin::TopLeft });
 				} else {
 					auto rotated	  = GetRotatedSequence(sequence, axis_direction.Angle<float>());
 					absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
@@ -442,24 +444,27 @@ public:
 							grid_top_left_offset +
 							absolute_sequence[i] *
 								grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
-						game.renderer.DrawTexture(
-							t_nochoice, Rectangle<float>{ posi1, grid.GetTileSize() }
+						game.draw.Texture(
+							t_nochoice, Rect{ posi1, grid.GetTileSize(), Origin::TopLeft }
 						);
 					}
 				}
 			}
 
 			// auto player_dice = 1;
-			game.renderer.DrawTexture(
+			TextureInfo i;
+			i.source_position = V2_float{ 64.0f * (dice - 1), 0 };
+			i.source_size	  = V2_float{ 64, 64 }; // auto player_dice = 1;
+			game.draw.Texture(
 				t_dice,
-				Rectangle<float>{ grid_top_left_offset + player_tile * grid.GetTileSize(),
-								  grid.GetTileSize() },
-				Rectangle<float>{ V2_float{ 64.0f * (dice - 1), 0 }, V2_float{ 64, 64 } }
+				Rect{ grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize(),
+					  Origin::TopLeft },
+				i
 			);
 			// draw::SolidRectangle({ grid_top_left_offset + player_tile * grid.GetTileSize() +
 			// (grid.GetTileSize() - dice_size) / 2, dice_size }, color::Grey);
 			V2_float s = grid.GetSize() * grid.GetTileSize();
-			text7.Draw(Rectangle<float>{ V2_float{ 32, 32 }, V2_float{ s.x, 64 } });
+			text7.Draw(Rect{ V2_float{ 32, 32 }, V2_float{ s.x, 64 }, Origin::TopLeft });
 		}
 	}
 };
@@ -467,30 +472,33 @@ public:
 class MenuScreen : public Scene {
 public:
 	CustomGrid grid{ { 20, 20 }, { 32, 32 } };
-	Text text0{ Hash("0"), "Stroll of the Dice", color::Cyan };
-	Text text1{ Hash("1"), "'R' to restart if stuck", color::Red };
-	Text text2{ Hash("1"), "'Mouse' to choose direction", color::Orange };
-	Text text3{ Hash("1"), "'Spacebar' to confirm move", color::Gold };
-	Text text4{ Hash("1"), "Green tile = Go over it to win", color::Green };
-	Text text5{ Hash("1"), "Grey tile = Cannot move in that direction", color::Grey };
-	Text text6{ Hash("1"), "Red tile = No longer usable tile", color::Red };
+	Text text0{ "Stroll of the Dice", color::Cyan, Hash("0") };
+	Text text1{ "'R' to restart if stuck", color::Red, Hash("1") };
+	Text text2{ "'Mouse' to choose direction", color::Orange, Hash("1") };
+	Text text3{ "'Spacebar' to confirm move", color::Gold, Hash("1") };
+	Text text4{ "Green tile = Go over it to win", color::Green, Hash("1") };
+	Text text5{ "Grey tile = Cannot move in that direction", color::Gray, Hash("1") };
+	Text text6{ "Red tile = No longer usable tile", color::Red, Hash("1") };
 	Texture button{ "resources/ui/button.png" };
 
 	MenuScreen() {
 		game.music.Load(Hash("music"), "resources/music/background.wav");
+	}
+
+	void Init() final {
 		game.music.Get(Hash("music")).Play(-1);
 	}
 
 	void Update() final {
 		auto mouse = game.input.GetMousePosition();
 		V2_float s = grid.GetSize() * grid.GetTileSize();
-		text0.Draw(Rectangle<float>{ V2_float{ 32, 32 }, V2_float{ s.x, 64 } });
-		text1.Draw(Rectangle<float>{ V2_float{ 32, s.y }, V2_float{ s.x, 64 } });
-		text2.Draw(Rectangle<float>{ V2_float{ 32, s.y + 64 }, V2_float{ s.x, 64 } });
-		text3.Draw(Rectangle<float>{ V2_float{ 32, s.y + 128 }, V2_float{ s.x, 64 } });
-		text4.Draw(Rectangle<float>{ V2_float{ 32, 32 + 128 + 128 }, V2_float{ s.x, 64 } });
-		text5.Draw(Rectangle<float>{ V2_float{ 32, 32 + 128 }, V2_float{ s.x, 64 } });
-		text6.Draw(Rectangle<float>{ V2_float{ 32, 32 + 64 + 128 }, V2_float{ s.x, 64 } });
+		text0.Draw(Rect{ V2_float{ 32, 32 }, V2_float{ s.x, 64 }, Origin::TopLeft });
+		text1.Draw(Rect{ V2_float{ 32, s.y }, V2_float{ s.x, 64 }, Origin::TopLeft });
+		text2.Draw(Rect{ V2_float{ 32, s.y + 64 }, V2_float{ s.x, 64 }, Origin::TopLeft });
+		text3.Draw(Rect{ V2_float{ 32, s.y + 128 }, V2_float{ s.x, 64 }, Origin::TopLeft });
+		text4.Draw(Rect{ V2_float{ 32, 32 + 128 + 128 }, V2_float{ s.x, 64 }, Origin::TopLeft });
+		text5.Draw(Rect{ V2_float{ 32, 32 + 128 }, V2_float{ s.x, 64 }, Origin::TopLeft });
+		text6.Draw(Rect{ V2_float{ 32, 32 + 64 + 128 }, V2_float{ s.x, 64 }, Origin::TopLeft });
 
 		V2_float play_size{ s.x, 128 + 64 };
 		V2_float play_pos{ 32, 32 + 128 + 128 + 32 + 64 };
@@ -500,24 +508,26 @@ public:
 
 		Color text_color = color::White;
 
-		bool hover =
-			game.collision.overlap.PointRectangle(mouse, Rectangle<int>{ play_pos, play_size });
+		Rect rect{ play_pos, play_size, Origin::TopLeft };
+
+		bool hover = rect.Overlaps(mouse);
 		if (hover) {
 			text_color = color::Gold;
 		}
 		if ((hover && game.input.MouseDown(Mouse::Left)) || game.input.KeyDown(Key::SPACE)) {
 			game.scene.Load<DiceScene>(Hash("game"), grid);
+			game.scene.RemoveActive(Hash("menu"));
 			game.scene.AddActive(Hash("game"));
 		}
-		game.renderer.DrawTexture(button, Rectangle<float>{ play_pos, play_size });
-		Text t{ Hash("0"), "Play", text_color };
-		t.Draw(Rectangle<float>{ play_text_pos, play_text_size });
+		game.draw.Texture(button, Rect{ play_pos, play_size, Origin::TopLeft });
+		Text t{ "Play", text_color, Hash("0") };
+		t.Draw(Rect{ play_text_pos, play_text_size, Origin::TopLeft });
 	}
 };
 
 class DiceGame : public Scene {
 public:
-	DiceGame() {
+	void Init() {
 		game.window.SetSize({ 704, 860 });
 		game.font.Load(Hash("0"), "resources/font/04B_30.ttf", 32);
 		game.font.Load(Hash("1"), "resources/font/retro_gaming.ttf", 32);
