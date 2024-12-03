@@ -65,20 +65,13 @@ struct ItemComponent {
 
 struct SortByZ {};
 
-struct Direction {
-	Direction(const V2_int& dir) : dir{ dir } {}
-
-	V2_int dir;
-};
-
 struct HandComponent {
 	HandComponent(float radius, const V2_float& offset) : radius{ radius }, offset{ offset } {}
 
 	V2_float GetPosition(ecs::Entity e) const {
-		const auto& pos = e.Get<Transform>().position;
-		const auto& d	= e.Get<Direction>();
+		const auto& t = e.Get<Transform>();
 
-		return pos + V2_float{ d.dir.x * offset.x, offset.y };
+		return t.position + V2_float{ Sign(t.scale.x) * offset.x, offset.y };
 	}
 
 	bool HasItem() const {
@@ -512,7 +505,9 @@ public:
 	V2_int tile_size{ V2_int{ 16, 16 } };
 	V2_int grid_size{ V2_int{ 60, 34 } };
 
-	constexpr static const float scale = 2.0f;
+	constexpr static const float zoom{ 2.0f };
+	const float player_accel{ 1000.0f };
+	const float player_max_speed{ 70.0f };
 
 	Key item_interaction_key{ Key::E };
 
@@ -649,18 +644,31 @@ public:
 
 		auto& ppos		= player.Add<Transform>(V2_float{ 215, 290 });
 		auto& rb		= player.Add<RigidBody>();
-		rb.max_velocity = 700.0f;
-		player.Add<Direction>(V2_int{ 0, 1 });
-		player.Add<SpriteFlip>(Flip::None);
+		rb.max_velocity = player_max_speed;
 		/*player.Add<Human>();
 		player.Add<Wife>();*/
 
-		V2_int player_animation_count{ 4, 3 };
+		V2_uint animation_count{ 4, 3 };
+		V2_int animation_size{ 16, 32 };
 
-		Animation anim1{ player_texture, static_cast<std::size_t>(player_animation_count.x),
-						 V2_int{ 16, 32 }, milliseconds{ 400 } };
-
-		auto& anim_map = player.Add<AnimationMap>("default", anim1);
+		auto& anim_map = player.Add<AnimationMap>(
+			"down",
+			Animation{ player_texture, animation_count.x, animation_size, milliseconds{ 400 } }
+		);
+		anim_map.Load(
+			"right", Animation{ player_texture,
+								animation_count.x,
+								animation_size,
+								milliseconds{ 400 },
+								{ 0.0f, static_cast<float>(animation_size.y) } }
+		);
+		anim_map.Load(
+			"up", Animation{ player_texture,
+							 animation_count.x,
+							 animation_size,
+							 milliseconds{ 400 },
+							 { 0.0f, 2.0f * animation_size.y } }
+		);
 
 		auto& box = player.Add<BoxCollider>(player, V2_int{ 8, 8 });
 		player.Add<HandComponent>(8.0f, V2_float{ 8.0f, -2.0f * tile_size.y * 0.3f });
@@ -920,13 +928,14 @@ public:
 		CreatePlayer();
 
 		player_camera = game.camera.Load("player_camera");
-		player_camera.SetSize(game.window.GetSize() / scale);
+		player_camera.SetSize(game.window.GetSize());
+		player_camera.SetZoom(zoom);
 		game.camera.SetPrimary("player_camera");
 		player_camera.SetBounds({ {}, world_bounds, Origin::TopLeft });
 		player_camera.SetPosition(player.Get<Transform>().position);
 
 		neighbor_camera = game.camera.Load("neighbor_camera");
-		neighbor_camera.SetSize(game.window.GetSize() / scale);
+		neighbor_camera.SetSize(game.window.GetSize());
 
 		/*
 		level.ForEachPixel([&](const V2_int& cell, const Color& color) {
@@ -1026,16 +1035,14 @@ public:
 			return;
 		}
 
-		PTGN_ASSERT(player.Has<SpriteFlip>());
+		PTGN_ASSERT(player.Has<Transform>());
 		PTGN_ASSERT(player.Has<HandComponent>());
 		PTGN_ASSERT(player.Has<AnimationMap>());
-		PTGN_ASSERT(player.Has<Direction>());
 
+		auto& t			 = player.Get<Transform>();
 		auto& rb		 = player.Get<RigidBody>();
-		auto& f			 = player.Get<SpriteFlip>();
 		const auto& hand = player.Get<HandComponent>();
 		auto& anim		 = player.Get<AnimationMap>();
-		auto& dir		 = player.Get<Direction>().dir;
 
 		bool up{ game.input.KeyPressed(Key::W) };
 		bool down{ game.input.KeyPressed(Key::S) };
@@ -1044,39 +1051,47 @@ public:
 
 		bool movement{ up || down || right || left };
 
-		auto& active_anim{ anim.GetActive() };
-
-		if (movement) {
-			active_anim.Start();
-		} else {
-			active_anim.Stop();
-		}
-
-		V2_int d;
+		V2_float d;
 
 		if (up) {
-			d.y = -1;
+			d.y = -1.0f;
 		} else if (down) {
-			d.y = 1;
+			d.y = 1.0f;
 		} else {
-			d.y			  = 0;
+			d.y			  = 0.0f;
 			rb.velocity.y = 0;
 		}
 
 		if (left) {
-			d.x = -1;
-			f	= Flip::Horizontal;
+			d.x = -1.0f;
 		} else if (right) {
-			d.x = 1;
-			f	= Flip::None;
+			d.x = 1.0f;
 		} else {
-			d.x			  = 0;
+			d.x			  = 0.0f;
 			rb.velocity.x = 0;
 		}
 
-		// Store previous direction.
-		if (d.x != 0 || d.y != 0) {
-			dir = d;
+		if (left || right) {
+			anim.SetActive("right");
+		} else if (up) {
+			anim.SetActive("up");
+		} else if (down) {
+			anim.SetActive("down");
+		}
+
+		if (d.x < 0.0f) {
+			t.scale.x = -1.0f * FastAbs(t.scale.x);
+		} else if (d.x > 0.0f) {
+			t.scale.x = FastAbs(t.scale.x);
+		}
+
+		auto& active_anim{ anim.GetActive() };
+
+		if (movement && !active_anim.IsRunning()) {
+			active_anim.Start();
+		} else if (!movement) {
+			active_anim.Reset();
+			active_anim.Stop();
 		}
 
 		int front_row{ 0 };
@@ -1093,7 +1108,7 @@ public:
 			t.row = 2;
 		}*/
 		// PTGN_INFO("Animation frame: ", anim.column);
-		rb.AddAcceleration(d.Normalized() * 1200.0f * hand.GetWeightFactor());
+		rb.AddAcceleration(d.Normalized() * player_accel * hand.GetWeightFactor());
 	}
 
 	void UpdatePhysics() {
@@ -1244,7 +1259,7 @@ public:
 	}
 
 	void DrawBackground() const {
-		game.draw.Texture(house_background);
+		house_background.Draw({ {}, house_background.GetSize(), Origin::TopLeft });
 	}
 
 	/*void WifeReturn() {
