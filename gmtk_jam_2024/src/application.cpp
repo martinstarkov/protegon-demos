@@ -1085,35 +1085,19 @@ public:
 			t.scale.x = FastAbs(t.scale.x);
 		}
 
-		auto& active_anim{ anim.GetActive() };
-
-		if (movement && !active_anim.IsRunning()) {
+		if (auto& active_anim{ anim.GetActive() }; movement && !active_anim.IsRunning()) {
 			active_anim.Start();
 		} else if (!movement) {
 			active_anim.Reset();
 			active_anim.Stop();
 		}
 
-		int front_row{ 0 };
-		int side_row{ 1 };
-		int back_row{ 2 };
-
-		// Sideways movement / animation prioritized over up and down.
-
-		/*if (dir.x != 0) {
-			t.row = 1;
-		} else if (dir.y == 1) {
-			t.row = 0;
-		} else if (dir.y == -1) {
-			t.row = 2;
-		}*/
-		// PTGN_INFO("Animation frame: ", anim.column);
 		rb.AddAcceleration(d.Normalized() * player_accel * hand.GetWeightFactor());
 	}
 
 	void UpdatePhysics() {
 		game.physics.Update(manager);
-		// ApplyBounds(player, world_bounds);
+		ApplyBounds(player, world_bounds);
 	}
 
 	/*
