@@ -21,6 +21,7 @@ public:
 
 	ToggleButtonGroup pins;
 	V2_float pin_offset{ 0, -16 };
+	constexpr static float player_thrust{ 300.0f };
 
 	GameScene() {}
 
@@ -36,11 +37,17 @@ public:
 		pins.Load("London", CreatePin({ 591, 177 }));
 	}
 
-	void Update() {
+	void Update() override {
+		UpdatePlayer();
+		game.physics.Update(manager);
+
+		Draw();
+	}
+
+	void Draw() {
 		bg_t.Draw();
 		pins.Draw();
 		DrawPinLabels();
-		UpdatePlayerDirection();
 		player.Get<Animation>().Draw(player);
 	}
 
@@ -53,20 +60,31 @@ public:
 		pins.ForEachKeyValue(f);
 	}
 
-	void UpdatePlayerDirection() {
+	void UpdatePlayer() {
 		auto& target	= player.Get<Target>();
+		auto& rb		= player.Get<RigidBody>();
 		auto& transform = player.Get<Transform>();
 		V2_float dir{ target.pos - transform.position };
-		if (!target.pos.IsZero()) {
-			transform.rotation = dir.Angle();
-		} else {
-			transform.rotation = 0.0f;
+		float threshold_dist{ 3.0f };
+
+		if (target.pos.IsZero()) {
+			return;
 		}
+
+		if (FastAbs(dir.x) <= threshold_dist && FastAbs(dir.y) <= threshold_dist) {
+			// Reached target.
+			target.pos	= {};
+			rb.velocity = {};
+		}
+
+		transform.rotation = dir.Angle();
+
 		transform.scale.x = FastAbs(transform.scale.x);
 		if (dir.x < 0.0f) {
 			transform.scale.x  *= -1.0f;
 			transform.rotation += DegToRad(180.0f);
 		}
+		rb.AddAcceleration(dir.Normalized() * player_thrust);
 	}
 
 	ecs::Entity CreatePlayer(const V2_float& pos) {
@@ -77,7 +95,9 @@ public:
 		Texture t{ "resources/entity/player.png" };
 		e.Add<Animation>(t, 1, t.GetSize(), milliseconds{ 1000 });
 		e.Add<Target>();
-
+		auto& rb		= e.Add<RigidBody>();
+		rb.max_velocity = 800.0f;
+		rb.drag			= 3.0f;
 		manager.Refresh();
 		return e;
 	}
