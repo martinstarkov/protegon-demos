@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(resolution_jam_2024)
 
-set(PROTEGON_TESTS OFF CACHE BOOL "")
+set(PROTEGON_TESTS ON CACHE BOOL "")
 
 add_subdirectory(../../protegon binary_dir)
 
