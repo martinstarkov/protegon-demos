@@ -6,9 +6,9 @@ constexpr const V2_int resolution{ 960, 540 };
 constexpr const V2_int center{ resolution / 2 };
 constexpr const bool draw_hitboxes{ true };
 
-const int button_y_offset{ 14 };
-const V2_int button_size{ 250, 50 };
-const V2_int first_button_coordinate{ 250, 220 };
+constexpr int button_y_offset{ 14 };
+constexpr V2_int button_size{ 250, 50 };
+constexpr V2_int first_button_coordinate{ 250, 220 };
 
 enum class Difficulty {
 	Easy,
@@ -1789,7 +1789,7 @@ public:
 	}
 };
 
-int main() {
-	game.Start<SetupScene>();
-	return 0;
-}
+// int main() {
+//	game.Start<SetupScene>();
+//	return 0;
+// }
