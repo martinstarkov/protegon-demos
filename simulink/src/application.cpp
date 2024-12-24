@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr const V2_int resolution{ 960, 540 };
+constexpr const V2_int resolution{ 500, 500 };
 
 class GameScene : public Scene {
 public:
@@ -10,27 +10,13 @@ public:
     }
     
     void Init() override {
-        OrthographicCamera c;
-        c.SetPosition({ 0, 0 });
-        c.SetSize(resolution);
-        game.camera.SetPrimary(c);
     }
     
     void Shutdown() override {}
     
     void Update() override {
-        if (game.input.KeyDown(Key::A)) {
-            PTGN_LOG("Hello");
-        }
-
-        Draw();
-    }
-    
-    void Draw() {
-        game.draw.Rect(Rect{ { 50, 50 }, { 70, 70 }, Origin::Center }, color::Red);
-
-        game.draw.Present();
-
+        auto c = camera.GetPrimary();
+        PTGN_LOG("setup scene camera size: ", c.GetSize(), ", camera pos: ", c.GetPosition());
     }
 
 	// Button CreateButton(const V2_float& center) {
@@ -53,17 +39,23 @@ public:
 class SetupScene : public Scene {
 public:
 	SetupScene() {
-		game.window.SetSize(resolution);
 		game.window.SetTitle("Simulink");
-		game.draw.SetClearColor(color::White);
+		game.window.SetSize(resolution);
+        game.draw.SetClearColor(color::Gray);
         game.scene.Load<GameScene>("game");
         game.scene.AddActive("game");
 	}
 
-	void Update() override {}
+    void Update() override {
+		V2_int mouse_pos = game.input.GetMousePosition();
+        mouse_pos.Draw(color::Blue, 30.0f);
+        Rect r{ { 0, 0 }, resolution / 2.0f, Origin::TopLeft };
+        r.Draw(color::Cyan, -1.0f);
+		game.draw.Text("Hello", color::Red, r);
+    }
 };
 
-int main() {
+int main(int c, char** v) {
 	game.Start<SetupScene>();
 	return 0;
 }
