@@ -14,7 +14,7 @@ public:
 	}
 	V2_int tile_size{ 20, 20 };
 	bool toggle = true;
-	void Update(float dt) final {
+	void Update() override {
 
 		std::vector<int> cells_without;
 		cells_without.resize(outer_grid.GetLength(), -1);
@@ -34,31 +34,31 @@ public:
 
 		V2_int mouse_pos = game.input.GetMousePosition();
 		V2_int mouse_tile = mouse_pos / tile_size;
-		Rectangle<int> mouse_box{ mouse_tile* tile_size, tile_size };
+		Rect mouse_box{ mouse_tile* tile_size, tile_size };
 
 		if (grid.Has(mouse_tile)) {
-			if (game.input.MousePressed(Mouse::LEFT)) {
+			if (game.input.MousePressed(Mouse::Left)) {
 				outer_grid.Set(mouse_tile, 1);
 			}
-			if (game.input.MousePressed(Mouse::RIGHT)) {
+			if (game.input.MousePressed(Mouse::Right)) {
 				outer_grid.Set(mouse_tile, 0);
 			}
 		}
 
 		grid.ForEachCoordinate([&](const V2_int& p) {
 			Color c = color::Red;
-			Rectangle<int> r{ V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size };
+			Rect r{ V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size };
 			if (grid.Has(p)) {
 				switch (grid.Get(p)) {
 					case 0:
-						c = color::Grey;
+						c = color::Gray;
 						break;
 					case 1:
 						c = color::Green;
 						break;
 				}
 			}
-			r.DrawSolid(c);
+			r.Draw(c, -1.0f);
 		});
 		if (grid.Has(mouse_tile)) {
 			mouse_box.Draw(color::Yellow);
@@ -67,6 +67,6 @@ public:
 };
 
 int main(int c, char** v) {
-	ptgn::game::Start<Paint>();
+	game.Start<Paint>();
 	return 0;
 }
