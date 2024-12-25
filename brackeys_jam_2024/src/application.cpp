@@ -160,7 +160,7 @@ struct Lifetime {
 	}
 };
 
-static void ApplyBounds(ecs::Entity e, const Rectangle<float>& bounds) {
+static void ApplyBounds(ecs::Entity e, const Rect& bounds) {
 	if (!e.Has<Transform>()) {
 		return;
 	}
@@ -289,8 +289,8 @@ struct TornadoComponent {
 
 		float particle_pull_resistance{ 0.1f };
 
-		Circle<float> inner_deletion_circle{ tornado_pos, escape_radius * 0.1f };
-		Circle<float> outer_deletion_circle{ tornado_pos, gravity_radius };
+		Circle inner_deletion_circle{ tornado_pos, escape_radius * 0.1f };
+		Circle outer_deletion_circle{ tornado_pos, gravity_radius };
 
 		const float particle_drag_force{ 0.01f };
 		float dt = game.dt();
@@ -310,10 +310,10 @@ struct TornadoComponent {
 			transform.position		+= rigid_body.velocity * dt;
 			transform.rotation		+= turn_speed * dt;
 
-			rigid_body.acceleration = {};
+			rigid_body.velocity = {};
 
-			if (game.collision.overlap.PointCircle(transform.position, inner_deletion_circle) ||
-				!game.collision.overlap.PointCircle(transform.position, outer_deletion_circle)) {
+			if (inner_deletion_circle.Overlaps(transform.position) ||
+				!outer_deletion_circle.Overlaps(transform.position)) {
 				available_entities.push_back(e);
 			}
 		}
@@ -324,9 +324,8 @@ struct TornadoComponent {
 	void DrawParticles() {
 		auto particles = particle_manager.EntitiesWith<Transform>();
 		for (auto [e, transform] : particles) {
-			game.renderer.DrawTexture(
-				particle_texture, transform.position, particle_texture.GetSize(), {}, {},
-				Origin::Center, Flip::None, transform.rotation, { 0.5f, 0.5f }, 4.0f
+			game.draw.Texture(
+				particle_texture, { transform.position, particle_texture.GetSize(), Origin::Center, transform.rotation }, { 4.0f, 0 }
 			);
 		}
 	}
@@ -437,7 +436,7 @@ struct Progress {
 			}
 			V2_float pos = start_pos + V2_float{ i * (icon_size.x + icon_x_offset), 0 };
 
-			game.renderer.DrawTexture(t, pos, icon_size, {}, {}, Origin::TopLeft);
+			game.draw.Texture(t, { pos, icon_size, Origin::TopLeft });
 		}
 	}
 
@@ -455,7 +454,7 @@ struct Progress {
 
 		V2_float meter_size{ texture.GetSize() * scale };
 
-		Color color = Lerp(color::Grey, color::Green, progress);
+		Color color = Lerp(color::Gray, color::Green, progress);
 
 		V2_float border_size{ V2_float{ 4, 4 } * scale };
 
@@ -463,10 +462,10 @@ struct Progress {
 
 		V2_float fill_pos{ meter_pos.x + border_size.x, meter_pos.y + fill_size.y / 2.0f };
 
-		game.renderer.DrawTexture(texture, meter_pos, meter_size, {}, {}, Origin::CenterLeft);
+		game.draw.Texture(texture, { meter_pos, meter_size, Origin::CenterLeft });
 
-		game.renderer.DrawRectangleFilled(
-			fill_pos, V2_float{ fill_size.x, fill_size.y * progress }, color, Origin::BottomLeft
+		game.draw.Rect(
+			{ fill_pos, V2_float{ fill_size.x, fill_size.y * progress }, Origin::BottomLeft }, color
 		);
 	}
 
@@ -531,9 +530,9 @@ struct Progress {
 
 		V2_float arrow_size{ tornado_arrow_texture.GetSize() * scale };
 
-		game.renderer.DrawTexture(
-			tornado_arrow_texture, arrow_pos, arrow_size, {}, {}, Origin::Center, Flip::None,
-			arrow_rotation, { 0.5f, 0.5f }, z_index, color
+		game.draw.Texture(
+			tornado_arrow_texture, { arrow_pos, arrow_size, Origin::Center, arrow_rotation }, { {}, {}, Flip::None,
+			color }, { z_index, 0 }
 		);
 	}
 
@@ -689,7 +688,7 @@ public:
 		Init();*/
 	}
 
-	Rectangle<float> bounds;
+	Rect bounds;
 
 	void Shutdown() final {
 		game.sound.Stop(1);
@@ -725,7 +724,7 @@ public:
 
 		// PTGN_LOG(level_data.dump(4));
 
-		auto& primary{ camera.GetPrimary() };
+		auto primary{ camera.GetPrimary() };
 
 		bounds.pos	  = {};
 		bounds.size	  = grid_size * tile_size;
@@ -812,7 +811,7 @@ public:
 				PTGN_ASSERT(game.font.Has(Hash("menu_font")));
 				std::string win_text = level_data.at("win_text");
 				Font font			 = game.font.Get(Hash("menu_font"));
-				Text text{ font, win_text, color::Silver };
+				Text text{ win_text, color::Silver, font };
 				V2_float text_size = text.GetSize();
 
 				constexpr float text_offset_y{ 220.0f };
@@ -850,7 +849,7 @@ public:
 							Origin::Center, Flip::None, 0.0f, {}, 21.0f, tint_color
 						);
 
-						Rectangle<float> text_rect{ center_pos + V2_float{ 0.0f, text_offset_y *
+						Rect text_rect{ center_pos + V2_float{ 0.0f, text_offset_y *
 																					 1.5f / zoom },
 													text_size, Origin::Center };
 
@@ -877,7 +876,7 @@ public:
 							Origin::Center, Flip::None, 0.0f, {}, 21.0f, color::White
 						);
 
-						Rectangle<float> text_rect{ center_pos + V2_float{ 0.0f, text_offset_y *
+						Rect text_rect{ center_pos + V2_float{ 0.0f, text_offset_y *
 																					 1.5f / zoom },
 													text_size, Origin::Center };
 
@@ -1471,8 +1470,8 @@ public:
 								V2_float{ tornado.escape_radius, tornado.escape_radius }) /
 							   tile_size };
 
-			Circle<float> tornado_destruction{ transform.position, tornado.escape_radius };
-			Circle<float> tornado_gravity{ transform.position, tornado.gravity_radius };
+			Circle tornado_destruction{ transform.position, tornado.escape_radius };
+			Circle tornado_gravity{ transform.position, tornado.gravity_radius };
 
 			PTGN_ASSERT(min_gravity.x <= max_gravity.x);
 			PTGN_ASSERT(min_gravity.y <= max_gravity.y);
@@ -1483,7 +1482,7 @@ public:
 			for (int i = min_escape.x; i <= max_escape.x; i++) {
 				for (int j = min_escape.y; j <= max_escape.y; j++) {
 					V2_int tile{ i, j };
-					Rectangle<float> tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
+					Rect tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
 					// auto tile_type = GetTileType(GetNoiseValue(tile));
 					if (game.collision.overlap.CircleRectangle(tornado_destruction, tile_rect)) {
 						if (draw_hitboxes) {
@@ -1498,7 +1497,7 @@ public:
 			for (int i = min_gravity.x; i <= max_gravity.x; i++) {
 				for (int j = min_gravity.y; j <= max_gravity.y; j++) {
 					V2_int tile{ i, j };
-					Rectangle<float> tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
+					Rect tile_rect{ tile * tile_size, tile_size, Origin::TopLeft };
 					// auto tile_type = GetTileType(GetNoiseValue(tile));
 					if (game.collision.overlap.CircleRectangle(tornado_gravity, tile_rect)) {
 						// game.renderer.DrawRectangleFilled(tile_rect, color::Purple, 0.0f,
@@ -1601,11 +1600,11 @@ public:
 
 	void DrawBackground() {
 		const auto& primary{ camera.GetPrimary() };
-		Rectangle<float> camera_rect{ primary.GetRectangle() };
+		Rect camera_rect{ primary.GetRectangle() };
 
 		// game.renderer.DrawRectangleHollow(camera_rect, color::Blue, 3.0f);
 
-		Rectangle<float> tile_rect{ {}, tile_size, Origin::TopLeft };
+		Rect tile_rect{ {}, tile_size, Origin::TopLeft };
 
 		// Expand size of each tile to include neighbors to prevent edges from flashing
 		// when camera moves. Skip grid tiles not within camera view.
@@ -1856,7 +1855,7 @@ public:
 
 	V2_float max_text_dim{ 362, 253 };
 
-	Rectangle<float> text_rect{ { 554, 174 }, max_text_dim, Origin::TopLeft };
+	Rect text_rect{ { 554, 174 }, max_text_dim, Origin::TopLeft };
 
 	void Init() final {
 		buttons.clear();
@@ -2077,7 +2076,7 @@ public:
 
 	bool won = false;
 
-	Rectangle<float> text_rect;
+	Rect text_rect;
 
 	Text mirror_text{ Hash("menu_font"), "Final Boss", color::Silver };
 
@@ -2338,7 +2337,7 @@ public:
 
 		if (final_level) {
 			// Intentionally copying.
-			Rectangle<float> rect  = text_rect;
+			Rect rect  = text_rect;
 			rect.pos.x			  += text_x_offset;
 			rect.size.x =
 				mirror_text.GetSize(Hash("menu_font"), std::string(mirror_text.GetContent())).x *
