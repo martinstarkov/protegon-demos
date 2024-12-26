@@ -275,7 +275,7 @@ public:
 	std::size_t current_moves = 0;
 	std::size_t best_moves	  = 1000000;
 	CustomGrid& grid;
-	Text text7{ "Press 'i' to see instructions", color::Gold, game.font.Get(Hash("1")) };
+	Text text7{ "Press 'i' to see instructions", color::Gold, game.font.Get("1") };
 	Sound s_select{ "resources/sound/select_click.wav" };
 	Sound s_move{ "resources/sound/move_click.wav" };
 	Sound s_win{ "resources/sound/win.wav" };
@@ -309,8 +309,8 @@ public:
 	void Update() final {
 		auto mouse = game.input.GetMousePosition();
 		if (game.input.KeyDown(Key::I)) {
-			game.scene.RemoveActive(Hash("game"));
-			game.scene.AddActive(Hash("menu"));
+			game.scene.RemoveActive("game");
+			game.scene.AddActive("menu");
 		}
 		if (game.input.KeyDown(Key::R) || game_over) {
 			if (turn > 0) {
@@ -433,7 +433,7 @@ public:
 							   grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
 				if (turn_allowed) {
 					game.draw.Texture(t_choice, Rect{ pos, grid.GetTileSize(), Origin::TopLeft });
-					Text t{ std::to_string(i + 1).c_str(), color::Yellow, Hash("0") };
+					Text t{ std::to_string(i + 1).c_str(), color::Yellow, "0" };
 					t.Draw({ pos + (grid.GetTileSize() - dice_size) / 2, dice_size,
 							 Origin::TopLeft });
 				} else {
@@ -472,21 +472,21 @@ public:
 class MenuScreen : public Scene {
 public:
 	CustomGrid grid{ { 20, 20 }, { 32, 32 } };
-	Text text0{ "Stroll of the Dice", color::Cyan, Hash("0") };
-	Text text1{ "'R' to restart if stuck", color::Red, Hash("1") };
-	Text text2{ "'Mouse' to choose direction", color::Orange, Hash("1") };
-	Text text3{ "'Spacebar' to confirm move", color::Gold, Hash("1") };
-	Text text4{ "Green tile = Go over it to win", color::Green, Hash("1") };
-	Text text5{ "Grey tile = Cannot move in that direction", color::Gray, Hash("1") };
-	Text text6{ "Red tile = No longer usable tile", color::Red, Hash("1") };
+	Text text0{ "Stroll of the Dice", color::Cyan, "0" };
+	Text text1{ "'R' to restart if stuck", color::Red, "1" };
+	Text text2{ "'Mouse' to choose direction", color::Orange, "1" };
+	Text text3{ "'Spacebar' to confirm move", color::Gold, "1" };
+	Text text4{ "Green tile = Go over it to win", color::Green, "1" };
+	Text text5{ "Grey tile = Cannot move in that direction", color::Gray, "1" };
+	Text text6{ "Red tile = No longer usable tile", color::Red, "1" };
 	Texture button{ "resources/ui/button.png" };
 
 	MenuScreen() {
-		game.music.Load(Hash("music"), "resources/music/background.wav");
+		game.music.Load("music", "resources/music/background.wav");
 	}
 
 	void Init() final {
-		game.music.Get(Hash("music")).Play(-1);
+		game.music.Get("music").Play(-1);
 	}
 
 	void Update() final {
@@ -515,12 +515,12 @@ public:
 			text_color = color::Gold;
 		}
 		if ((hover && game.input.MouseDown(Mouse::Left)) || game.input.KeyDown(Key::SPACE)) {
-			game.scene.Load<DiceScene>(Hash("game"), grid);
-			game.scene.RemoveActive(Hash("menu"));
-			game.scene.AddActive(Hash("game"));
+			game.scene.Load<DiceScene>("game", grid);
+			game.scene.RemoveActive("menu");
+			game.scene.AddActive("game");
 		}
 		game.draw.Texture(button, Rect{ play_pos, play_size, Origin::TopLeft });
-		Text t{ "Play", text_color, Hash("0") };
+		Text t{ "Play", text_color, "0" };
 		t.Draw(Rect{ play_text_pos, play_text_size, Origin::TopLeft });
 	}
 };
@@ -529,10 +529,10 @@ class DiceGame : public Scene {
 public:
 	void Init() {
 		game.window.SetSize({ 704, 860 });
-		game.font.Load(Hash("0"), "resources/font/04B_30.ttf", 32);
-		game.font.Load(Hash("1"), "resources/font/retro_gaming.ttf", 32);
-		game.scene.Load<MenuScreen>(Hash("menu"));
-		game.scene.AddActive(Hash("menu"));
+		game.font.Load("0", "resources/font/04B_30.ttf", 32);
+		game.font.Load("1", "resources/font/retro_gaming.ttf", 32);
+		game.scene.Load<MenuScreen>("menu");
+		game.scene.AddActive("menu");
 	}
 };
 
