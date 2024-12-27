@@ -1,3 +1,4 @@
+/*
 #include <cassert>
 
 #include "protegon/protegon.h"
@@ -154,10 +155,6 @@ struct SpawnerComponent {
                    std::function<ecs::Entity(V2_int source)> func)
       : max_spawn_count{max_spawn_count}, spawn_rate{spawn_rate}, func{func} {}
   void Update() {
-    /*manager.ForEachEntityWith<Rect, VelocityComponent,
-    LifetimeComponent>([&]( ecs::Entity e, Rect& rect,
-    VelocityComponent& velocity, LifetimeComponent& life) {
-    });*/
     if (spawn_timer.Elapsed() > spawn_rate &&
         entities.size() < max_spawn_count) {
       entities.push_back(func(source));
@@ -414,8 +411,6 @@ struct ParticleComponent {
           t.Draw(Rect{ rect.position + offset.offset * scale.scale, rect.size * scale.scale, rect.origin, rect.rotation }, TextureInfo{ {}, {}, Flip::None, c });
     }
     // Draw debug point to identify source of particles.
-    /*Circle c{ source, 2 };
-    c.DrawSolid(color::Red);*/
   }
   void SetSource(const V2_int& new_source) { source = new_source; }
   void SetSpeed(const V2_float& min, const V2_float& max) {
@@ -929,9 +924,6 @@ class ChoiceScreen : public Scene {
     choice_text_pos.y += 72;
 
     for (auto& c : choices) {
-      /*choice.ForEachTexture([](Texture t) {
-              t.SetAlpha(128);
-      });*/
       c.Draw();
     }
 
@@ -1011,17 +1003,6 @@ class GameScene : public Scene {
     PTGN_ASSERT(level_ < levels.size() &&
            "Could not find level from list of levels");
     // game.window.SetLogicalSize(grid_size * tile_size);
-    /*game.music.Unmute();
-    game.music.Load(Hash("in_game"), "resources/music/in_game.wav");
-    game.music.Get(Hash("in_game"))->Play(-1);*/
-
-    // Load json data.
-    /*std::ifstream f{ "resources/data/level_data.json" };
-    if (f.fail())
-            f = std::ifstream{ GetAbsolutePath("resources/data/level_data.json")
-    }; PTGN_ASSERT(!f.fail() && "Failed to load json file"); j = json::parse(f);
-
-    levels = j["levels"].size();*/
 
     // Load textures.
     game.texture.Load(Hash("floor"), "resources/tile/floor.png");
@@ -1444,18 +1425,6 @@ class GameScene : public Scene {
     manager.Refresh();
 
     if (!paused) {
-      /*if (game.input.MouseScroll() > 0) {
-              oxygen_indicator.UpdateLevel(+0.1f);
-      }
-      if (game.input.MouseScroll() < 0) {
-              oxygen_indicator.UpdateLevel(-0.1f);
-      }
-      if (game.input.KeyPressed(Key::UP)) {
-              acidity_indicator.UpdateLevel(+0.1f);
-      }
-      if (game.input.KeyPressed(Key::DOWN)) {
-              acidity_indicator.UpdateLevel(-0.1f);
-      }*/
     }
 
     // Draw background tiles
@@ -1475,14 +1444,6 @@ class GameScene : public Scene {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "sucker",
       // paths, 0.8f);
       // }
-      ///*if (game.input.KeyDown(Key::B)) {
-      //	CreateFish(manager, spawn_rect, spawn_coordinate, "blue_nemo",
-      // paths, 1.0f);
-      //}*/
-      ///*if (game.input.KeyDown(Key::J)) {
-      //	CreateFish(manager, spawn_rect, spawn_coordinate, "jelly",
-      // paths, 1.0f);
-      //}*/
       // if (game.input.KeyDown(Key::D)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "dory",
       // paths, 2.5f);
@@ -1528,10 +1489,6 @@ class GameScene : public Scene {
         flip = e.Get<FlipComponent>().flip;
       }
       game.texture.Get(texture_key).Draw(rect, source, angle, flip);
-      /*
-      // DEBUG: Display positions.
-      Circle circle{ og_pos, 1 };
-      circle.DrawSolid(color::Red);*/
     };
 
     manager
@@ -2033,34 +1990,13 @@ class GameScene : public Scene {
       } else if (elapsed_fade_in <= milliseconds{4000} &&
                  !fade_out.IsRunning()) {
         day_text_color = color::Black;
-        fade_out.Reset();
         fade_out.Start();
-        fade_in.Reset();
         fade_in.Stop();
         day_text.SetVisibility(false);
       }
     } else {
       day_text.SetVisibility(false);
     }
-
-    /*if (fade_out.IsRunning()) {
-            milliseconds elapsed_fade_out = fade_out.Elapsed<milliseconds>();
-            if (elapsed_fade_out <= milliseconds{ 300 }) {
-                    Color day_text_color = color::Black;
-                    day_text.SetColor(day_text_color);
-            } else if (elapsed_fade_out <= milliseconds{ 1300 }) {
-                    Color day_text_color = { color::Black.r, color::Black.g,
-    color::Black.b, static_cast<std::uint8_t>(255 * (1 -
-    std::clamp(fade_out.ElapsedPercentage(milliseconds{ 1300 }), 0.0f, 1.0f)))
-    }; day_text.SetColor(day_text_color); } else if (elapsed_fade_out <=
-    milliseconds{ 2000 }) { Color day_text_color = color::Black;
-                    day_text_color.a = 0;
-                    day_text.SetColor(day_text_color);
-                    fade_out.Reset();
-                    fade_out.Stop();
-                    day_text.SetVisibility(false);
-            }
-    }*/
 
     if (day_text.GetVisibility()) {
       V2_float day_text_size{75, 15};
@@ -2081,9 +2017,9 @@ class GameScene : public Scene {
     }
   }
 
-  ecs::Entity delete_structure{ecs::null};
-  ecs::Entity choice_structure{ecs::null};
-  Text day_text{Hash("default_font"), "", color::Black};
+  ecs::Entity delete_structure;
+  ecs::Entity choice_structure;
+  Text day_text{ "", color::Black, "default_font" };
   Timer fade_in;
   Timer fade_out;
 
@@ -2098,7 +2034,6 @@ class GameScene : public Scene {
     choice_ = -1;
     choosing = false;
     RerollFish();
-    cycle_timer.Reset();
     cycle_timer.Start();
     manager.ForEachEntityWith<LifetimeComponent, StructureComponent>(
         [](ecs::Entity e, LifetimeComponent& life, StructureComponent&) {
@@ -2515,8 +2450,11 @@ void ChoiceScreen::StartChoosing(int choice) {
     game.scene.RemoveActive(Hash("choices"));
   }
 }
+*/
 
+/*
 int main() {
   game.Start<PixelJam2024>();
   return 0;
 }
+*/
