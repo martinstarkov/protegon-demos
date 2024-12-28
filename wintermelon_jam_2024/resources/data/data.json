@@ -35,7 +35,7 @@
       {
         "id": 0,
         "seed": 0,
-        "screen_size": [ 1, 1 ],
+        "screen_size": [ 40, 23 ],
         "enemies": [
           {
             "start_pos": [100,100],
