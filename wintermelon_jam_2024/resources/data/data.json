@@ -1,9 +1,6 @@
 {
     "volume": {
-      "car": 1.0,
-      "music": 0.4,
-      "tornadoes_max": 0.4,
-      "tornadoes_ambient": 0.08
+      "music": 0.4
     },
     "difficulty_layers": [
       {
@@ -36,14 +33,16 @@
         "id": 0,
         "seed": 0,
         "screen_size": [ 40, 23 ],
+        "player_spawn": [2,20],
+        "light_radius": 5.0,
         "enemies": [
           {
-            "start_pos": [100,100],
+            "start_pos": [2,2],
             "speed": 10.0,
             "shadow_radius": 5.0
           },
           {
-            "start_pos": [100,100],
+            "start_pos": [32,13],
             "speed": 10.0,
             "shadow_radius": 5.0
           }
@@ -53,14 +52,15 @@
         "id": 1,
         "seed": 0,
         "screen_size": [ 1, 1 ],
+        "player_spawn": [20,2],
         "enemies": [
           {
-            "start_pos": [100,100],
+            "start_pos": [17,19],
             "speed": 10.0,
             "shadow_radius": 5.0
           },
           {
-            "start_pos": [100,100],
+            "start_pos": [23,19],
             "speed": 10.0,
             "shadow_radius": 5.0
           }
