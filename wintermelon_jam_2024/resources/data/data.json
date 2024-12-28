@@ -1,0 +1,70 @@
+{
+    "volume": {
+      "car": 1.0,
+      "music": 0.4,
+      "tornadoes_max": 0.4,
+      "tornadoes_ambient": 0.08
+    },
+    "difficulty_layers": [
+      {
+        "music": "resources/audio/song_1.ogg"
+      },
+      {
+        "music": "resources/audio/song_1.ogg"
+      },
+      {
+        "music": "resources/audio/song_2.ogg"
+      },
+      {
+        "music": "resources/audio/song_3.ogg"
+      },
+      {
+        "music": "resources/audio/song_3.ogg"
+      },
+      {
+        "music": "resources/audio/song_win.ogg"
+      }
+    ],
+    "branches": [
+      [ 0, 1, 4, 6, 9 ],
+      [ 0, 2, 5, 7, 9 ],
+      [ 0, 0, 3, 8, 9 ]
+    ],
+    "completed_levels": [],
+    "levels": [
+      {
+        "id": 0,
+        "seed": 0,
+        "screen_size": [ 40, 23 ],
+        "enemies": [
+          {
+            "start_pos": [100,100],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          },
+          {
+            "start_pos": [100,100],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "seed": 0,
+        "screen_size": [ 1, 1 ],
+        "enemies": [
+          {
+            "start_pos": [100,100],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          },
+          {
+            "start_pos": [100,100],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          }
+        ]
+      }
+    ]
+  }
