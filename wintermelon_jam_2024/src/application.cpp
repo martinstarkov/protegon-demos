@@ -5,105 +5,140 @@ using namespace ptgn;
 const V2_int resolution{ 1280, 720 };
 const V2_int tile_size{ 16, 16 };
 
-/* Calculate visibility polygon vertices in clockwise order.
+/*
+ * Calculate visibility polygon vertices in clockwise order.
  * Endpoints of the line segments (obstacles) can be ordered arbitrarily.
  * Line segments collinear with the point are ignored.
- * @param point - position of the observer
- * @param begin iterator of the list of line segments (obstacles)
- * @param end iterator of the list of line segments (obstacles)
- * @return vector of vertices of the visibility polygon
  */
-std::vector<V2_float> VisibilityPolygon(const V2_float& point, const std::vector<Line>& walls) {
-	return {};
-}
-
-std::vector<std::tuple<float, float, float>> CalculateVisibilityPolygon(
-	float ox, float oy, float radius, const std::vector<Line>& vecEdges
-) {
-	std::vector<std::tuple<float, float, float>> vecVisibilityPolygonPoints;
+Polygon GetVisibilityPolygon(const V2_float& o, float radius, const std::vector<Line>& edges) {
+	std::vector<std::tuple<float, V2_float>> vecVisibilityPolygonPoints;
 
 	// For each edge in PolyMap
-	for (auto& e1 : vecEdges) {
+	for (auto& e1 : edges) {
 		// Take the start point, then the end point (we could use a pool of
 		// non-duplicated points here, it would be more optimal)
-		for (int i = 0; i < 2; i++) {
-			float rdx, rdy;
-			rdx = (i == 0 ? e1.a.x : e1.b.x) - ox;
-			rdy = (i == 0 ? e1.a.y : e1.b.y) - oy;
+		// For each point, cast 3 rays, 1 directly at point
+		// and 1 a little bit either side
+		V2_float start_r{ e1.a - o };
+		V2_float end_r{ e1.b - o };
+		float start_ang{ start_r.Angle() };
+		float end_ang{ end_r.Angle() };
 
-			float base_ang = std::atan2f(rdy, rdx);
+		auto raycast = [&](auto ang) {
+			// Create ray along angle for required distance
+			V2_float rd{ radius * V2_float{ std::cosf(ang), std::sinf(ang) } };
 
-			float ang = 0;
-			// For each point, cast 3 rays, 1 directly at point
-			// and 1 a little bit either side
-			for (int j = 0; j < 3; j++) {
-				if (j == 0) {
-					ang = base_ang - 0.0001f;
+			float min_t1 = INFINITY;
+			V2_float min_p;
+			float min_ang = 0;
+			bool bValid	  = false;
+
+			// Check for ray intersection with all edges
+			for (auto& e2 : edges) {
+				// Create line segment vector
+				V2_float s{ e2.b - e2.a };
+
+				V2_float srd{ s - rd };
+
+				if (srd.IsZero()) {
+					continue;
 				}
-				if (j == 1) {
-					ang = base_ang;
-				}
-				if (j == 2) {
-					ang = base_ang + 0.0001f;
-				}
 
-				// Create ray along angle for required distance
-				rdx = radius * std::cosf(ang);
-				rdy = radius * std::sinf(ang);
+				// t2 is normalised distance from line segment start to line segment end of
+				// intersect point
+				float t2 =
+					(rd.x * (e2.a.y - o.y) + (rd.y * (o.x - e2.a.x))) / (s.x * rd.y - s.y * rd.x);
+				// t1 is normalised distance from source along ray to ray length of
+				// intersect point
+				float t1 = (e2.a.x + s.x * t2 - o.x) / rd.x;
 
-				float min_t1 = INFINITY;
-				float min_px = 0, min_py = 0, min_ang = 0;
-				bool bValid = false;
-
-				// Check for ray intersection with all edges
-				for (auto& e2 : vecEdges) {
-					// Create line segment vector
-					float sdx = e2.b.x - e2.a.x;
-					float sdy = e2.b.y - e2.a.y;
-
-					if (std::fabs(sdx - rdx) > 0.0f && std::fabs(sdy - rdy) > 0.0f) {
-						// t2 is normalised distance from line segment start to line segment end of
-						// intersect point
-						float t2 =
-							(rdx * (e2.a.y - oy) + (rdy * (ox - e2.a.x))) / (sdx * rdy - sdy * rdx);
-						// t1 is normalised distance from source along ray to ray length of
-						// intersect point
-						float t1 = (e2.a.x + sdx * t2 - ox) / rdx;
-
-						// If intersect point exists along ray, and along line
-						// segment then intersect point is valid
-						if (t1 > 0 && t2 >= 0 && t2 <= 1.0f) {
-							// Check if this intersect point is closest to source. If
-							// it is, then store this point and reject others
-							if (t1 < min_t1) {
-								min_t1	= t1;
-								min_px	= ox + rdx * t1;
-								min_py	= oy + rdy * t1;
-								min_ang = std::atan2f(min_py - oy, min_px - ox);
-								bValid	= true;
-							}
-						}
+				// If intersect point exists along ray, and along line
+				// segment then intersect point is valid
+				if (t1 > 0 && t2 >= 0 && t2 <= 1.0f) {
+					// Check if this intersect point is closest to source. If
+					// it is, then store this point and reject others
+					if (t1 < min_t1) {
+						min_t1 = t1;
+						min_p  = o + rd * t1;
+						V2_float dir{ min_p - o };
+						min_ang = dir.Angle();
+						bValid	= true;
 					}
 				}
-
-				if (bValid) { // Add intersection point to visibility polygon perimeter
-					vecVisibilityPolygonPoints.push_back({ min_ang, min_px, min_py });
-				}
 			}
-		}
+
+			if (bValid) { // Add intersection point to visibility polygon perimeter
+				vecVisibilityPolygonPoints.push_back({ min_ang, min_p });
+			}
+		};
+
+		raycast(start_ang - 0.0001f);
+		raycast(start_ang);
+		raycast(start_ang + 0.0001f);
+		raycast(end_ang - 0.0001f);
+		raycast(end_ang);
+		raycast(end_ang + 0.0001f);
 	}
 
 	// Sort perimeter points by angle from source. This will allow
 	// us to draw a triangle fan.
 	std::sort(
 		vecVisibilityPolygonPoints.begin(), vecVisibilityPolygonPoints.end(),
-		[&](const std::tuple<float, float, float>& t1, const std::tuple<float, float, float>& t2) {
+		[&](const std::tuple<float, V2_float>& t1, const std::tuple<float, V2_float>& t2) {
 			return std::get<0>(t1) < std::get<0>(t2);
 		}
 	);
 
-	return vecVisibilityPolygonPoints;
+	Polygon p;
+
+	p.vertices.resize(vecVisibilityPolygonPoints.size());
+
+	for (std::size_t i = 0; i < vecVisibilityPolygonPoints.size(); ++i) {
+		auto [t, point] = vecVisibilityPolygonPoints[i];
+		p.vertices[i]	= point;
+	}
+
+	// Remove duplicate (or simply similar) points from polygon
+	auto it = std::unique(
+		p.vertices.begin(), p.vertices.end(),
+		[&](const V2_float& t1, const V2_float& t2) {
+			return std::fabs(t1.x - t2.x) < 0.1f && std::fabs(t1.y - t2.y) < 0.1f;
+		}
+	);
+
+	p.vertices.resize(std::distance(p.vertices.begin(), it));
+
+	return p;
 }
+
+std::vector<Triangle> GetVisibilityTriangles(const V2_float& o, const Polygon& visibility_polygon) {
+	std::vector<Triangle> triangles;
+
+	const auto& p{ visibility_polygon.vertices };
+
+	PTGN_ASSERT(p.size() >= 3, "Cannot get visibility triangles for incomplete visibility polygon");
+
+	triangles.reserve(p.size() / 2);
+
+	for (std::size_t i = 0; i < p.size() - 1; i++) {
+		triangles.emplace_back(o, p[i], p[i + 1]);
+	}
+
+	triangles.emplace_back(o, p[p.size() - 1], p[0]);
+
+	return triangles;
+}
+
+std::vector<Triangle> GetVisibilityTriangles(
+	const V2_float& o, float radius, const std::vector<Line>& edges
+) {
+	return GetVisibilityTriangles(o, GetVisibilityPolygon(o, radius, edges));
+}
+
+struct Blank {
+	bool visited{ false };
+	V2_int grid_coord;
+};
 
 class GameScene : public Scene {
 public:
@@ -115,6 +150,14 @@ public:
 
 	Rect boundary{ {}, resolution, Origin::TopLeft };
 
+	ecs::Entity CreateBlank(const V2_int& grid_coord) {
+		ecs::Entity e = manager.CreateEntity();
+		auto& b		  = e.Add<Blank>();
+		b.grid_coord  = grid_coord;
+		manager.Refresh();
+		return e;
+	}
+
 	ecs::Entity CreateWall(const V2_int& pos, const V2_int& size) {
 		ecs::Entity e = manager.CreateEntity();
 		e.Add<Transform>(pos, 0.0f, scale);
@@ -125,6 +168,8 @@ public:
 
 	std::vector<Line> walls;
 
+	ecs::EntitiesWith<Blank> blanks;
+
 	GameScene(const path& level_path) {
 		Surface level{ level_path };
 		grid  = Grid<ecs::Entity>{ level.GetSize() };
@@ -132,7 +177,7 @@ public:
 		std::unordered_set<V2_int> visited;
 		level.ForEachPixel([&](auto start, auto c) {
 			if (c == color::White) {
-				// Do nothing.
+				grid.Set(start, CreateBlank(start));
 			} else if (c == color::Black) {
 				if (visited.count(start) > 0) {
 					return;
@@ -173,13 +218,10 @@ public:
 			}
 		});
 		walls = ConcatenateVectors(walls, ToVector(boundary.GetWalls()));
-		grid.ForEachElement([&](auto e) {
-			if (e == ecs::null) {
-				return;
-			}
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			Rect r{ e.Get<BoxCollider>().GetAbsoluteRect() };
 			walls = ConcatenateVectors(walls, ToVector(r.GetWalls()));
-		});
+		}
 		walls.erase(
 			std::remove_if(
 				walls.begin(), walls.end(),
@@ -197,6 +239,7 @@ public:
 			),
 			walls.end()
 		);
+		blanks = manager.EntitiesWith<Blank>();
 	}
 
 	void Init() override {}
@@ -208,53 +251,33 @@ public:
 			wall.Draw(color::Red, 5.0f);
 		}
 
-		auto vecVisibilityPolygonPoints =
-			CalculateVisibilityPolygon(mouse_pos.x, mouse_pos.y, 1000.0f, walls);
+		auto vis_poly	   = GetVisibilityPolygon(mouse_pos, 3000.0f, walls);
+		auto vis_triangles = GetVisibilityTriangles(mouse_pos, vis_poly);
 
-		if (!mouse_pos.IsZero()) {
-			int nRaysCast = vecVisibilityPolygonPoints.size();
-
-			// Remove duplicate (or simply similar) points from polygon
-			auto it = std::unique(
-				vecVisibilityPolygonPoints.begin(), vecVisibilityPolygonPoints.end(),
-				[&](const std::tuple<float, float, float>& t1,
-					const std::tuple<float, float, float>& t2) {
-					return fabs(std::get<1>(t1) - std::get<1>(t2)) < 0.1f &&
-						   fabs(std::get<2>(t1) - std::get<2>(t2)) < 0.1f;
+		/*if (game.input.MousePressed(Mouse::Left)) {
+			for (const auto& t : vis_triangles) {
+				for (auto [e, b] : blanks) {
+					if (b.visited) {
+						continue;
+					}
+					Rect r{ b.grid_coord * tile_size * scale, tile_size * scale, Origin::TopLeft };
+					if (r.Overlaps(t.a) || r.Overlaps(t.b) || r.Overlaps(t.c) || r.Overlaps(t)) {
+						b.visited = true;
+					}
 				}
-			);
-
-			vecVisibilityPolygonPoints.resize(std::distance(vecVisibilityPolygonPoints.begin(), it)
-			);
-
-			int nRaysCast2 = vecVisibilityPolygonPoints.size();
-
-			// Draw each triangle in fan
-			for (int i = 0; i < vecVisibilityPolygonPoints.size() - 1; i++) {
-				game.draw.Triangle(
-					mouse_pos,
-					{ std::get<1>(vecVisibilityPolygonPoints[i]),
-					  std::get<2>(vecVisibilityPolygonPoints[i]) },
-
-					{ std::get<1>(vecVisibilityPolygonPoints[i + 1]),
-					  std::get<2>(vecVisibilityPolygonPoints[i + 1]) },
-					color::Orange
-				);
 			}
+		}*/
 
-			// Fan will have one open edge, so draw last point of fan to first
-			game.draw.Triangle(
-				mouse_pos,
-
-				{ std::get<1>(vecVisibilityPolygonPoints[vecVisibilityPolygonPoints.size() - 1]),
-				  std::get<2>(vecVisibilityPolygonPoints[vecVisibilityPolygonPoints.size() - 1]) },
-
-				{ std::get<1>(vecVisibilityPolygonPoints[0]),
-				  std::get<2>(vecVisibilityPolygonPoints[0]) },
-				color::Orange
-			);
+		for (const auto& t : vis_triangles) {
+			t.Draw(color::Orange, 2.0f);
 		}
 
+		/*for (auto [e, b] : blanks) {
+			game.draw.Rect(
+				Rect{ b.grid_coord * tile_size * scale, tile_size * scale, Origin::TopLeft },
+				b.visited ? color::Orange : color::Black
+			);
+		}*/
 		/*grid.ForEachElement([](auto e) {
 			if (e == ecs::null) {
 				return;
@@ -273,7 +296,7 @@ public:
 		game.window.SetSize(resolution);
 		game.window.SetTitle("Light Trap");
 		game.draw.SetClearColor(color::Black);
-		game.scene.Load<GameScene>("game", "resources/level/1.png");
+		game.scene.Load<GameScene>("game", "resources/level/3.png");
 		game.scene.AddActive("game");
 	}
 
