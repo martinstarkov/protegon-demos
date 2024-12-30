@@ -59,15 +59,15 @@
       },
       {
         "id": 3,
-        "player_spawn": [20,2],
+        "player_spawn": [16,13],
         "enemies": [
           {
-            "start_pos": [17,19],
+            "start_pos": [1,1],
             "speed": 10.0,
             "shadow_radius": 5.0
           },
           {
-            "start_pos": [23,19],
+            "start_pos": [30,26],
             "speed": 10.0,
             "shadow_radius": 5.0
           }
@@ -75,15 +75,25 @@
       },
       {
         "id": 4,
-        "player_spawn": [20,2],
+        "player_spawn": [8,13],
         "enemies": [
           {
-            "start_pos": [17,19],
+            "start_pos": [21,23],
             "speed": 10.0,
             "shadow_radius": 5.0
           },
           {
-            "start_pos": [23,19],
+            "start_pos": [21,4],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          },
+          {
+            "start_pos": [7,4],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          },
+          {
+            "start_pos": [7,23],
             "speed": 10.0,
             "shadow_radius": 5.0
           }
@@ -180,15 +190,30 @@
       },
       {
         "id": 9,
-        "player_spawn": [20,2],
+        "player_spawn": [15,8],
         "enemies": [
           {
-            "start_pos": [17,19],
+            "start_pos": [13,22],
             "speed": 10.0,
             "shadow_radius": 5.0
           },
           {
-            "start_pos": [23,19],
+            "start_pos": [18,22],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          },
+          {
+            "start_pos": [5,5],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          },
+          {
+            "start_pos": [26,5],
+            "speed": 10.0,
+            "shadow_radius": 5.0
+          },
+          {
+            "start_pos": [15,11],
             "speed": 10.0,
             "shadow_radius": 5.0
           }
