@@ -3,7 +3,7 @@
 using namespace ptgn;
 
 const V2_int resolution{ 1280, 720 };
-const V2_int tile_size{ 16, 16 };
+const V2_int tile_size{ 24, 24 };
 
 /*
  * Calculate visibility polygon vertices in clockwise order.
@@ -38,9 +38,7 @@ Polygon GetVisibilityPolygon(const V2_float& o, float radius, const std::vector<
 				// Create line segment vector
 				V2_float s{ e2.b - e2.a };
 
-				V2_float srd{ s - rd };
-
-				if (srd.IsZero()) {
+				if (!(std::fabs(s.x - rd.x) > 0.0f && std::fabs(s.y - rd.y) > 0.0f)) {
 					continue;
 				}
 
@@ -137,30 +135,27 @@ std::vector<Triangle> GetVisibilityTriangles(
 
 struct Blank {
 	bool visited{ false };
-	V2_int grid_coord;
 };
 
 class GameScene : public Scene {
 public:
-	V2_float scale;
-
 	Grid<ecs::Entity> grid;
 
 	ecs::Manager manager;
 
 	Rect boundary{ {}, resolution, Origin::TopLeft };
 
-	ecs::Entity CreateBlank(const V2_int& grid_coord) {
+	ecs::Entity CreateBlank(const V2_int& pos) {
 		ecs::Entity e = manager.CreateEntity();
-		auto& b		  = e.Add<Blank>();
-		b.grid_coord  = grid_coord;
+		e.Add<Transform>(pos);
+		e.Add<Blank>();
 		manager.Refresh();
 		return e;
 	}
 
 	ecs::Entity CreateWall(const V2_int& pos, const V2_int& size) {
 		ecs::Entity e = manager.CreateEntity();
-		e.Add<Transform>(pos, 0.0f, scale);
+		e.Add<Transform>(pos);
 		e.Add<BoxCollider>(e, size, Origin::TopLeft);
 		manager.Refresh();
 		return e;
@@ -168,16 +163,20 @@ public:
 
 	std::vector<Line> walls;
 
-	ecs::EntitiesWith<Blank> blanks;
+	ecs::EntitiesWith<Transform, Blank> blanks;
+
+	V2_int level_size{ 32, 28 };
 
 	GameScene(const path& level_path) {
 		Surface level{ level_path };
-		grid  = Grid<ecs::Entity>{ level.GetSize() };
-		scale = V2_float{ resolution } / V2_float{ tile_size } / grid.GetSize();
+		grid = Grid<ecs::Entity>{ level.GetSize() };
+		PTGN_ASSERT(grid.GetSize() == level_size, "Level size does not match decided dimensions");
 		std::unordered_set<V2_int> visited;
+		V2_int grid_offset{ resolution / 2.0f - tile_size * grid.GetSize() / 2.0f };
 		level.ForEachPixel([&](auto start, auto c) {
+			V2_float pos{ start * tile_size + grid_offset };
 			if (c == color::White) {
-				grid.Set(start, CreateBlank(start));
+				grid.Set(start, CreateBlank(pos));
 			} else if (c == color::Black) {
 				if (visited.count(start) > 0) {
 					return;
@@ -214,13 +213,13 @@ public:
 					count.x == 1 || count.y == 1,
 					"Algorithm failed because it looped in both directions"
 				);
-				grid.Set(start, CreateWall(start * tile_size, tile_size * count));
+				grid.Set(start, CreateWall(pos, tile_size * count));
 			}
 		});
-		walls = ConcatenateVectors(walls, ToVector(boundary.GetWalls()));
+		walls = ConcatenateVectors(walls, ToVector(boundary.GetEdges()));
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			Rect r{ e.Get<BoxCollider>().GetAbsoluteRect() };
-			walls = ConcatenateVectors(walls, ToVector(r.GetWalls()));
+			walls = ConcatenateVectors(walls, ToVector(r.GetEdges()));
 		}
 		walls.erase(
 			std::remove_if(
@@ -239,52 +238,116 @@ public:
 			),
 			walls.end()
 		);
-		blanks = manager.EntitiesWith<Blank>();
+		blanks = manager.EntitiesWith<Transform, Blank>();
 	}
 
 	void Init() override {}
 
+	int tile_radius{ 5 };
+
 	void Update() override {
 		V2_float mouse_pos{ game.input.GetMousePosition() };
 
-		for (auto wall : walls) {
-			wall.Draw(color::Red, 5.0f);
-		}
+		/*for (auto wall : walls) {
+			wall.Draw(color::Red, -1.0f);
+		}*/
 
 		auto vis_poly	   = GetVisibilityPolygon(mouse_pos, 3000.0f, walls);
 		auto vis_triangles = GetVisibilityTriangles(mouse_pos, vis_poly);
 
-		/*if (game.input.MousePressed(Mouse::Left)) {
-			for (const auto& t : vis_triangles) {
-				for (auto [e, b] : blanks) {
+		V2_int mouse_tile = mouse_pos / tile_size;
+
+		Circle mouse_circle{ mouse_pos, static_cast<float>(tile_size.x * tile_radius) };
+
+		/*
+		std::unordered_set<V2_int> pixels;
+
+		rt2.GetFrameBuffer().ForEachPixel([&](const V2_int& coord, const Color& color) {
+			if (color == color::Transparent) {
+				return;
+			}
+			pixels.insert(coord);
+		});
+
+		rt1.GetFrameBuffer().ForEachPixel([&](const V2_int& coord, const Color& color) {
+			if (color == color::Transparent) {
+				return;
+			}
+			if (pixels.count(coord) > 0) {
+				game.draw.Point(coord, color);
+			}
+		});
+		*/
+
+		if (game.input.MousePressed(Mouse::Left)) {
+			for (auto i = mouse_tile.x - tile_radius; i < mouse_tile.x + tile_radius; ++i) {
+				for (auto j = mouse_tile.y - tile_radius; j < mouse_tile.y + tile_radius; ++j) {
+					V2_int tile{ i, j };
+					if (!grid.Has(tile)) {
+						continue;
+					}
+					auto e = grid.Get(tile);
+					if (!e.Has<Blank>()) {
+						continue;
+					}
+					PTGN_ASSERT(e.Has<Transform>());
+					auto& b = e.Get<Blank>();
 					if (b.visited) {
 						continue;
 					}
-					Rect r{ b.grid_coord * tile_size * scale, tile_size * scale, Origin::TopLeft };
-					if (r.Overlaps(t.a) || r.Overlaps(t.b) || r.Overlaps(t.c) || r.Overlaps(t)) {
-						b.visited = true;
+					Rect r{ e.Get<Transform>().position, tile_size, Origin::TopLeft };
+					auto center = r.Center();
+
+					if (!mouse_circle.Overlaps(center)) {
+						continue;
+					}
+
+					for (const auto& t : vis_triangles) {
+						if (t.Overlaps(center)) {
+							b.visited = true;
+							break;
+						}
 					}
 				}
 			}
-		}*/
-
-		for (const auto& t : vis_triangles) {
-			t.Draw(color::Orange, 2.0f);
 		}
 
-		/*for (auto [e, b] : blanks) {
-			game.draw.Rect(
-				Rect{ b.grid_coord * tile_size * scale, tile_size * scale, Origin::TopLeft },
-				b.visited ? color::Orange : color::Black
+		/*RenderTarget light_source{ true };
+		game.renderer.WhileBound(
+			[&]() {
+				mouse_circle.Draw(color::Purple, -1.0f);
+				game.renderer.Flush();
+			},
+			light_source, color::Transparent, BlendMode::Add
+		);*/
+
+		/*RenderTarget light_rays{ true };
+		game.renderer.WhileBound(
+			[&]() {
+				for (const auto& t : vis_triangles) {
+					t.Draw(color::Orange, -1.0f);
+				}
+				game.renderer.Flush();
+				game.renderer.SetBlendMode(BlendMode::Stencil);
+				light_source.Draw();
+				game.renderer.SetBlendMode(BlendMode::Add);
+				light_rays.DrawToScreen();
+			},
+			light_rays, color::Transparent, BlendMode::Add
+		);*/
+
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+			Rect r{ b.GetAbsoluteRect() };
+			r.Draw(color::Red, -1.0f);
+		}
+
+		for (auto [e, t, b] : blanks) {
+			Rect{ t.position, tile_size, Origin::TopLeft }.Draw(
+				b.visited ? color::White : color::Black
 			);
-		}*/
-		/*grid.ForEachElement([](auto e) {
-			if (e == ecs::null) {
-				return;
-			}
-			Rect r{ e.Get<BoxCollider>().GetAbsoluteRect() };
-			r.Draw(color::Red, 5.0f);
-		});*/
+		}
+
+		// mouse_circle.Draw(color::Purple, 4.0f);
 	}
 };
 
@@ -295,8 +358,7 @@ public:
 	void Init() override {
 		game.window.SetSize(resolution);
 		game.window.SetTitle("Light Trap");
-		game.draw.SetClearColor(color::Black);
-		game.scene.Load<GameScene>("game", "resources/level/3.png");
+		game.scene.Load<GameScene>("game", "resources/level/0.png");
 		game.scene.AddActive("game");
 	}
 
