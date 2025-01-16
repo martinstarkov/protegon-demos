@@ -173,9 +173,9 @@ static void SpawnBubbleAnimation(
 			V2_float source_pos = { column * source_size.x, 0.0f };
 
 			// TODO: Move this to draw functions and use an entity instead.
-			game.draw.Texture(
-				t, Rect{ get_pos_callback(), source_size, entity.Get<Origin>(), 0.0f },
-				{ source_pos, source_size, entity.Get<SpriteFlip>() }, { 1.0f, 0 }
+			t.Draw(
+				Rect{ get_pos_callback(), source_size, entity.Get<Origin>(), 0.0f },
+				{ source_pos, source_size, entity.Get<SpriteFlip>() }, { 1 }
 			);
 		})
 		.During(total_duration - popup_duration)
@@ -190,9 +190,9 @@ static void SpawnBubbleAnimation(
 			V2_float source_pos = { column * source_size.x, 0.0f };
 
 			// TODO: Move this to draw functions and use an entity instead.
-			game.draw.Texture(
-				t, Rect{ get_pos_callback(), source_size, entity.Get<Origin>(), 0.0f },
-				{ source_pos, source_size, entity.Get<SpriteFlip>() }, { 1.0f, 0 }
+			t.Draw(
+				Rect{ get_pos_callback(), source_size, entity.Get<Origin>(), 0.0f },
+				{ source_pos, source_size, entity.Get<SpriteFlip>() }, { 1 }
 			);
 		})
 		.OnComplete(complete_callback)
@@ -282,7 +282,7 @@ struct Dog {
 				rect.position += V2_float{ sign * (h.size.x / 2 + bark_offset.x), -bark_offset.y };
 				rect.size	   = source_size;
 				// TODO: Move this to draw functions and use an entity instead.
-				game.draw.Texture(t, rect, { source_pos, source_size, flip }, { 1.0f, 0 });
+				t.Draw(rect, { source_pos, source_size, flip }, { 1 });
 			})
 			.Start();
 	}
@@ -318,7 +318,7 @@ struct Dog {
 			e.Get<Transform>().position = Lerp(start, target, progress);
 			ApplyBounds(e, game.texture.Get(Hash("house_background")).GetSize());
 			if (draw_hitboxes) {
-				game.draw.Line(start, target, color::Purple, 5.0f);
+				Line{ start, target }.Draw(color::Purple, 5.0f);
 			}
 		}
 	}
@@ -1709,12 +1709,14 @@ public:
 	}
 
 	void Update() final {
-		game.draw.Texture(
-			game.texture.Get("menu_background"),
-			Rect{ game.window.GetCenter(), resolution, Origin::Center }, {}, LayerInfo{ -1.0f, 0 }
-		);
+		game.texture.Get("menu_background")
+			.Draw(Rect{ game.window.GetCenter(), resolution, Origin::Center }, {}, LayerInfo{ -1 });
 		for (auto& b : buttons) {
 			b.Draw();
+		}
+		if (game.input.KeyDown(Key::R)) {
+			PTGN_LOG("Posting mouse event");
+			game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
 		}
 	}
 };
@@ -1767,10 +1769,8 @@ public:
 
 	void Update() final {
 		game.texture.Get("menu_background")
-			.Draw(
-				{ game.window.GetCenter(), resolution, Origin::Center }, {}, LayerInfo{ -1.0f, 0 }
-			);
-		for (const auto& b : buttons) {
+			.Draw({ game.window.GetCenter(), resolution, Origin::Center }, {}, LayerInfo{ -1 });
+		for (auto& b : buttons) {
 			b.Draw();
 		}
 	}
@@ -1781,7 +1781,7 @@ public:
 	SetupScene() {}
 
 	void Init() final {
-		game.draw.SetClearColor(color::Silver);
+		game.renderer.SetClearColor(color::Silver);
 		game.window.SetSize(resolution);
 
 		game.scene.Load<MainMenu>("main_menu");
@@ -1789,7 +1789,8 @@ public:
 	}
 };
 
-// int main() {
-//	game.Start<SetupScene>();
+// int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+//	game.Init();
+//	game.scene.LoadActive<SetupScene>("setup_scene");
 //	return 0;
 // }

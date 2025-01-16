@@ -39,6 +39,10 @@ public:
 		game.scene.Unload("game");
 	}
 
+	void Update() override {
+		PTGN_LOG("Game scene");
+	}
+
 	/*
 	void CreatePlayer() {
 		player = manager.CreateEntity();
@@ -136,7 +140,7 @@ public:
 
 	void Update() final {
 		game.texture.Get("menu_background").Draw();
-		for (const auto& b : buttons) {
+		for (auto& b : buttons) {
 			b.Draw();
 		}
 	}
@@ -168,7 +172,7 @@ public:
 
 	void Update() final {
 		game.texture.Get("menu_background").Draw();
-		for (const auto& b : buttons) {
+		for (auto& b : buttons) {
 			b.Draw();
 		}
 	}
@@ -179,9 +183,6 @@ public:
 	SetupScene() {}
 
 	void Init() final {
-		game.draw.SetClearColor(color::Silver);
-		game.window.SetSize(resolution);
-
 		game.font.Load("menu_font", "resources/font/retro_gaming.ttf", button_size.y);
 		game.texture.Load("menu_background", "resources/ui/background.png");
 		game.music.Load("background_music", "resources/sound/background_music.ogg").Play(-1);
@@ -189,11 +190,12 @@ public:
 		game.scene.Load<MainMenu>("main_menu");
 		game.scene.Load<LevelSelect>("level_select");
 
-		game.scene.AddActive("main_menu");
+		game.scene.TransitionActive("setup_scene", "main_menu");
 	}
 };
 
-int main() {
-	game.Start<SetupScene>();
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+	game.Init("Barkin' Madness", resolution);
+	game.scene.LoadActive<SetupScene>("setup_scene");
 	return 0;
 }
