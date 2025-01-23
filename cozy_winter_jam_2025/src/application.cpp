@@ -2,175 +2,163 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int window_size{ 960, 540 };
 
-class LightExampleScene : public Scene {
-public:
-	Texture test{ "resources/test1.jpg" };
+constexpr CollisionCategory ground_category{ 1 };
 
-	const float speed{ 300.0f };
-
-	std::unordered_map<LightManager::InternalKey, float> radii;
-
-	Light mouse_light{ V2_float{ 0, 0 }, color::Cyan, 1.0f };
-
-	void Enter() override {
-		game.light.Reset();
-		game.light.Load(0, Light{ V2_float{ 0, 0 }, color::White });
-		game.light.Load(1, Light{ V2_float{ 0, 0 }, color::Green });
-		game.light.Load(2, Light{ V2_float{ 0, 0 }, color::Blue });
-		game.light.Load(3, Light{ V2_float{ 0, 0 }, color::Magenta });
-		game.light.Load(4, Light{ V2_float{ 0, 0 }, color::Yellow });
-		game.light.Load(5, Light{ V2_float{ 0, 0 }, color::Cyan });
-		game.light.Load(6, Light{ V2_float{ 0, 0 }, color::Red });
-		game.light.Get(0).radius_	   = 270.0f;
-		game.light.Get(1).radius_	   = 270.0f;
-		game.light.Get(2).radius_	   = 270.0f;
-		game.light.Get(3).radius_	   = 270.0f;
-		game.light.Get(4).radius_	   = 270.0f;
-		game.light.Get(5).radius_	   = 270.0f;
-		game.light.Get(6).radius_	   = 270.0f;
-		game.light.Get(0).compression_ = 50.0f;
-		game.light.Get(1).compression_ = 50.0f;
-		game.light.Get(2).compression_ = 50.0f;
-		game.light.Get(3).compression_ = 50.0f;
-		game.light.Get(4).compression_ = 50.0f;
-		game.light.Get(5).compression_ = 50.0f;
-		game.light.Get(6).compression_ = 50.0f;
-
-		radii.clear();
-		radii.reserve(game.light.Size());
-		float i{ 0.0f };
-		game.light.ForEachKey([&](auto key) {
-			radii.emplace(key, i * 50.0f);
-			i++;
-		});
-
-		mouse_light.ambient_color_	   = color::Red;
-		mouse_light.ambient_intensity_ = 0.3f;
+class GameScene : public Scene {
+	ecs::Entity CreateWall(const Rect& r) {
+		ecs::Entity entity = manager.CreateEntity();
+		entity.Add<Transform>(r.position, r.rotation);
+		auto& box = entity.Add<BoxCollider>(entity, r.size, r.origin);
+		box.SetCollisionCategory(ground_category);
+		entity.Add<DrawColor>(color::Purple);
+		return entity;
 	}
 
-	const float attenuation_speed1{ 0.1f };
-	const float attenuation_speed2{ 0.1f };
-	const float attenuation_speed3{ 0.1f };
-	const float intensity_speed{ 0.5f };
-	const float ambient_speed{ 0.5f };
-	const float radius_speed{ 200.0f };
-	const float compression_speed1{ 0.1f };
-	const float compression_speed2{ 20.0f };
+	ecs::Entity CreatePlayer() {
+		ecs::Entity entity = manager.CreateEntity();
 
-	void UpdateLight(Light& light) {
-		if (game.input.KeyPressed(Key::K_3)) {
-			light.attenuation_.x -= attenuation_speed1 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::K_4)) {
-			light.attenuation_.x += attenuation_speed1 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::K_5)) {
-			light.attenuation_.y -= attenuation_speed2 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::K_6)) {
-			light.attenuation_.y += attenuation_speed2 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::K_7)) {
-			light.attenuation_.z -= attenuation_speed3 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::K_8)) {
-			light.attenuation_.z += attenuation_speed3 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::Q)) {
-			light.radius_ -= radius_speed * game.dt();
-		}
-		if (game.input.KeyPressed(Key::E)) {
-			light.radius_ += radius_speed * game.dt();
-		}
-		if (game.input.KeyPressed(Key::A)) {
-			light.compression_ -= compression_speed1 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::D)) {
-			light.compression_ += compression_speed1 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::Z)) {
-			light.compression_ -= compression_speed2 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::C)) {
-			light.compression_ += compression_speed2 * game.dt();
-		}
-		if (game.input.KeyPressed(Key::F)) {
-			light.ambient_intensity_ += ambient_speed * game.dt();
-		}
-		if (game.input.KeyPressed(Key::V)) {
-			light.ambient_intensity_ -= ambient_speed * game.dt();
-		}
-		if (game.input.KeyPressed(Key::K_1)) {
-			light.SetIntensity(light.GetIntensity() - intensity_speed * game.dt());
-		}
-		if (game.input.KeyPressed(Key::K_2)) {
-			light.SetIntensity(light.GetIntensity() + intensity_speed * game.dt());
-		}
-		if (game.input.KeyDown(Key::R)) {
-			light.attenuation_		 = { 0.0f, 0.0f, 0.0f };
-			light.radius_			 = 400.0f;
-			light.compression_		 = 1.0f;
-			light.ambient_intensity_ = 0.3f;
-			light.SetIntensity(1.0f);
-		}
+		entity.Add<Transform>(window_size / 2.0f + V2_float{ 100, 100 });
+		auto& rb = entity.Add<RigidBody>();
+		auto& m	 = entity.Add<TopDownMovement>();
+		// Maximum movement speed.
+		m.max_speed = 2.0f * 60.0f;
+		// How fast to reach max speed.
+		m.max_acceleration = 20.0f * 60.0f;
+		// How fast to stop after letting go.
+		m.max_deceleration = 20.0f * 60.0f;
+		// How fast to stop when changing direction.
+		m.max_turn_speed = 60.0f * 60.0f;
 
-		light.compression_	 = std::max(0.0f, light.compression_);
-		light.radius_		 = std::max(0.0f, light.radius_);
-		light.attenuation_.x = std::clamp(light.attenuation_.x, 0.0f, 10000.0f);
-		light.attenuation_.y = std::clamp(light.attenuation_.y, 0.0f, 10000.0f);
-		light.attenuation_.z = std::clamp(light.attenuation_.z, 0.0f, 10000.0f);
-		light.SetIntensity(std::clamp(light.GetIntensity(), 0.0f, 100000.0f));
-		light.ambient_intensity_ = std::clamp(light.ambient_intensity_, 0.0f, 10000.0f);
+		m.friction	 = 1.0f;
+		auto& b		 = entity.Add<BoxCollider>(entity, V2_float{ 20, 40 }, Origin::Center);
+		b.continuous = true;
+
+		entity.Add<DrawColor>(color::DarkGreen);
+		entity.Add<DrawLineWidth>(-1.0f);
+
+		return entity;
+	}
+
+	ecs::Entity player;
+
+	void Enter() override {
+		manager.Clear();
+
+		V2_float ws{ window_size };
+
+		player = CreatePlayer();
+		CreateWall({ { 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft });
+		CreateWall({ { 0, ws.y / 2.0f }, { 200, 10 }, Origin::TopLeft });
+		CreateWall({ { ws.x, ws.y / 2.0f }, { 200, 10 }, Origin::TopRight });
+		CreateWall({ { ws.x - 200, ws.y / 2.0f + 140 }, { ws.x - 400, 10 }, Origin::TopRight });
+		manager.Refresh();
+	}
+
+	void Exit() override {
+		manager.Clear();
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::B)) {
-			game.light.SetBlur(!game.light.GetBlur());
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+			DrawRect(e, b.GetAbsoluteRect());
 		}
+		game.camera.GetPrimary().SetPosition(player.Get<Transform>().position);
+	}
+};
 
-		UpdateLight(mouse_light);
+class TextScene : public Scene {
+public:
+	std::string_view content;
+	Color text_color;
+	Color bg_color{ color::Black };
 
-		game.light.ForEachValue([&](Light& l) { UpdateLight(l); });
+	Tween reading_timer;
 
-		/*PTGN_LOG(
-			"Intensity: ", mouse_light.GetIntensity(), ", Radius: ", mouse_light.radius_,
-			", Falloff: ", mouse_light.compression_, ", Attenuation: ", mouse_light.attenuation_,
-			", Ambient Intensity: ", mouse_light.ambient_intensity_
-		);*/
+	TextScene(seconds reading_duration, std::string_view content, const Color& text_color) :
+		content{ content }, text_color{ text_color }, reading_timer{ reading_duration } {}
 
-		auto t		   = game.time();
-		auto frequency = 0.001f;
-		V2_float c	   = game.window.GetSize() / 2.0f;
+	Text continue_text{ "Press any key to continue", color::Red };
 
-		game.light.ForEachKeyValue([&](auto key, auto& light) {
-			auto it = radii.find(key);
-			PTGN_ASSERT(it != radii.end());
-			float r{ it->second };
-			light.SetPosition(V2_float{ r * std::sin(frequency * t) + c.x,
-										r * std::cos(frequency * t) + c.y });
+	void Enter() override {
+		continue_text.SetVisibility(false);
+
+		reading_timer.OnComplete([&]() {
+			game.event.key.Subscribe(KeyEvent::Down, this, std::function([&](const KeyDownEvent&) {
+										 game.event.key.Unsubscribe(this);
+										 game.scene.Enter<GameScene>(
+											 "game",
+											 SceneTransition{ TransitionType::FadeThroughColor,
+															  milliseconds{ 1000 } }
+												 .SetFadeColorDuration(milliseconds{ 100 })
+										 );
+									 }));
+			continue_text.SetVisibility(true);
 		});
+		game.tween.Add(reading_timer);
+		reading_timer.Start();
+	}
 
-		mouse_light.SetPosition(game.input.GetMousePosition());
+	void Exit() {
+		PTGN_LOG("Exited text scene");
+	}
 
-		Rect{ { 100, 100 }, { 100, 100 }, Origin::TopLeft }.Draw(color::Blue);
-		test.Draw({ game.window.GetSize() / 2, test.GetSize() });
+	~TextScene() {
+		PTGN_LOG("Unloaded text scene");
+	}
 
-		// TODO: Get rid of this.
-		game.light.Add(mouse_light);
+	void Update() override {
+		Rect::Fullscreen().Draw(bg_color);
+		Text text{ content, text_color };
+		text.Draw({ game.window.GetCenter(), {}, Origin::Center });
+		continue_text.Draw({ game.window.GetCenter() + V2_float{ 0, 30 + text.GetSize().y },
+							 {},
+							 Origin::CenterTop });
+	}
+};
 
-		game.light.Draw();
+class MainMenu : public Scene {
+public:
+	Button play;
+	Texture background{ "resources/ui/background.png" };
 
-		// TODO: Get rid of this.
-		// Instead of this remove/add, you can use a named light with game.light.Load() or save a
-		// reference from an initial game.light.Add() and modify that directly.
-		game.light.Remove(mouse_light);
+	void Enter() final {
+		play.Set<ButtonProperty::OnActivate>([]() {
+			game.scene.Enter<TextScene>(
+				"text_scene",
+				SceneTransition{ TransitionType::FadeThroughColor,
+								 milliseconds{ milliseconds{ 1000 } } }
+					.SetFadeColorDuration(milliseconds{ 500 }),
+				seconds{ 5 }, "Can you read this text in 5 seconds?", color::White
+			);
+		});
+		play.Set<ButtonProperty::BackgroundColor>(color::DarkGray);
+		play.Set<ButtonProperty::BackgroundColor>(color::Gray, ButtonState::Hover);
+		Text text{ "Play", color::Black /*, "menu_font" */ };
+		play.Set<ButtonProperty::Text>(text);
+		play.Set<ButtonProperty::TextSize>(V2_float{ 0.0f, 0.0f });
+		play.SetRect({ game.window.GetCenter(), { 200, 100 }, Origin::CenterTop });
+	}
+
+	void Exit() {
+		PTGN_LOG("Exited main menu");
+	}
+
+	~MainMenu() {
+		PTGN_LOG("Unloaded main menu");
+	}
+
+	void Update() final {
+		background.Draw();
+		play.Draw();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("LightExampleScene", window_size, color::Black);
-	game.scene.Enter<LightExampleScene>("light_example_scene");
+	game.Init("Cozy Winter Jam", window_size, color::Transparent);
+	game.scene.Enter<MainMenu>(
+		"main_menu", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 500 } }
+	);
 	return 0;
 }
