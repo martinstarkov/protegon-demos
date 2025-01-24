@@ -35,8 +35,35 @@ class GameScene : public Scene {
 
 		V2_float hitbox_size{ 14, 14 };
 
-		auto& b		 = entity.Add<BoxCollider>(entity, hitbox_size, Origin::Center);
-		b.continuous = true;
+		auto& b = entity.Add<BoxColliderGroup>(entity, manager);
+		b.AddBox(
+			"body", {}, 0.0f, hitbox_size, Origin::Center, true, 0, {}, nullptr, nullptr, nullptr,
+			nullptr, false, true
+		);
+		b.AddBox(
+			"interaction", {}, 0.0f, hitbox_size * 2.0f, Origin::Center, false, 0, {},
+			[&](const Collision& collision) {
+				if (collision.entity2.Has<Tree>() && !tree_tooltip.IsShowing()) {
+					tree_tooltip.FadeIn();
+					tree_tooltip.anchor_position =
+						collision.entity2.Get<BoxCollider>().GetAbsoluteRect().GetPosition(
+							Origin::CenterTop
+						);
+				}
+			},
+			nullptr,
+			[&](const Collision& collision) {
+				if (collision.entity2.Has<Tree>() && tree_tooltip.IsShowing() &&
+					tree_tooltip.anchor_position ==
+						collision.entity2.Get<BoxCollider>().GetAbsoluteRect().GetPosition(
+							Origin::CenterTop
+						)) {
+					tree_tooltip.FadeOut();
+				}
+			},
+			nullptr, true, false
+		);
+
 		// entity.Add<Sprite>(player_animation);
 
 		auto& movement = entity.Add<TopDownMovement>();
@@ -60,7 +87,7 @@ class GameScene : public Scene {
 			"down",
 			Animation{ player_animation, animation_count.x, animation_size, animation_duration }
 		);
-		/*anim_map.Load(
+		anim_map.Load(
 			"right", Animation{ player_animation,
 								animation_count.x,
 								animation_size,
@@ -73,7 +100,7 @@ class GameScene : public Scene {
 							 animation_size,
 							 animation_duration,
 							 { 0, 2.0f * animation_size.y } }
-		);*/
+		);
 		movement.on_move_start = [=]() {
 			// PTGN_LOG("Started moving");
 			player.Get<AnimationMap>().GetActive().StartIfNotRunning();
@@ -85,13 +112,13 @@ class GameScene : public Scene {
 			bool active_changed{ false };
 			switch (dir) {
 				case MoveDirection::Down:	   active_changed = a.SetActive("down"); break;
-				// case MoveDirection::Up:		   active_changed = a.SetActive("up"); break;
+				case MoveDirection::Up:		   active_changed = a.SetActive("up"); break;
 				case MoveDirection::Left:	   [[fallthrough]];
 				case MoveDirection::DownLeft:  [[fallthrough]];
 				case MoveDirection::UpLeft:	   [[fallthrough]];
 				case MoveDirection::UpRight:   [[fallthrough]];
 				case MoveDirection::DownRight: [[fallthrough]];
-				// case MoveDirection::Right:	   active_changed = a.SetActive("right"); break;
+				case MoveDirection::Right:	   active_changed = a.SetActive("right"); break;
 				default:					   break;
 			}
 			if (active_changed) {
@@ -110,40 +137,124 @@ class GameScene : public Scene {
 	ecs::Entity player;
 
 	void Exit() override {
+		game.tween.Reset();
 		manager.Clear();
 	}
+
+	RenderTarget ui{ color::Transparent };
 
 	struct Tooltip {
 		Tooltip() = default;
 
-		Tooltip(const V2_float& anchor_position, const Text& text, const V2_float& offset = {}) :
-			og_position{ anchor_position },
-			position{ anchor_position },
-			text{ text },
-			offset{ offset } {
-			// How much time it takes in total for the text to go up and back down.
-			seconds up_down_time{ 1 };
-			// How much distance above the og_position the tween text moves up.
-			float up_distance{ 30.0f };
-			animation.During(up_down_time)
+		Tooltip(const Text& tooltip_text, const V2_float& static_offset, const RenderTarget& ui) :
+			text{ tooltip_text }, offset{ static_offset } {
+			fade_in.During(fade_in_time)
+				.OnStart([&]() {
+					// PTGN_LOG("Started fading in");
+					text.SetVisibility(true);
+					fade_out.Stop();
+					start_text_color = text.GetColor();
+				})
+				.OnUpdate([&](float f) {
+					// PTGN_LOG("Fading in");
+					Color color{ start_text_color };
+					color.a = static_cast<std::uint8_t>(255.0f * f);
+					text.SetColor(color);
+				});
+			jump_animation.During(up_down_time)
 				.Yoyo()
 				.Ease(TweenEase::InOutSine)
 				.Repeat(-1)
-				.OnUpdate([&](float f) { position.y = og_position.y - f * up_distance; });
-			game.tween.Add(animation).Start();
+				.OnUpdate([&](float f) {
+					Rect r{ anchor_position + offset + V2_float{ 0.0f, -f * up_distance },
+							{},
+							Origin::CenterBottom };
+					auto old_r = game.renderer.GetRenderTarget();
+					game.renderer.SetRenderTarget(ui);
+					Rect rect{ ui.TransformToTarget(old_r.TransformToScreen(r.Center())),
+							   ui.ScaleToTarget(old_r.ScaleToScreen(r.size)), Origin::Center };
+					text.Draw(rect);
+					game.renderer.SetRenderTarget(old_r);
+					// PTGN_LOG("Going up and down");
+				});
+			fade_out.During(fade_out_time)
+				.Reverse()
+				.OnStart([&]() {
+					// PTGN_LOG("Starting fade out");
+					fade_in.Stop();
+					start_text_color = text.GetColor();
+				})
+				.OnComplete([&]() {
+					// PTGN_LOG("Completed fade out");
+					text.SetVisibility(false);
+					jump_animation.Stop();
+				})
+				.OnUpdate([&](float f) {
+					// PTGN_LOG("Fading out");
+					Color color{ start_text_color };
+					color.a = static_cast<std::uint8_t>(255.0f * f);
+					text.SetColor(color);
+				});
+
+			game.tween.Add(jump_animation);
+			game.tween.Add(fade_in);
+			game.tween.Add(fade_out);
+
+			fade_out.KeepAlive(true);
+			fade_in.KeepAlive(true);
+			jump_animation.KeepAlive(true);
 		}
 
-		const V2_float og_position;
-		V2_float position;
-		V2_float offset;
+		~Tooltip() {
+			game.tween.Remove(jump_animation);
+			game.tween.Remove(fade_in);
+			game.tween.Remove(fade_out);
+		}
+
+		// @return True if the tooltip is currently visible.
+		bool IsShowing() const {
+			return jump_animation.IsRunning() && text.GetVisibility();
+		}
+
+		void FadeIn() {
+			fade_in.Start();
+			jump_animation.Start();
+		}
+
+		void FadeOut() {
+			fade_out.Start();
+		}
+
+		V2_float anchor_position;
+
+	private:
+		// How much time it takes in total for the text to go up and back down.
+		seconds up_down_time{ 1 };
+
+		milliseconds fade_in_time{ 400 };
+		milliseconds fade_out_time{ 400 };
+
+		// How much distance above the og_position the tween text moves up.
+		float up_distance{ 15.0f / camera_zoom };
 		Text text;
-		Tween animation;
+		// Static offset of tooltip compared to anchor position.
+		V2_float offset;
+		Tween jump_animation;
+		Tween fade_in;
+		Tween fade_out;
+		Color start_text_color;
 	};
 
-	void SpawnTooltip() {}
-
 	V2_float camera_intro_offset;
-	float camera_intro_start_zoom{ 2.0f };
+	float camera_intro_start_zoom{ camera_zoom };
+
+	Tooltip wasd_tooltip{ Text{ "'WASD' to move", color::Black }.SetSize(20),
+						  { 0, -25 / camera_zoom },
+						  ui };
+
+	Tooltip tree_tooltip{ Text{ "'E' to chop", color::Black }.SetSize(20),
+						  { 0, -25 / camera_zoom },
+						  ui };
 
 	void PlayIntro() {
 		player.Get<TopDownMovement>().keys_enabled = false;
@@ -155,12 +266,30 @@ class GameScene : public Scene {
 			.OnUpdate([&](float f) {
 				auto& cam{ game.camera.GetPrimary() };
 				// Tween is reversed so zoom is lerped backward.
-				// cam.SetZoom(Lerp(camera_zoom, camera_intro_start_zoom, f));
+				cam.SetZoom(Lerp(camera_zoom, camera_intro_start_zoom, f));
 				cam.SetPosition(player.Get<Transform>().position - camera_intro_offset * f);
 				player.Get<TopDownMovement>().Move(MoveDirection::Right);
 			})
-			.OnComplete([&]() { player.Get<TopDownMovement>().keys_enabled = true; });
+			.OnComplete([&]() {
+				player.Get<TopDownMovement>().keys_enabled					 = true;
+				player.Get<BoxColliderGroup>().GetBox("interaction").enabled = true;
+				ShowIntroTooltip();
+			});
 		game.tween.Add(intro).Start();
+	}
+
+	void ShowIntroTooltip() {
+		Tween tooltip_tween;
+		tooltip_tween.During(seconds{ 10 })
+			.OnStart([&]() { wasd_tooltip.FadeIn(); })
+			.OnUpdate([&]() {
+				wasd_tooltip.anchor_position =
+					player.Get<BoxColliderGroup>().GetBox("body").GetAbsoluteRect().GetPosition(
+						Origin::CenterTop
+					);
+			})
+			.OnComplete([&]() { wasd_tooltip.FadeOut(); });
+		game.tween.Add(tooltip_tween).Start();
 	}
 
 	void Enter() override {
@@ -181,6 +310,7 @@ class GameScene : public Scene {
 		game.camera.GetPrimary().SetZoom(camera_zoom);
 
 		PlayIntro();
+		// ShowIntroTooltip();
 	}
 
 	void Update() override {
@@ -188,6 +318,7 @@ class GameScene : public Scene {
 			game.camera.GetPrimary().SetPosition(player.Get<Transform>().position);
 		}
 		Draw();
+		DrawUI();
 	}
 
 	// Minimum pixels of separation between tree trunk centers.
@@ -258,12 +389,21 @@ class GameScene : public Scene {
 		for (auto [e, t, s] : manager.EntitiesWith<Transform, Sprite>()) {
 			s.Draw(e);
 		}
-		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+		/*for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
-		}
+		}*/
 		for (const auto [e, anim_map] : manager.EntitiesWith<AnimationMap>()) {
 			anim_map.Draw(e);
 		}
+	}
+
+	void DrawUI() {
+		game.renderer.SetRenderTarget(ui);
+
+		// Draw UI here.
+
+		game.renderer.SetRenderTarget({});
+		ui.Draw();
 	}
 };
 
@@ -348,7 +488,7 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Cozy Winter Jam", window_size, color::Transparent);
-	if (true) {
+	if (false) {
 		game.Start<GameScene>(
 			"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
 		);
