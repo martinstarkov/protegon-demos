@@ -100,11 +100,11 @@ public:
 		reading_timer.Start();
 	}
 
-	void Exit() {
+	void Exit() override {
 		PTGN_LOG("Exited text scene");
 	}
 
-	~TextScene() {
+	~TextScene() override {
 		PTGN_LOG("Unloaded text scene");
 	}
 
@@ -123,7 +123,7 @@ public:
 	Button play;
 	Texture background{ "resources/ui/background.png" };
 
-	void Enter() final {
+	void Enter() override {
 		play.Set<ButtonProperty::OnActivate>([]() {
 			game.scene.Enter<TextScene>(
 				"text_scene",
@@ -135,21 +135,21 @@ public:
 		});
 		play.Set<ButtonProperty::BackgroundColor>(color::DarkGray);
 		play.Set<ButtonProperty::BackgroundColor>(color::Gray, ButtonState::Hover);
-		Text text{ "Play", color::Black /*, "menu_font" */ };
+		Text text{ "Play", color::Black };
 		play.Set<ButtonProperty::Text>(text);
 		play.Set<ButtonProperty::TextSize>(V2_float{ 0.0f, 0.0f });
 		play.SetRect({ game.window.GetCenter(), { 200, 100 }, Origin::CenterTop });
 	}
 
-	void Exit() {
+	void Exit() override {
 		PTGN_LOG("Exited main menu");
 	}
 
-	~MainMenu() {
+	~MainMenu() override {
 		PTGN_LOG("Unloaded main menu");
 	}
 
-	void Update() final {
+	void Update() override {
 		background.Draw();
 		play.Draw();
 	}
@@ -157,8 +157,9 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Cozy Winter Jam", window_size, color::Transparent);
-	game.scene.Enter<MainMenu>(
+	game.Start<MainMenu>(
 		"main_menu", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 500 } }
 	);
+	PTGN_LOG("The end");
 	return 0;
 }
