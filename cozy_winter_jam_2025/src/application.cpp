@@ -130,7 +130,6 @@ class GameScene : public Scene {
 			// PTGN_LOG("Stopped moving");
 			player.Get<AnimationMap>().GetActive().Reset();
 		};
-
 		return entity;
 	}
 
@@ -153,11 +152,10 @@ class GameScene : public Scene {
 					// PTGN_LOG("Started fading in");
 					text.SetVisibility(true);
 					fade_out.Stop();
-					start_text_color = text.GetColor();
 				})
 				.OnUpdate([&](float f) {
 					// PTGN_LOG("Fading in");
-					Color color{ start_text_color };
+					Color color{ text.GetColor() };
 					color.a = static_cast<std::uint8_t>(255.0f * f);
 					text.SetColor(color);
 				});
@@ -182,7 +180,6 @@ class GameScene : public Scene {
 				.OnStart([&]() {
 					// PTGN_LOG("Starting fade out");
 					fade_in.Stop();
-					start_text_color = text.GetColor();
 				})
 				.OnComplete([&]() {
 					// PTGN_LOG("Completed fade out");
@@ -191,7 +188,7 @@ class GameScene : public Scene {
 				})
 				.OnUpdate([&](float f) {
 					// PTGN_LOG("Fading out");
-					Color color{ start_text_color };
+					Color color{ text.GetColor() };
 					color.a = static_cast<std::uint8_t>(255.0f * f);
 					text.SetColor(color);
 				});
@@ -242,7 +239,6 @@ class GameScene : public Scene {
 		Tween jump_animation;
 		Tween fade_in;
 		Tween fade_out;
-		Color start_text_color;
 	};
 
 	V2_float camera_intro_offset;
@@ -255,6 +251,10 @@ class GameScene : public Scene {
 	Tooltip tree_tooltip{ Text{ "'E' to chop", color::Black }.SetSize(20),
 						  { 0, -25 / camera_zoom },
 						  ui };
+
+	void EnablePlayerInteraction(bool enable = true) {
+		player.Get<BoxColliderGroup>().GetBox("interaction").enabled = enable;
+	}
 
 	void PlayIntro() {
 		player.Get<TopDownMovement>().keys_enabled = false;
@@ -271,8 +271,8 @@ class GameScene : public Scene {
 				player.Get<TopDownMovement>().Move(MoveDirection::Right);
 			})
 			.OnComplete([&]() {
-				player.Get<TopDownMovement>().keys_enabled					 = true;
-				player.Get<BoxColliderGroup>().GetBox("interaction").enabled = true;
+				player.Get<TopDownMovement>().keys_enabled = true;
+				EnablePlayerInteraction();
 				ShowIntroTooltip();
 			});
 		game.tween.Add(intro).Start();
@@ -309,16 +309,25 @@ class GameScene : public Scene {
 
 		game.camera.GetPrimary().SetZoom(camera_zoom);
 
-		PlayIntro();
-		// ShowIntroTooltip();
+		Light ambient{ game.window.GetCenter(), color::Orange };
+		ambient.ambient_color_	   = color::DarkBlue;
+		ambient.ambient_intensity_ = 0.3f;
+		ambient.radius_			   = 400.0f;
+		ambient.compression_	   = 50.0f;
+		ambient.SetIntensity(0.6f);
+		game.light.Load("ambient_light", ambient);
+
+		// PlayIntro();
+		EnablePlayerInteraction();
+		ShowIntroTooltip();
 	}
 
 	void Update() override {
+		auto& player_pos = player.Get<Transform>().position;
 		if (player.Get<TopDownMovement>().keys_enabled) {
-			game.camera.GetPrimary().SetPosition(player.Get<Transform>().position);
+			game.camera.GetPrimary().SetPosition(player_pos);
 		}
 		Draw();
-		DrawUI();
 	}
 
 	// Minimum pixels of separation between tree trunk centers.
@@ -383,6 +392,8 @@ class GameScene : public Scene {
 		manager.Refresh();
 	}
 
+	float sky_opacity{ 128.0f };
+
 	void Draw() {
 		GenerateTerrain();
 
@@ -392,14 +403,32 @@ class GameScene : public Scene {
 		/*for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
 		}*/
+
+		Color dusk{ color::DarkBlue };
+
+		if (game.input.KeyPressed(Key::UP)) {
+			sky_opacity += 10.0f * game.dt();
+		}
+		if (game.input.KeyPressed(Key::DOWN)) {
+			sky_opacity -= 10.0f * game.dt();
+		}
+		sky_opacity = std::clamp(sky_opacity, 0.0f, 255.0f);
+
+		dusk.a = static_cast<std::uint8_t>(sky_opacity);
+		game.camera.GetPrimary().GetRect().Draw(dusk);
+
+		game.light.Get("ambient_light").SetPosition(game.window.GetCenter());
+		game.light.Draw();
+
 		for (const auto [e, anim_map] : manager.EntitiesWith<AnimationMap>()) {
 			anim_map.Draw(e);
 		}
+
+		DrawUI();
 	}
 
 	void DrawUI() {
 		game.renderer.SetRenderTarget(ui);
-
 		// Draw UI here.
 
 		game.renderer.SetRenderTarget({});
@@ -488,7 +517,7 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Cozy Winter Jam", window_size, color::Transparent);
-	if (false) {
+	if (true) {
 		game.Start<GameScene>(
 			"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
 		);
