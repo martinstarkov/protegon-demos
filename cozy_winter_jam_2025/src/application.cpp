@@ -11,12 +11,218 @@ constexpr CollisionCategory tree_category{ 2 };
 
 struct Tree {};
 
+struct Tooltip {
+	Tooltip() = default;
+
+	Tooltip(const Text& tooltip_text, const V2_float& static_offset, const RenderTarget& ui) :
+		text{ tooltip_text }, offset{ static_offset } {
+		fade_in.During(fade_in_time)
+			.OnStart([&]() {
+				// PTGN_LOG("Started fading in");
+				text.SetVisibility(true);
+				fade_out.Stop();
+			})
+			.OnUpdate([&](float f) {
+				// PTGN_LOG("Fading in");
+				Color color{ text.GetColor() };
+				color.a = static_cast<std::uint8_t>(255.0f * f);
+				text.SetColor(color);
+			});
+		jump_animation.During(up_down_time)
+			.Yoyo()
+			.Ease(TweenEase::InOutSine)
+			.Repeat(-1)
+			.OnUpdate([&](float f) {
+				Rect r{ anchor_position + offset + V2_float{ 0.0f, -f * up_distance },
+						{},
+						Origin::CenterBottom };
+				auto old_r = game.renderer.GetRenderTarget();
+				game.renderer.SetRenderTarget(ui);
+				Rect rect{ ui.TransformToTarget(old_r.TransformToScreen(r.Center())),
+						   ui.ScaleToTarget(old_r.ScaleToScreen(r.size)), Origin::Center };
+				text.Draw(rect);
+				game.renderer.SetRenderTarget(old_r);
+				// PTGN_LOG("Going up and down");
+			});
+		fade_out.During(fade_out_time)
+			.Reverse()
+			.OnStart([&]() {
+				// PTGN_LOG("Starting fade out");
+				fade_in.Stop();
+			})
+			.OnComplete([&]() {
+				// PTGN_LOG("Completed fade out");
+				text.SetVisibility(false);
+				jump_animation.Stop();
+			})
+			.OnUpdate([&](float f) {
+				// PTGN_LOG("Fading out");
+				Color color{ text.GetColor() };
+				color.a = static_cast<std::uint8_t>(255.0f * f);
+				text.SetColor(color);
+			});
+
+		game.tween.Add(jump_animation);
+		game.tween.Add(fade_in);
+		game.tween.Add(fade_out);
+
+		fade_out.KeepAlive(true);
+		fade_in.KeepAlive(true);
+		jump_animation.KeepAlive(true);
+	}
+
+	~Tooltip() {
+		game.tween.Remove(jump_animation);
+		game.tween.Remove(fade_in);
+		game.tween.Remove(fade_out);
+	}
+
+	// @return True if the tooltip is currently visible.
+	bool IsShowing() const {
+		return jump_animation.IsRunning() && text.GetVisibility();
+	}
+
+	void FadeIn() {
+		fade_in.Start();
+		jump_animation.Start();
+	}
+
+	void FadeOut() {
+		if (!jump_animation.IsRunning()) {
+			return;
+		}
+		fade_out.Start();
+	}
+
+	V2_float anchor_position;
+
+private:
+	// How much time it takes in total for the text to go up and back down.
+	seconds up_down_time{ 1 };
+
+	milliseconds fade_in_time{ 400 };
+	milliseconds fade_out_time{ 400 };
+
+	// How much distance above the og_position the tween text moves up.
+	float up_distance{ 15.0f / camera_zoom };
+	Text text;
+	// Static offset of tooltip compared to anchor position.
+	V2_float offset;
+	Tween jump_animation;
+	Tween fade_in;
+	Tween fade_out;
+};
+
+struct Waypoint {
+	Waypoint() = default;
+
+	Waypoint(const Texture& texture) {
+		fade_in.During(fade_in_time)
+			.OnStart([&]() {
+				visible = true;
+				fade_out.Stop();
+			})
+			.OnUpdate([&](float f) { alpha = static_cast<std::uint8_t>(255.0f * f); });
+		jump_animation.During(up_down_time)
+			.Yoyo()
+			.Ease(TweenEase::InOutSine)
+			.Repeat(-1)
+			.OnUpdate([&](float f) {
+				PTGN_ASSERT(texture.IsValid());
+				Rect r{ anchor_position + offset + V2_float{ 0.0f, -f * up_distance },
+						{},
+						Origin::Center };
+				Color color{ color::White };
+				color.a = alpha;
+				texture.Draw(r, { color });
+			});
+		fade_out.During(fade_out_time)
+			.Reverse()
+			.OnStart([&]() { fade_in.Stop(); })
+			.OnComplete([&]() {
+				visible = false;
+				jump_animation.Stop();
+			})
+			.OnUpdate([&](float f) { alpha = static_cast<std::uint8_t>(255.0f * f); });
+
+		game.tween.Add(jump_animation);
+		game.tween.Add(fade_in);
+		game.tween.Add(fade_out);
+
+		fade_out.KeepAlive(true);
+		fade_in.KeepAlive(true);
+		jump_animation.KeepAlive(true);
+	}
+
+	~Waypoint() {
+		game.tween.Remove(jump_animation);
+		game.tween.Remove(fade_in);
+		game.tween.Remove(fade_out);
+	}
+
+	// @return True if the waypoint is currently visible.
+	bool IsShowing() const {
+		return jump_animation.IsRunning() && visible;
+	}
+
+	void FadeIn() {
+		fade_in.Start();
+		jump_animation.Start();
+	}
+
+	void FadeOut() {
+		if (!jump_animation.IsRunning()) {
+			return;
+		}
+		fade_out.Start();
+	}
+
+	V2_float GetAnchorPosition() const {
+		return anchor_position;
+	}
+
+	void SetAnchorPosition(const V2_float& position) {
+		anchor_position = position;
+	}
+
+	// Offset of the texture from the anchor position.
+	void SetStaticOffset(const V2_float& static_offset) {
+		offset = static_offset;
+	}
+
+private:
+	V2_float anchor_position;
+	std::uint8_t alpha{ 255 };
+
+	// How much time it takes in total for the text to go up and back down.
+	seconds up_down_time{ 1 };
+
+	// TODO: Move to constructor
+	milliseconds fade_in_time{ 1000 };
+	milliseconds fade_out_time{ 1000 };
+
+	// How much distance above the og_position the tween text moves up.
+	float up_distance{ 15.0f / camera_zoom };
+	bool visible{ true };
+	// Static offset of tooltip compared to anchor position.
+	V2_float offset;
+	Tween jump_animation;
+	Tween fade_in;
+	Tween fade_out;
+};
+
 class GameScene : public Scene {
 	FractalNoise fractal_noise;
 
 	Texture player_animation{ "resources/entity/player.png" };
 	Texture snow_texture{ "resources/tile/snow.png" };
 	Texture tree_texture{ "resources/tile/tree.png" };
+	Texture waypoint_texture{ "resources/ui/waypoint.png" };
+	Texture arrow_texture{ "resources/ui/arrow.png" };
+
+	RenderTarget ui{ color::Transparent };
+
+	Waypoint waypoint{ waypoint_texture };
 
 	ecs::Entity CreateWall(const Rect& r) {
 		ecs::Entity entity = manager.CreateEntity();
@@ -84,22 +290,15 @@ class GameScene : public Scene {
 		milliseconds animation_duration{ 500 };
 
 		auto& anim_map = entity.Add<AnimationMap>(
-			"down",
-			Animation{ player_animation, animation_count.x, animation_size, animation_duration }
+			"down", player_animation, animation_count.x, animation_size, animation_duration
 		);
 		anim_map.Load(
-			"right", Animation{ player_animation,
-								animation_count.x,
-								animation_size,
-								animation_duration,
-								{ 0, animation_size.y } }
+			"right", player_animation, animation_count.x, animation_size, animation_duration,
+			V2_float{ 0, animation_size.y }
 		);
 		anim_map.Load(
-			"up", Animation{ player_animation,
-							 animation_count.x,
-							 animation_size,
-							 animation_duration,
-							 { 0, 2.0f * animation_size.y } }
+			"up", player_animation, animation_count.x, animation_size, animation_duration,
+			V2_float{ 0, 2.0f * animation_size.y }
 		);
 		movement.on_move_start = [=]() {
 			// PTGN_LOG("Started moving");
@@ -139,107 +338,6 @@ class GameScene : public Scene {
 		game.tween.Reset();
 		manager.Clear();
 	}
-
-	RenderTarget ui{ color::Transparent };
-
-	struct Tooltip {
-		Tooltip() = default;
-
-		Tooltip(const Text& tooltip_text, const V2_float& static_offset, const RenderTarget& ui) :
-			text{ tooltip_text }, offset{ static_offset } {
-			fade_in.During(fade_in_time)
-				.OnStart([&]() {
-					// PTGN_LOG("Started fading in");
-					text.SetVisibility(true);
-					fade_out.Stop();
-				})
-				.OnUpdate([&](float f) {
-					// PTGN_LOG("Fading in");
-					Color color{ text.GetColor() };
-					color.a = static_cast<std::uint8_t>(255.0f * f);
-					text.SetColor(color);
-				});
-			jump_animation.During(up_down_time)
-				.Yoyo()
-				.Ease(TweenEase::InOutSine)
-				.Repeat(-1)
-				.OnUpdate([&](float f) {
-					Rect r{ anchor_position + offset + V2_float{ 0.0f, -f * up_distance },
-							{},
-							Origin::CenterBottom };
-					auto old_r = game.renderer.GetRenderTarget();
-					game.renderer.SetRenderTarget(ui);
-					Rect rect{ ui.TransformToTarget(old_r.TransformToScreen(r.Center())),
-							   ui.ScaleToTarget(old_r.ScaleToScreen(r.size)), Origin::Center };
-					text.Draw(rect);
-					game.renderer.SetRenderTarget(old_r);
-					// PTGN_LOG("Going up and down");
-				});
-			fade_out.During(fade_out_time)
-				.Reverse()
-				.OnStart([&]() {
-					// PTGN_LOG("Starting fade out");
-					fade_in.Stop();
-				})
-				.OnComplete([&]() {
-					// PTGN_LOG("Completed fade out");
-					text.SetVisibility(false);
-					jump_animation.Stop();
-				})
-				.OnUpdate([&](float f) {
-					// PTGN_LOG("Fading out");
-					Color color{ text.GetColor() };
-					color.a = static_cast<std::uint8_t>(255.0f * f);
-					text.SetColor(color);
-				});
-
-			game.tween.Add(jump_animation);
-			game.tween.Add(fade_in);
-			game.tween.Add(fade_out);
-
-			fade_out.KeepAlive(true);
-			fade_in.KeepAlive(true);
-			jump_animation.KeepAlive(true);
-		}
-
-		~Tooltip() {
-			game.tween.Remove(jump_animation);
-			game.tween.Remove(fade_in);
-			game.tween.Remove(fade_out);
-		}
-
-		// @return True if the tooltip is currently visible.
-		bool IsShowing() const {
-			return jump_animation.IsRunning() && text.GetVisibility();
-		}
-
-		void FadeIn() {
-			fade_in.Start();
-			jump_animation.Start();
-		}
-
-		void FadeOut() {
-			fade_out.Start();
-		}
-
-		V2_float anchor_position;
-
-	private:
-		// How much time it takes in total for the text to go up and back down.
-		seconds up_down_time{ 1 };
-
-		milliseconds fade_in_time{ 400 };
-		milliseconds fade_out_time{ 400 };
-
-		// How much distance above the og_position the tween text moves up.
-		float up_distance{ 15.0f / camera_zoom };
-		Text text;
-		// Static offset of tooltip compared to anchor position.
-		V2_float offset;
-		Tween jump_animation;
-		Tween fade_in;
-		Tween fade_out;
-	};
 
 	V2_float camera_intro_offset;
 	float camera_intro_start_zoom{ camera_zoom };
@@ -309,6 +407,62 @@ class GameScene : public Scene {
 
 		game.camera.GetPrimary().SetZoom(camera_zoom);
 
+		auto draw_waypoint_arrow = [&](const Color& color, float waypoint_scale) {
+			const auto& player_pos{ player.Get<Transform>().position };
+			const auto& waypoint_pos{ waypoint.GetAnchorPosition() };
+
+			Circle waypoint_hide_circle{ waypoint_pos, 25.0f };
+
+			V2_float dir{ waypoint_pos - player_pos };
+
+			const float arrow_pixels_from_player{ 18.0f };
+
+			V2_float arrow_pos{ player_pos + dir.Normalized() * arrow_pixels_from_player };
+
+			float arrow_rotation{ dir.Angle() };
+
+			V2_float arrow_size{ arrow_texture.GetSize() * waypoint_scale };
+
+			arrow_texture.Draw(
+				Rect{ arrow_pos, arrow_size, Origin::Center, arrow_rotation }, { color }
+			);
+		};
+
+		auto fade_arrow = [&](float f) {
+			Color c{ waypoint_arrow_color };
+			c.a = static_cast<std::uint8_t>(128.0f * f);
+			PTGN_LOG("Fading arrow in/out: ", (int)c.a);
+			std::invoke(draw_waypoint_arrow, c, 1.0f);
+		};
+
+		waypoint_arrow_tween.During(seconds{ 1 })
+			.OnStart([]() { PTGN_LOG("Started fading in"); })
+			.OnComplete([]() { PTGN_LOG("Finished fading in"); })
+			.OnStop([]() { PTGN_LOG("Stopped fading in"); })
+			.OnUpdate(fade_arrow)
+			.During(seconds{ 1 })
+			.Yoyo()
+			.Repeat(-1)
+			.OnUpdate([&](float f) {
+				float waypoint_scale{
+					Lerp(waypoint_arrow_start_scale, waypoint_arrow_end_scale, f)
+				};
+				Color c{ waypoint_arrow_color };
+				c.a = static_cast<std::uint8_t>(128.0f + 128.0f * f);
+				PTGN_LOG("Fading arrow: ", (int)c.a);
+				std::invoke(draw_waypoint_arrow, c, waypoint_scale);
+			})
+			.OnStart([]() { PTGN_LOG("Started fading"); })
+			.OnComplete([]() { PTGN_LOG("Finished fading"); })
+			.OnStop([]() { PTGN_LOG("Stopped fading"); })
+			.During(seconds{ 1 })
+			.OnStart([]() { PTGN_LOG("Started fading out"); })
+			.OnComplete([]() { PTGN_LOG("Finished fading out"); })
+			.OnStop([]() { PTGN_LOG("Stopped fading out"); })
+			.Reverse()
+			.OnUpdate(fade_arrow);
+		waypoint_arrow_tween.KeepAlive(true);
+
 		Light ambient{ game.window.GetCenter(), color::Orange };
 		ambient.ambient_color_	   = color::DarkBlue;
 		ambient.ambient_intensity_ = 0.3f;
@@ -327,6 +481,16 @@ class GameScene : public Scene {
 		if (player.Get<TopDownMovement>().keys_enabled) {
 			game.camera.GetPrimary().SetPosition(player_pos);
 		}
+
+		if (game.input.MouseDown(Mouse::Left)) {
+			auto mouse_pos = game.input.GetMousePosition();
+			waypoint.SetAnchorPosition(mouse_pos);
+			waypoint.FadeIn();
+		}
+		if (game.input.MouseDown(Mouse::Right)) {
+			waypoint.FadeOut();
+		}
+
 		Draw();
 	}
 
@@ -392,6 +556,11 @@ class GameScene : public Scene {
 		manager.Refresh();
 	}
 
+	Tween waypoint_arrow_tween;
+	Color waypoint_arrow_color{ color::Gold };
+	float waypoint_arrow_start_scale{ 1.2f };
+	float waypoint_arrow_end_scale{ 0.8f };
+
 	float sky_opacity{ 128.0f };
 
 	void Draw() {
@@ -400,6 +569,13 @@ class GameScene : public Scene {
 		for (auto [e, t, s] : manager.EntitiesWith<Transform, Sprite>()) {
 			s.Draw(e);
 		}
+
+		if (!waypoint.IsShowing()) {
+			// waypoint_arrow_tween.IncrementTweenPoint();
+		} else {
+			waypoint_arrow_tween.StartIfNotRunning();
+		}
+
 		/*for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
 		}*/
