@@ -15,7 +15,7 @@
             "type": 0,
             "sprite": "resources/tile/bed.png",
             "tile_position": [16, 14],
-            "hitbox_size": [24, 16],
+            "hitbox_size": [32, 24],
             "hitbox_offset": [0, 0],
             "interaction_size": [30, 22],
             "interaction_offset": [-3, -3],
@@ -23,5 +23,5 @@
             "visibility": 1
         }
     },
-    "sequence": ["table", "bed"]
+    "sequence": ["table", "bed", "table"]
 }
