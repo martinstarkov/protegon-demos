@@ -3,64 +3,25 @@
     "table": {
       "type": 0,
       "sprite": "resources/tile/table.png",
-      "tile_position": [
-        7,
-        9
-      ],
-      "hitbox_size": [
-        24,
-        16
-      ],
-      "hitbox_offset": [
-        0,
-        0
-      ],
-      "interaction_size": [
-        30,
-        22
-      ],
-      "interaction_offset": [
-        -3,
-        -3
-      ],
-      "waypoint_offset": [
-        12,
-        8
-      ],
+      "tile_position": [7, 9],
+      "hitbox_size": [24, 16],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [30, 22],
+      "interaction_offset": [-3, -3],
+      "waypoint_offset": [12, 8],
       "visibility": 1
     },
     "bed": {
       "type": 0,
       "sprite": "resources/tile/bed.png",
-      "tile_position": [
-        16,
-        14
-      ],
-      "hitbox_size": [
-        24,
-        16
-      ],
-      "hitbox_offset": [
-        0,
-        0
-      ],
-      "interaction_size": [
-        30,
-        22
-      ],
-      "interaction_offset": [
-        -3,
-        -3
-      ],
-      "waypoint_offset": [
-        12,
-        8
-      ],
+      "tile_position": [16, 14],
+      "hitbox_size": [24, 16],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [30, 22],
+      "interaction_offset": [-3, -3],
+      "waypoint_offset": [12, 8],
       "visibility": 1
     }
   },
-  "sequence": [
-    "table",
-    "bed"
-  ]
+  "sequence": ["table", "bed", "table"]
 }
