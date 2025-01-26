@@ -207,7 +207,17 @@
     }
   },
   "sequence": [
-    { "name": "timer", "seconds_duration": 2 },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 2,
+      "text": "It's been a while"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "I wonder what needs to get done"
+    },
     {
       "name": "table",
       "interaction_type": 0,
