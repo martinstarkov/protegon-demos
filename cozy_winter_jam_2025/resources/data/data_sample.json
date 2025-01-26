@@ -1,8 +1,8 @@
 {
   "house_hitboxes": [
     {
-      "size": [2, 40],
-      "position": [100, 32]
+      "size": [100, 32],
+      "position": [2, 40]
     },
     {
       "size": [6, 16],
@@ -13,7 +13,7 @@
       "position": [2, 104]
     },
     {
-      "size": [19, 25],
+      "size": [15, 25],
       "position": [8, 111]
     },
     {
