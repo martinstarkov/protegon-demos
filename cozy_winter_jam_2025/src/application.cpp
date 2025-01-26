@@ -559,7 +559,7 @@ class GameScene : public Scene {
 		} else {
 			PTGN_ASSERT(data.contains("items"));
 			const auto& items{ data.at("items") };
-			PTGN_ASSERT(items.contains(name), "Sequence item missing from json items");
+			PTGN_ASSERT(items.contains(name), "Sequence item missing from json items: ", name);
 			PTGN_ASSERT(e.contains("interaction_type"));
 			PTGN_ASSERT(e.contains("tooltip_text"));
 			const auto& item{ items.at(name) };
@@ -645,15 +645,49 @@ class GameScene : public Scene {
 			[&](Collision collision) {
 				if (game.input.KeyDown(Key::E)) {
 					collision.entity1.Get<BoxColliderGroup>().GetBox("interaction").enabled = false;
-					tooltip.on_complete = [&]() {
+					tooltip.on_complete = [=]() mutable {
 						switch (current_interaction_type) {
 							case InteractionType::None: break;
 							case InteractionType::Letter:
 								player.Get<TopDownMovement>().keys_enabled = false;
 								show_letter								   = true;
 								break;
-							default: break;
+							case InteractionType::Tree:		 collision.entity1.Destroy(); break;
+							case InteractionType::Fireplace: {
+								V2_float fireplace_size{ 26, 40 };
+								auto& anim{ collision.entity1.Add<Animation>(
+									Texture{ "resources/tile/fireplace_anim.png" }, 3,
+									fireplace_size, milliseconds{ 300 }, V2_float{}, V2_float{},
+									Origin::TopLeft
+								) };
+								anim.Start();
+								const Camera& c{ game.camera.GetPrimary() };
+								Light firelight{ c.TransformToScreen(
+													 collision.entity1.Get<Transform>().position +
+													 fireplace_size
+												 ),
+												 color::Orange };
+								firelight.ambient_color_	 = color::Transparent;
+								firelight.ambient_intensity_ = 0.0f;
+								firelight.radius_			 = 400.0f;
+								firelight.compression_		 = 40.0f;
+								firelight.SetIntensity(0.6f);
+								game.light.Load("fireplace", firelight);
+								break;
+							}
+							case InteractionType::RecordPlayer: PTGN_LOG("RecordPlayer"); break;
+							case InteractionType::Dirt1:		PTGN_LOG("Dirt1"); break;
+							case InteractionType::Dirt2:		PTGN_LOG("Dirt2"); break;
+							case InteractionType::Pot1:			PTGN_LOG("Pot1"); break;
+							case InteractionType::Pantry:		PTGN_LOG("Pantry"); break;
+							case InteractionType::Pot2:			PTGN_LOG("Pot2"); break;
+							case InteractionType::Mushroom:		PTGN_LOG("Mushroom"); break;
+							case InteractionType::Pot3:			PTGN_LOG("Pot3"); break;
+							case InteractionType::Bed1:			PTGN_LOG("Bed1"); break;
+							case InteractionType::Bed2:			PTGN_LOG("Bed2"); break;
+							default:							break;
 						}
+						manager.Refresh();
 						StartSequence(++sequence_index);
 						tooltip.on_complete = nullptr;
 					};
@@ -767,13 +801,13 @@ class GameScene : public Scene {
 			}
 		);
 
-		Light ambient{ game.window.GetCenter(), color::Orange };
-		ambient.ambient_color_	   = color::DarkBlue;
-		ambient.ambient_intensity_ = 0.3f;
-		ambient.radius_			   = 400.0f;
-		ambient.compression_	   = 50.0f;
-		ambient.SetIntensity(0.6f);
-		game.light.Load("ambient_light", ambient);
+		/*	Light ambient{ game.window.GetCenter(), color::Orange };
+			ambient.ambient_color_	   = color::DarkBlue;
+			ambient.ambient_intensity_ = 0.3f;
+			ambient.radius_			   = 400.0f;
+			ambient.compression_	   = 50.0f;
+			ambient.SetIntensity(0.6f);
+			game.light.Load("ambient_light", ambient);*/
 
 #ifdef MENU_SCENES
 		data = game.json.Get("data");
@@ -923,7 +957,11 @@ class GameScene : public Scene {
 		// game.camera.GetPrimary().GetRect().Draw(dusk);
 
 		// game.light.Get("ambient_light").SetPosition(player_pos);
-		// game.light.Draw();
+		game.light.Draw();
+
+		for (const auto [e, anim] : manager.EntitiesWith<Animation>()) {
+			anim.Draw(e);
+		}
 
 		for (const auto [e, anim_map] : manager.EntitiesWith<AnimationMap>()) {
 			anim_map.Draw(e);
