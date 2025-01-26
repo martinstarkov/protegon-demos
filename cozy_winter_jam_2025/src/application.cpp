@@ -559,7 +559,7 @@ class GameScene : public Scene {
 		} else {
 			PTGN_ASSERT(data.contains("items"));
 			const auto& items{ data.at("items") };
-			PTGN_ASSERT(items.contains(name), "Sequence item missing from json items");
+			PTGN_ASSERT(items.contains(name), "Sequence item missing from json items: ", name);
 			PTGN_ASSERT(e.contains("interaction_type"));
 			PTGN_ASSERT(e.contains("tooltip_text"));
 			const auto& item{ items.at(name) };
@@ -645,15 +645,36 @@ class GameScene : public Scene {
 			[&](Collision collision) {
 				if (game.input.KeyDown(Key::E)) {
 					collision.entity1.Get<BoxColliderGroup>().GetBox("interaction").enabled = false;
-					tooltip.on_complete = [&]() {
+					tooltip.on_complete = [=]() mutable {
 						switch (current_interaction_type) {
 							case InteractionType::None: break;
 							case InteractionType::Letter:
 								player.Get<TopDownMovement>().keys_enabled = false;
 								show_letter								   = true;
 								break;
-							default: break;
+							case InteractionType::Tree:		 collision.entity1.Destroy(); break;
+							case InteractionType::Fireplace: {
+								auto& anim{ collision.entity1.Add<Animation>(
+									Texture{ "resources/tile/fireplace_anim.png" }, 3,
+									V2_float{ 26, 40 }, milliseconds{ 300 }, V2_float{}, V2_float{},
+									Origin::TopLeft
+								) };
+								anim.Start();
+								break;
+							}
+							case InteractionType::RecordPlayer: PTGN_LOG("RecordPlayer"); break;
+							case InteractionType::Dirt1:		PTGN_LOG("Dirt1"); break;
+							case InteractionType::Dirt2:		PTGN_LOG("Dirt2"); break;
+							case InteractionType::Pot1:			PTGN_LOG("Pot1"); break;
+							case InteractionType::Pantry:		PTGN_LOG("Pantry"); break;
+							case InteractionType::Pot2:			PTGN_LOG("Pot2"); break;
+							case InteractionType::Mushroom:		PTGN_LOG("Mushroom"); break;
+							case InteractionType::Pot3:			PTGN_LOG("Pot3"); break;
+							case InteractionType::Bed1:			PTGN_LOG("Bed1"); break;
+							case InteractionType::Bed2:			PTGN_LOG("Bed2"); break;
+							default:							break;
 						}
+						manager.Refresh();
 						StartSequence(++sequence_index);
 						tooltip.on_complete = nullptr;
 					};
