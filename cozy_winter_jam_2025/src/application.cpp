@@ -24,7 +24,7 @@ constexpr int snow_volume{ 60 };
 constexpr int wind_outside_volume{ 128 };
 constexpr int wind_inside_volume{ wind_outside_volume / 2 };
 
-const path json_path{ "resources/data/data_sample.json" };
+const path json_path{ "resources/data/data.json" };
 const path wind_sound_path{ "resources/audio/breeze.ogg" };
 const path music_path{ "resources/audio/music.ogg" };
 const path snow_sound_path{ "resources/audio/snow.ogg" };
@@ -591,10 +591,12 @@ class GameScene : public Scene {
 		entity.Add<RenderLayer>(1);
 		entity.Add<Sprite>(texture, V2_float{}, Origin::TopLeft);
 		auto& b = entity.Add<BoxColliderGroup>(entity, manager);
-		b.AddBox(
-			"body", hitbox_offset, 0.0f, hitbox_size, Origin::TopLeft, true, item_category,
-			{ player_category }, nullptr, nullptr, nullptr, nullptr, false, true
-		);
+		if (!hitbox_size.IsZero()) {
+			b.AddBox(
+				"body", hitbox_offset, 0.0f, hitbox_size, Origin::TopLeft, true, item_category,
+				{ player_category }, nullptr, nullptr, nullptr, nullptr, false, true
+			);
+		}
 		return entity;
 	}
 
@@ -636,7 +638,7 @@ class GameScene : public Scene {
 				tooltip.text.SetContent(tooltip_content);
 				tooltip.FadeIn();
 				tooltip.SetPosition(collision.entity1.Get<BoxColliderGroup>()
-										.GetBox("body")
+										.GetBox("interaction")
 										.GetAbsoluteRect()
 										.GetPosition(Origin::Center));
 			},
@@ -689,8 +691,6 @@ class GameScene : public Scene {
 		for (const auto& [name, item] : items.items()) {
 			PTGN_ASSERT(item.contains("sprite"));
 			PTGN_ASSERT(item.contains("tile_position"));
-			PTGN_ASSERT(item.contains("hitbox_size"));
-			PTGN_ASSERT(item.contains("hitbox_offset"));
 			PTGN_ASSERT(item.contains("visibility"));
 			int visibility{ item.at("visibility") };
 			Texture texture{ item.at("sprite") };
@@ -699,8 +699,12 @@ class GameScene : public Scene {
 			if (item.contains("interaction_offset") && item.contains("interaction_size") &&
 				item.contains("waypoint_offset")) {
 				CreateInteractableItem(
-					name, texture, rect, V2_float{ item.at("hitbox_offset") },
-					V2_float{ item.at("hitbox_size") }, V2_float{ item.at("interaction_offset") },
+					name, texture, rect,
+					(item.contains("hitbox_offset") ? V2_float{ item.at("hitbox_offset") }
+													: V2_float{}),
+					(item.contains("hitbox_size") ? V2_float{ item.at("hitbox_size") } : V2_float{}
+					),
+					V2_float{ item.at("interaction_offset") },
 					V2_float{ item.at("interaction_size") }, visibility
 				);
 			} else {
