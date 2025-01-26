@@ -64,7 +64,7 @@
       "waypoint_offset": [12, 0],
       "visibility": 1
     },
-    "bed": {
+    "bed1": {
       "sprite": "resources/tile/bed.png",
       "tile_position": [15, 13],
       "hitbox_size": [40, 28],
@@ -73,6 +73,16 @@
       "interaction_offset": [0, -4],
       "waypoint_offset": [20, 0],
       "visibility": 1
+    },
+    "bed2": {
+      "sprite": "resources/tile/bed_made.png",
+      "tile_position": [15, 13],
+      "hitbox_size": [40, 28],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [40, 28],
+      "interaction_offset": [0, -4],
+      "waypoint_offset": [20, 0],
+      "visibility": 0
     },
     "fireplace": {
       "sprite": "resources/tile/fireplace.png",
