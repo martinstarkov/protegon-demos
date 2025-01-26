@@ -175,7 +175,7 @@
     },
     { "name": "timer", "seconds_duration": 3 },
     {
-      "name": "pot",
+      "name": "pot1",
       "interaction_type": 6,
       "tooltip_text": "'E' to fill pot"
     },
@@ -186,7 +186,7 @@
       "tooltip_text": "'E' to get potatoes"
     },
     {
-      "name": "pot",
+      "name": "pot2",
       "interaction_type": 8,
       "tooltip_text": "'E' to add potatoes"
     },
@@ -197,19 +197,19 @@
       "tooltip_text": "'E' to pick mushroom"
     },
     {
-      "name": "pot",
+      "name": "pot3",
       "interaction_type": 10,
       "tooltip_text": "'E' to add mushrooms"
     },
     { "name": "timer", "seconds_duration": 3 },
     {
-      "name": "bed",
+      "name": "bed1",
       "interaction_type": 11,
       "tooltip_text": "'E' to make bed"
     },
     { "name": "timer", "seconds_duration": 5 },
     {
-      "name": "bed",
+      "name": "bed2",
       "interaction_type": 12,
       "tooltip_text": "'E' to go to sleep"
     }
