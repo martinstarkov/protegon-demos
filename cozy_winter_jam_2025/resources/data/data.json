@@ -59,8 +59,8 @@
       "tile_position": [2, 0],
       "hitbox_size": [16, 32],
       "hitbox_offset": [8, 0],
-      "interaction_size": [16, 32],
-      "interaction_offset": [8, 0],
+      "interaction_size": [24, 32],
+      "interaction_offset": [0, 0],
       "waypoint_offset": [12, 0],
       "visibility": 1
     },
@@ -116,6 +116,16 @@
     },
     "pot3": {
       "sprite": "resources/tile/pot_soup.png",
+      "tile_position": [17, 2],
+      "hitbox_size": [12, 20],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [12, 26],
+      "interaction_offset": [3, 5],
+      "waypoint_offset": [8, 3],
+      "visibility": 0
+    },
+    "pot4": {
+      "sprite": "resources/tile/pot.png",
       "tile_position": [17, 2],
       "hitbox_size": [12, 20],
       "hitbox_offset": [0, 0],
@@ -204,36 +214,65 @@
       "tooltip_text": "'E' to read letter"
     },
     { "name": "keypress" },
-    { "name": "timer", "seconds_duration": 5 },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Let's get some wood for that fire"
+    },
     {
       "name": "tree",
       "interaction_type": 1,
       "tooltip_text": "'E' to chop wood"
     },
-    { "name": "timer", "seconds_duration": 3 },
+    { "name": "timer", "seconds_duration": 1 },
     {
       "name": "fireplace",
       "interaction_type": 2,
       "tooltip_text": "'E' to light fire"
     },
-    { "name": "timer", "seconds_duration": 3 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Ah that's better"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Some peaceful music would be nice"
+    },
     {
       "name": "record_player",
       "interaction_type": 3,
       "tooltip_text": "'E' to start music"
     },
-    { "name": "timer", "seconds_duration": 3 },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Oh my, it has gotten dusty"
+    },
     {
       "name": "dirt1",
       "interaction_type": 4,
-      "tooltip_text": "'E' to clean-up"
+      "tooltip_text": "'E' to clean up"
     },
     {
       "name": "dirt2",
       "interaction_type": 5,
-      "tooltip_text": "'E' to clean-up"
+      "tooltip_text": "'E' to clean up"
     },
-    { "name": "timer", "seconds_duration": 3 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Clean house, happy house"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "I'm starving..."
+    },
     {
       "name": "pot1",
       "interaction_type": 6,
@@ -257,6 +296,11 @@
     },
     { "name": "timer", "seconds_duration": 1 },
     {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "This soup could use some mushroom"
+    },
+    {
       "name": "mushroom",
       "interaction_type": 9,
       "tooltip_text": "'E' to pick mushroom"
@@ -266,13 +310,33 @@
       "interaction_type": 10,
       "tooltip_text": "'E' to add mushrooms"
     },
-    { "name": "timer", "seconds_duration": 3 },
+    {
+      "name": "timer",
+      "seconds_duration": 2,
+      "text": "Bon appetit"
+    },
+    {
+      "name": "pot4",
+      "interaction_type": 14,
+      "tooltip_text": "'E' to eat"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 2,
+      "text": "That was delicious"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 2,
+      "text": "Well, time to hit the hay"
+    },
     {
       "name": "bed1",
       "interaction_type": 11,
       "tooltip_text": "'E' to make bed"
     },
-    { "name": "timer", "seconds_duration": 5 },
+    { "name": "timer", "seconds_duration": 1 },
     {
       "name": "bed2",
       "interaction_type": 12,
