@@ -2,179 +2,127 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 960, 540 };
+constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int tile_size{ 8, 8 };
-constexpr float camera_zoom{ 3.0f };
+constexpr float camera_zoom{ 4.0f };
 
 constexpr CollisionCategory ground_category{ 1 };
 constexpr CollisionCategory tree_category{ 2 };
 
 struct Tree {};
 
+Tween CreateFadingTween(
+	const std::function<void(float)>& fade_function,
+	const std::function<void(float)>& update_function,
+	const std::function<void()>& start_function	   = nullptr,
+	const std::function<void()>& complete_function = nullptr
+) {
+	Tween tween{ game.tween.Load()
+					 .During(milliseconds{ 150 })
+					 .OnStart(start_function)
+					 .OnUpdate(fade_function)
+					 .During(seconds{ 1 })
+					 .OnStart([](float f) { PTGN_ASSERT(f == 0.0f); })
+					 .Yoyo()
+					 .Repeat(-1)
+					 .Ease(TweenEase::InOutSine)
+					 .OnUpdate(update_function)
+					 .During(milliseconds{ 150 })
+					 .Reverse()
+					 .OnUpdate(fade_function)
+					 .OnComplete(complete_function) };
+	return tween;
+}
+
 struct Tooltip {
 	Tooltip() = default;
 
-	Tooltip(const Text& tooltip_text, const V2_float& static_offset, const RenderTarget& ui) :
-		text{ tooltip_text }, offset{ static_offset } {
-		fade_in.During(fade_in_time)
-			.OnStart([&]() {
-				// PTGN_LOG("Started fading in");
-				text.SetVisibility(true);
-				fade_out.Stop();
-			})
-			.OnUpdate([&](float f) {
-				// PTGN_LOG("Fading in");
-				Color color{ text.GetColor() };
-				color.a = static_cast<std::uint8_t>(255.0f * f);
-				text.SetColor(color);
-			});
-		jump_animation.During(up_down_time)
-			.Yoyo()
-			.Ease(TweenEase::InOutSine)
-			.Repeat(-1)
-			.OnUpdate([&](float f) {
-				Rect r{ anchor_position + offset + V2_float{ 0.0f, -f * up_distance },
-						{},
-						Origin::CenterBottom };
-				auto old_r = game.renderer.GetRenderTarget();
-				game.renderer.SetRenderTarget(ui);
-				Rect rect{ ui.TransformToTarget(old_r.TransformToScreen(r.Center())),
-						   ui.ScaleToTarget(old_r.ScaleToScreen(r.size)), Origin::Center };
-				text.Draw(rect);
-				game.renderer.SetRenderTarget(old_r);
-				// PTGN_LOG("Going up and down");
-			});
-		fade_out.During(fade_out_time)
-			.Reverse()
-			.OnStart([&]() {
-				// PTGN_LOG("Starting fade out");
-				fade_in.Stop();
-			})
-			.OnComplete([&]() {
-				// PTGN_LOG("Completed fade out");
-				text.SetVisibility(false);
-				jump_animation.Stop();
-			})
-			.OnUpdate([&](float f) {
-				// PTGN_LOG("Fading out");
-				Color color{ text.GetColor() };
-				color.a = static_cast<std::uint8_t>(255.0f * f);
-				text.SetColor(color);
-			});
+	Tooltip(Text tooltip_text, const V2_float& static_offset) {
+		auto draw_tooltip = [this, tooltip_text,
+							 static_offset](float alpha, float v_offset) mutable {
+			vertical_offset = v_offset;
+			PTGN_LOG(vertical_offset);
+			auto old_cam{ game.camera.GetPrimary() };
+			Rect r{ old_cam.TransformToScreen(
+						anchor_position + static_offset + V2_float{ 0.0f, vertical_offset }
+					),
+					{},
+					Origin::Center };
+			Color color{ tooltip_text.GetColor() };
+			color.a = static_cast<std::uint8_t>(alpha);
+			tooltip_text.SetColor(color);
+			game.renderer.Flush();
+			game.camera.SetPrimary({});
+			tooltip_text.Draw(r);
+			game.renderer.Flush();
+			game.camera.SetPrimary(old_cam);
+		};
 
-		game.tween.Add(jump_animation);
-		game.tween.Add(fade_in);
-		game.tween.Add(fade_out);
-
-		fade_out.KeepAlive(true);
-		fade_in.KeepAlive(true);
-		jump_animation.KeepAlive(true);
-	}
-
-	~Tooltip() {
-		game.tween.Remove(jump_animation);
-		game.tween.Remove(fade_in);
-		game.tween.Remove(fade_out);
+		tween = CreateFadingTween(
+			[=](float f) mutable { std::invoke(draw_tooltip, 128.0f * f, vertical_offset); },
+			[=](float f) mutable {
+				// How much distance above the og_position the tween text moves up.
+				float up_distance{ 15.0f / camera_zoom };
+				PTGN_LOG("f: ", f);
+				PTGN_LOG("up_distance: ", up_distance);
+				std::invoke(draw_tooltip, 255.0f, -f * up_distance);
+			},
+			[&]() { vertical_offset = 0.0f; }, [&]() { vertical_offset = 0.0f; }
+		);
 	}
 
 	// @return True if the tooltip is currently visible.
 	bool IsShowing() const {
-		return jump_animation.IsRunning() && text.GetVisibility();
+		return tween.IsRunning();
 	}
 
 	void FadeIn() {
-		fade_in.Start();
-		jump_animation.Start();
+		tween.StartIfNotRunning();
 	}
 
 	void FadeOut() {
-		if (!jump_animation.IsRunning()) {
-			return;
-		}
-		fade_out.Start();
+		tween.IncrementTweenPoint();
 	}
 
 	V2_float anchor_position;
 
 private:
-	// How much time it takes in total for the text to go up and back down.
-	seconds up_down_time{ 1 };
-
-	milliseconds fade_in_time{ 400 };
-	milliseconds fade_out_time{ 400 };
-
-	// How much distance above the og_position the tween text moves up.
-	float up_distance{ 15.0f / camera_zoom };
-	Text text;
+	float vertical_offset{ 0.0f };
 	// Static offset of tooltip compared to anchor position.
-	V2_float offset;
-	Tween jump_animation;
-	Tween fade_in;
-	Tween fade_out;
+	Tween tween;
 };
 
 struct Waypoint {
 	Waypoint() = default;
 
 	Waypoint(const Texture& texture) {
-		fade_in.During(fade_in_time)
-			.OnStart([&]() {
-				visible = true;
-				fade_out.Stop();
-			})
-			.OnUpdate([&](float f) { alpha = static_cast<std::uint8_t>(255.0f * f); });
-		jump_animation.During(up_down_time)
-			.Yoyo()
-			.Ease(TweenEase::InOutSine)
-			.Repeat(-1)
-			.OnUpdate([&](float f) {
-				PTGN_ASSERT(texture.IsValid());
-				Rect r{ anchor_position + offset + V2_float{ 0.0f, -f * up_distance },
-						{},
-						Origin::Center };
-				Color color{ color::White };
-				color.a = alpha;
-				texture.Draw(r, { color });
-			});
-		fade_out.During(fade_out_time)
-			.Reverse()
-			.OnStart([&]() { fade_in.Stop(); })
-			.OnComplete([&]() {
-				visible = false;
-				jump_animation.Stop();
-			})
-			.OnUpdate([&](float f) { alpha = static_cast<std::uint8_t>(255.0f * f); });
+		auto draw_waypoint = [&](float alpha, float vertical_offset) {
+			PTGN_ASSERT(texture.IsValid());
+			Rect r{ anchor_position + offset + V2_float{ 0.0f, vertical_offset },
+					{},
+					Origin::Center };
+			Color color{ color::White };
+			color.a = static_cast<std::uint8_t>(alpha);
+			texture.Draw(r, { color });
+		};
 
-		game.tween.Add(jump_animation);
-		game.tween.Add(fade_in);
-		game.tween.Add(fade_out);
-
-		fade_out.KeepAlive(true);
-		fade_in.KeepAlive(true);
-		jump_animation.KeepAlive(true);
-	}
-
-	~Waypoint() {
-		game.tween.Remove(jump_animation);
-		game.tween.Remove(fade_in);
-		game.tween.Remove(fade_out);
+		tween = CreateFadingTween(
+			[=](float f) mutable { std::invoke(draw_waypoint, 128.0f * f, -f * up_distance); },
+			[=](float f) mutable { std::invoke(draw_waypoint, 255.0f, -f * up_distance); }
+		);
 	}
 
 	// @return True if the waypoint is currently visible.
 	bool IsShowing() const {
-		return jump_animation.IsRunning() && visible;
+		return tween.IsRunning();
 	}
 
 	void FadeIn() {
-		fade_in.Start();
-		jump_animation.Start();
+		tween.StartIfNotRunning();
 	}
 
 	void FadeOut() {
-		if (!jump_animation.IsRunning()) {
-			return;
-		}
-		fade_out.Start();
+		tween.IncrementTweenPoint();
 	}
 
 	V2_float GetAnchorPosition() const {
@@ -192,23 +140,12 @@ struct Waypoint {
 
 private:
 	V2_float anchor_position;
-	std::uint8_t alpha{ 255 };
-
-	// How much time it takes in total for the text to go up and back down.
-	seconds up_down_time{ 1 };
-
-	// TODO: Move to constructor
-	milliseconds fade_in_time{ 1000 };
-	milliseconds fade_out_time{ 1000 };
 
 	// How much distance above the og_position the tween text moves up.
 	float up_distance{ 15.0f / camera_zoom };
-	bool visible{ true };
 	// Static offset of tooltip compared to anchor position.
 	V2_float offset;
-	Tween jump_animation;
-	Tween fade_in;
-	Tween fade_out;
+	Tween tween;
 };
 
 class GameScene : public Scene {
@@ -217,10 +154,9 @@ class GameScene : public Scene {
 	Texture player_animation{ "resources/entity/player.png" };
 	Texture snow_texture{ "resources/tile/snow.png" };
 	Texture tree_texture{ "resources/tile/tree.png" };
+	Texture house_texture{ "resources/tile/house.png" };
 	Texture waypoint_texture{ "resources/ui/waypoint.png" };
 	Texture arrow_texture{ "resources/ui/arrow.png" };
-
-	RenderTarget ui{ color::Transparent };
 
 	Waypoint waypoint{ waypoint_texture };
 
@@ -236,7 +172,8 @@ class GameScene : public Scene {
 	ecs::Entity CreatePlayer() {
 		ecs::Entity entity = manager.CreateEntity();
 
-		entity.Add<Transform>(window_size / 2.0f + V2_float{ 100, 100 });
+		V2_float player_starting_position{ -305.0f, 0.0f };
+		entity.Add<Transform>(player_starting_position);
 		auto& rb = entity.Add<RigidBody>();
 
 		V2_float hitbox_size{ 14, 14 };
@@ -301,7 +238,6 @@ class GameScene : public Scene {
 			V2_float{ 0, 2.0f * animation_size.y }
 		);
 		movement.on_move_start = [=]() {
-			// PTGN_LOG("Started moving");
 			player.Get<AnimationMap>().GetActive().StartIfNotRunning();
 		};
 		movement.on_direction_change = [=](MoveDirection) {
@@ -326,7 +262,6 @@ class GameScene : public Scene {
 			a.GetActive().StartIfNotRunning();
 		};
 		movement.on_move_stop = [=]() {
-			// PTGN_LOG("Stopped moving");
 			player.Get<AnimationMap>().GetActive().Reset();
 		};
 		return entity;
@@ -339,16 +274,12 @@ class GameScene : public Scene {
 		manager.Clear();
 	}
 
-	V2_float camera_intro_offset;
+	V2_float camera_intro_offset{ -10, 0 };
 	float camera_intro_start_zoom{ camera_zoom };
 
-	Tooltip wasd_tooltip{ Text{ "'WASD' to move", color::Black }.SetSize(20),
-						  { 0, -25 / camera_zoom },
-						  ui };
+	Tooltip wasd_tooltip{ Text{ "'WASD' to move", color::Black }.SetSize(20), { 0, -5 } };
 
-	Tooltip tree_tooltip{ Text{ "'E' to chop", color::Black }.SetSize(20),
-						  { 0, -25 / camera_zoom },
-						  ui };
+	Tooltip tree_tooltip{ Text{ "'E' to chop", color::Black }.SetSize(20), { 0, -5 } };
 
 	void EnablePlayerInteraction(bool enable = true) {
 		player.Get<BoxColliderGroup>().GetBox("interaction").enabled = enable;
@@ -357,9 +288,8 @@ class GameScene : public Scene {
 	void PlayIntro() {
 		player.Get<TopDownMovement>().keys_enabled = false;
 
-		camera_intro_offset.x = 300;
-		Tween intro;
-		intro.During(seconds{ 5 })
+		game.tween.Load()
+			.During(seconds{ 5 })
 			.Reverse()
 			.OnUpdate([&](float f) {
 				auto& cam{ game.camera.GetPrimary() };
@@ -372,23 +302,34 @@ class GameScene : public Scene {
 				player.Get<TopDownMovement>().keys_enabled = true;
 				EnablePlayerInteraction();
 				ShowIntroTooltip();
-			});
-		game.tween.Add(intro).Start();
+			})
+			.Start();
 	}
 
 	void ShowIntroTooltip() {
-		Tween tooltip_tween;
-		tooltip_tween.During(seconds{ 10 })
-			.OnStart([&]() { wasd_tooltip.FadeIn(); })
+		auto func = [&]() {
+			wasd_tooltip.FadeIn();
+		};
+		game.tween.Load()
+			.During(seconds{ 10 })
+			.OnStart(func)
 			.OnUpdate([&]() {
-				wasd_tooltip.anchor_position =
+				V2_float pos{
 					player.Get<BoxColliderGroup>().GetBox("body").GetAbsoluteRect().GetPosition(
 						Origin::CenterTop
-					);
+					)
+				};
+				wasd_tooltip.anchor_position = pos;
 			})
-			.OnComplete([&]() { wasd_tooltip.FadeOut(); });
-		game.tween.Add(tooltip_tween).Start();
+			.OnComplete([&]() {
+				PTGN_LOG("Fading out wasd tooltip");
+				wasd_tooltip.FadeOut();
+			})
+			.Start();
 	}
+
+	Rect house_rect;
+	Rect house_perimeter;
 
 	void Enter() override {
 		game.renderer.SetClearColor(color::White);
@@ -402,16 +343,21 @@ class GameScene : public Scene {
 		fractal_noise.SetLacunarity(5);
 		fractal_noise.SetPersistence(3);
 
+		house_rect			  = Rect{ { 0, 0 }, house_texture.GetSize(), Origin::Center };
+		house_perimeter		  = house_rect;
+		house_perimeter.size *= 1.5f;
+
 		player = CreatePlayer();
 		manager.Refresh();
 
 		game.camera.GetPrimary().SetZoom(camera_zoom);
 
-		auto draw_waypoint_arrow = [&](const Color& color, float waypoint_scale) {
+		auto draw_waypoint_arrow = [=](float alpha, float waypoint_scale) {
+			Color color{ waypoint_arrow_color };
+			color.a = static_cast<std::uint8_t>(alpha);
+
 			const auto& player_pos{ player.Get<Transform>().position };
 			const auto& waypoint_pos{ waypoint.GetAnchorPosition() };
-
-			Circle waypoint_hide_circle{ waypoint_pos, 25.0f };
 
 			V2_float dir{ waypoint_pos - player_pos };
 
@@ -428,40 +374,15 @@ class GameScene : public Scene {
 			);
 		};
 
-		auto fade_arrow = [&](float f) {
-			Color c{ waypoint_arrow_color };
-			c.a = static_cast<std::uint8_t>(128.0f * f);
-			PTGN_LOG("Fading arrow in/out: ", (int)c.a);
-			std::invoke(draw_waypoint_arrow, c, 1.0f);
-		};
-
-		waypoint_arrow_tween.During(seconds{ 1 })
-			.OnStart([]() { PTGN_LOG("Started fading in"); })
-			.OnComplete([]() { PTGN_LOG("Finished fading in"); })
-			.OnStop([]() { PTGN_LOG("Stopped fading in"); })
-			.OnUpdate(fade_arrow)
-			.During(seconds{ 1 })
-			.Yoyo()
-			.Repeat(-1)
-			.OnUpdate([&](float f) {
-				float waypoint_scale{
+		waypoint_arrow_tween = CreateFadingTween(
+			[=](float f) { std::invoke(draw_waypoint_arrow, 128.0f * f, 1.0f); },
+			[=](float f) mutable {
+				std::invoke(
+					draw_waypoint_arrow, 128.0f + 128.0f * f,
 					Lerp(waypoint_arrow_start_scale, waypoint_arrow_end_scale, f)
-				};
-				Color c{ waypoint_arrow_color };
-				c.a = static_cast<std::uint8_t>(128.0f + 128.0f * f);
-				PTGN_LOG("Fading arrow: ", (int)c.a);
-				std::invoke(draw_waypoint_arrow, c, waypoint_scale);
-			})
-			.OnStart([]() { PTGN_LOG("Started fading"); })
-			.OnComplete([]() { PTGN_LOG("Finished fading"); })
-			.OnStop([]() { PTGN_LOG("Stopped fading"); })
-			.During(seconds{ 1 })
-			.OnStart([]() { PTGN_LOG("Started fading out"); })
-			.OnComplete([]() { PTGN_LOG("Finished fading out"); })
-			.OnStop([]() { PTGN_LOG("Stopped fading out"); })
-			.Reverse()
-			.OnUpdate(fade_arrow);
-		waypoint_arrow_tween.KeepAlive(true);
+				);
+			}
+		);
 
 		Light ambient{ game.window.GetCenter(), color::Orange };
 		ambient.ambient_color_	   = color::DarkBlue;
@@ -471,13 +392,14 @@ class GameScene : public Scene {
 		ambient.SetIntensity(0.6f);
 		game.light.Load("ambient_light", ambient);
 
-		// PlayIntro();
-		EnablePlayerInteraction();
-		ShowIntroTooltip();
+		PlayIntro();
+		// EnablePlayerInteraction();
+		// ShowIntroTooltip();
 	}
 
 	void Update() override {
 		auto& player_pos = player.Get<Transform>().position;
+
 		if (player.Get<TopDownMovement>().keys_enabled) {
 			game.camera.GetPrimary().SetPosition(player_pos);
 		}
@@ -500,6 +422,9 @@ class GameScene : public Scene {
 	void GenerateTree(const Rect& rect) {
 		auto trees{ manager.EntitiesWith<Tree, Transform, BoxCollider>() };
 		V2_float center{ rect.Center() };
+		if (rect.Overlaps(house_perimeter)) {
+			return;
+		}
 		float tree_dist2{ tree_separation_dist * tree_separation_dist };
 		for (auto [e, t, transform, b] : trees) {
 			float dist2{ (center - transform.position).MagnitudeSquared() };
@@ -564,16 +489,20 @@ class GameScene : public Scene {
 	float sky_opacity{ 128.0f };
 
 	void Draw() {
+		auto& player_pos{ player.Get<Transform>().position };
+
 		GenerateTerrain();
 
 		for (auto [e, t, s] : manager.EntitiesWith<Transform, Sprite>()) {
 			s.Draw(e);
 		}
 
-		if (!waypoint.IsShowing()) {
-			// waypoint_arrow_tween.IncrementTweenPoint();
-		} else {
+		house_texture.Draw(house_rect);
+
+		if (waypoint.IsShowing()) {
 			waypoint_arrow_tween.StartIfNotRunning();
+		} else {
+			waypoint_arrow_tween.IncrementTweenPoint();
 		}
 
 		/*for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
@@ -591,24 +520,14 @@ class GameScene : public Scene {
 		sky_opacity = std::clamp(sky_opacity, 0.0f, 255.0f);
 
 		dusk.a = static_cast<std::uint8_t>(sky_opacity);
-		game.camera.GetPrimary().GetRect().Draw(dusk);
+		// game.camera.GetPrimary().GetRect().Draw(dusk);
 
-		game.light.Get("ambient_light").SetPosition(game.window.GetCenter());
-		game.light.Draw();
+		// game.light.Get("ambient_light").SetPosition(player_pos);
+		// game.light.Draw();
 
 		for (const auto [e, anim_map] : manager.EntitiesWith<AnimationMap>()) {
 			anim_map.Draw(e);
 		}
-
-		DrawUI();
-	}
-
-	void DrawUI() {
-		game.renderer.SetRenderTarget(ui);
-		// Draw UI here.
-
-		game.renderer.SetRenderTarget({});
-		ui.Draw();
 	}
 };
 
@@ -618,35 +537,36 @@ public:
 	Color text_color;
 	Color bg_color{ color::Black };
 
-	Tween reading_timer;
-
-	TextScene(seconds reading_duration, std::string_view content, const Color& text_color) :
-		content{ content }, text_color{ text_color }, reading_timer{ reading_duration } {}
+	TextScene(std::string_view content, const Color& text_color) :
+		content{ content }, text_color{ text_color } {}
 
 	Text continue_text{ "Press any key to continue", color::Red };
 	Text text;
+	seconds reading_duration{ 1 };
 
 	void Enter() override {
 		text = Text{ content, text_color };
-		text.SetWrapAfter(300);
-		text.SetSize(20);
+		text.SetWrapAfter(400);
+		text.SetSize(30);
 
 		continue_text.SetVisibility(false);
 
-		reading_timer.OnComplete([&]() {
-			game.event.key.Subscribe(KeyEvent::Down, this, std::function([&](const KeyDownEvent&) {
-										 game.event.key.Unsubscribe(this);
-										 game.scene.Enter<GameScene>(
-											 "game",
-											 SceneTransition{ TransitionType::FadeThroughColor,
-															  milliseconds{ 1000 } }
-												 .SetFadeColorDuration(milliseconds{ 100 })
-										 );
-									 }));
-			continue_text.SetVisibility(true);
-		});
-		game.tween.Add(reading_timer);
-		reading_timer.Start();
+		game.tween.Load()
+			.During(reading_duration)
+			.OnComplete([&]() {
+				game.event.key.Subscribe(
+					KeyEvent::Down, this, std::function([&](const KeyDownEvent&) {
+						game.event.key.Unsubscribe(this);
+						game.scene.Enter<GameScene>(
+							"game", SceneTransition{ TransitionType::FadeThroughColor,
+													 milliseconds{ 1000 } }
+										.SetFadeColorDuration(milliseconds{ 100 })
+						);
+					})
+				);
+				continue_text.SetVisibility(true);
+			})
+			.Start();
 	}
 
 	void Update() override {
@@ -671,7 +591,6 @@ public:
 				SceneTransition{ TransitionType::FadeThroughColor,
 								 milliseconds{ milliseconds{ 1000 } } }
 					.SetFadeColorDuration(milliseconds{ 500 }),
-				seconds{ 0 },
 				"In your busy life full of work and stress you make time once a year to get away "
 				"from it all. Your cabin awaits you in the quiet wilderness of Alaska...",
 				color::White
