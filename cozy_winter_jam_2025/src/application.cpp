@@ -9,7 +9,7 @@ constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
 
-constexpr CollisionCategory ground_category{ 1 };
+constexpr CollisionCategory wall_category{ 1 };
 constexpr CollisionCategory tree_category{ 2 };
 const path json_path{ "resources/data/data_sample.json" };
 
@@ -221,7 +221,7 @@ class GameScene : public Scene {
 		ecs::Entity entity = manager.CreateEntity();
 		entity.Add<Transform>(r.position, r.rotation);
 		auto& box = entity.Add<BoxCollider>(entity, r.size, r.origin);
-		box.SetCollisionCategory(ground_category);
+		box.SetCollisionCategory(wall_category);
 		entity.Add<DrawColor>(color::Purple);
 		return entity;
 	}
@@ -405,15 +405,17 @@ class GameScene : public Scene {
 
 	void SequenceAction(const json& item, int interaction_type, std::string_view tooltip_text) {
 		PTGN_ASSERT(item.contains("tile_position"));
+		PTGN_ASSERT(item.contains("waypoint_offset"));
 		V2_float tile_position{ item.at("tile_position") };
-		PTGN_LOG("tooltip_text: ", tooltip_text);
-		PTGN_LOG("interaction_type: ", interaction_type);
-		PTGN_LOG("tile_position: ", tile_position);
-		/*waypoint.SetAnchorPosition(mouse_pos);
-		waypoint.FadeIn();*/
+		V2_float waypoint_offset{ item.at("waypoint_offset") };
+		V2_float position{ house_rect.GetPosition(Origin::TopLeft) + tile_position * tile_size +
+						   waypoint_offset };
+		waypoint.SetAnchorPosition(position);
+		waypoint.FadeIn();
 	}
 
 	void StartSequence(std::size_t index) {
+		PTGN_ASSERT(data.contains("sequence"));
 		const auto& sequence{ data.at("sequence") };
 		if (index >= sequence.size()) {
 			PTGN_LOG("Reached end of sequence!");
@@ -421,6 +423,7 @@ class GameScene : public Scene {
 		}
 
 		const auto& e{ sequence.at(index) };
+		PTGN_ASSERT(e.contains("name"));
 		const auto& name{ e.at("name") };
 		if (name == "timer") {
 			PTGN_ASSERT(e.contains("seconds_duration"));
@@ -432,6 +435,7 @@ class GameScene : public Scene {
 				SequenceSpawnDelay(time);
 			}
 		} else {
+			PTGN_ASSERT(data.contains("items"));
 			const auto& items{ data.at("items") };
 			PTGN_ASSERT(items.contains(name), "Sequence item missing from json items");
 			PTGN_ASSERT(e.contains("interaction_type"));
@@ -439,6 +443,96 @@ class GameScene : public Scene {
 			const auto& item{ items.at(name) };
 			SequenceAction(item, e.at("interaction_type"), e.at("tooltip_text"));
 		}
+	}
+
+	V2_float GetWaypointDir() const {
+		const auto& player_pos{ player.Get<Transform>().position };
+		const auto& waypoint_pos{ waypoint.GetAnchorPosition() };
+		V2_float dir{ waypoint_pos - player_pos };
+		return dir;
+	}
+
+	bool WithinWaypointRadius(const V2_float& dir) const {
+		return dir.MagnitudeSquared() <
+			   waypoint_arrow_disappear_radius * waypoint_arrow_disappear_radius;
+	}
+
+	void CreateItem(
+		const Texture& texture, const Rect& rect, const V2_float& hitbox_offset,
+		const V2_float& hitbox_size, const V2_float& interaction_offset,
+		const V2_float& interaction_size, int visibility
+	) {
+		auto entity = manager.CreateEntity();
+		entity.Add<Transform>(rect.position);
+		entity.Add<DrawColor>(color::Red);
+		entity.Add<DrawLineWidth>(3.0f);
+		entity.Add<Sprite>(texture);
+		auto& b = entity.Add<BoxColliderGroup>(entity, manager);
+		b.AddBox(
+			"body", hitbox_offset, 0.0f, hitbox_size, Origin::TopLeft, true, wall_category, {},
+			nullptr, nullptr, nullptr, nullptr, false, true
+		);
+		b.AddBox(
+			"interaction", interaction_offset, 0.0f, interaction_size, Origin::TopLeft, false,
+			wall_category, {},
+			[&](const Collision& collision) {
+				PTGN_LOG("Started interacting with ", rect.position);
+				/*if (collision.entity2.Has<Tree>() && !tree_tooltip.IsShowing()) {
+					tree_tooltip.FadeIn();
+					tree_tooltip.anchor_position =
+						collision.entity2.Get<BoxCollider>().GetAbsoluteRect().GetPosition(
+							Origin::CenterTop
+						);
+				}*/
+			},
+			nullptr,
+			[&](const Collision& collision) {
+				PTGN_LOG("Stopped interacting with ", rect.position);
+				/*if (collision.entity2.Has<Tree>() && tree_tooltip.IsShowing() &&
+					tree_tooltip.anchor_position ==
+						collision.entity2.Get<BoxCollider>().GetAbsoluteRect().GetPosition(
+							Origin::CenterTop
+						)) {
+					tree_tooltip.FadeOut();
+				}*/
+			},
+			nullptr, true, false
+		);
+	}
+
+	void GenerateHouse() {
+		PTGN_ASSERT(data.contains("house_hitboxes"));
+		const auto& house_hitboxes{ data.at("house_hitboxes") };
+		V2_float house_pos{ house_rect.GetPosition(Origin::TopLeft) };
+		for (const auto& obj : house_hitboxes) {
+			PTGN_ASSERT(obj.contains("size"));
+			PTGN_ASSERT(obj.contains("position"));
+			Rect r{ house_pos + V2_float{ obj.at("position") }, V2_float{ obj.at("size") },
+					Origin::TopLeft };
+			CreateWall(r);
+		}
+		PTGN_ASSERT(data.contains("items"));
+		const auto& items{ data.at("items") };
+		for (const auto& item : items) {
+			PTGN_ASSERT(item.contains("sprite"));
+			PTGN_ASSERT(item.contains("tile_position"));
+			PTGN_ASSERT(item.contains("hitbox_size"));
+			PTGN_ASSERT(item.contains("hitbox_offset"));
+			PTGN_ASSERT(item.contains("interaction_size"));
+			PTGN_ASSERT(item.contains("interaction_offset"));
+			PTGN_ASSERT(item.contains("waypoint_offset"));
+			PTGN_ASSERT(item.contains("visibility"));
+			int visibility{ item.at("visibility") };
+			Texture texture{ item.at("sprite") };
+			Rect rect{ house_pos + V2_float{ item.at("tile_position") } * tile_size,
+					   texture.GetSize(), Origin::TopLeft };
+			CreateItem(
+				texture, rect, V2_float{ item.at("hitbox_offset") },
+				V2_float{ item.at("hitbox_size") }, V2_float{ item.at("interaction_offset") },
+				V2_float{ item.at("interaction_size") }, visibility
+			);
+		}
+		manager.Refresh();
 	}
 
 	void Enter() override {
@@ -462,11 +556,10 @@ class GameScene : public Scene {
 
 		game.camera.GetPrimary().SetZoom(camera_zoom);
 
-		auto draw_waypoint_arrow = [=](float alpha, float waypoint_scale) {
+		auto draw_waypoint_arrow = [&](float alpha, float waypoint_scale) {
 			const auto& player_pos{ player.Get<Transform>().position };
-			const auto& waypoint_pos{ waypoint.GetAnchorPosition() };
 
-			V2_float dir{ waypoint_pos - player_pos };
+			V2_float dir{ GetWaypointDir() };
 
 			const float arrow_pixels_from_player{ 18.0f };
 
@@ -505,6 +598,7 @@ class GameScene : public Scene {
 #else
 		data = game.json.Load("data", json_path);
 #endif
+		GenerateHouse();
 
 #ifdef START_SEQUENCE
 		PlayIntro();
@@ -602,6 +696,7 @@ class GameScene : public Scene {
 
 	Tween waypoint_arrow_tween;
 	Color waypoint_arrow_color{ color::Gold };
+	float waypoint_arrow_disappear_radius{ 35.0f };
 	float waypoint_arrow_start_scale{ 1.2f };
 	float waypoint_arrow_end_scale{ 0.8f };
 
@@ -618,7 +713,7 @@ class GameScene : public Scene {
 
 		house_texture.Draw(house_rect);
 
-		if (waypoint.IsShowing()) {
+		if (waypoint.IsShowing() && !WithinWaypointRadius(GetWaypointDir())) {
 			waypoint_arrow_tween.StartIfNotRunning();
 		} else {
 			waypoint_arrow_tween.IncrementTweenPoint();
