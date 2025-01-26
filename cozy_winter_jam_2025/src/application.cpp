@@ -8,10 +8,10 @@ using namespace ptgn;
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
-constexpr int tooltip_text_size{ 18 };
+constexpr int tooltip_text_size{ 28 };
 constexpr Color shading_color{ color::White.SetAlpha(0.5f) };
 
-constexpr std::size_t snow_sound_frequency{ 2 };
+constexpr std::size_t sound_frequency{ 2 };
 
 constexpr CollisionCategory wall_category{ 1 };
 constexpr CollisionCategory item_category{ 2 };
@@ -21,6 +21,7 @@ constexpr CollisionCategory interaction_category{ 5 };
 
 constexpr int wind_channel{ 0 };
 constexpr int snow_volume{ 40 };
+constexpr int wood_volume{ 40 };
 constexpr int music_volume{ 60 };
 constexpr int wind_outside_volume{ 128 };
 constexpr int wind_inside_volume{ 80 };
@@ -29,9 +30,12 @@ const path json_path{ "resources/data/data.json" };
 const path wind_sound_path{ "resources/audio/breeze.ogg" };
 const path music_path{ "resources/audio/music.ogg" };
 const path snow_sound_path{ "resources/audio/snow.ogg" };
+const path wood_sound_path{ "resources/audio/wood.ogg" };
 const path text_font_path{ "resources/font/BubbleGum_Regular.ttf" };
 
 struct Tree {};
+
+void GoToMainMenu();
 
 struct ItemName {
 	std::string name;
@@ -352,10 +356,16 @@ class GameScene : public Scene {
 
 		auto on_repeat = [&]() {
 			++anim_repeats;
-			bool repeat{ anim_repeats % snow_sound_frequency == 0 };
-			if (repeat && !PlayerInHouse()) {
+			bool repeat{ anim_repeats % sound_frequency == 0 };
+			if (!repeat) {
+				return;
+			}
+			if (!PlayerInHouse()) {
 				game.sound.Get("snow").SetVolume(snow_volume);
 				game.sound.Get("snow").Play();
+			} else {
+				game.sound.Get("wood").SetVolume(wood_volume);
+				game.sound.Get("wood").Play();
 			}
 		};
 
@@ -615,12 +625,13 @@ class GameScene : public Scene {
 		Dirt1		 = 4,
 		Dirt2		 = 5,
 		Pot1		 = 6,
-		Pantry		 = 7,
+		Pantry1		 = 13,
 		Pot2		 = 8,
 		Mushroom	 = 9,
 		Pot3		 = 10,
 		Bed1		 = 11,
-		Bed2		 = 12
+		Bed2		 = 12,
+		Pantry2		 = 7
 	};
 
 	InteractionType current_interaction_type{ InteractionType::None };
@@ -668,16 +679,14 @@ class GameScene : public Scene {
 								) };
 								anim.Start();
 								const Camera& c{ game.camera.GetPrimary() };
-								Light firelight{ c.TransformToScreen(
-													 collision.entity1.Get<Transform>().position +
-													 fireplace_size / 2.0f
-												 ),
+								Light firelight{ collision.entity1.Get<Transform>().position +
+													 fireplace_size / 2.0f,
 												 color::Orange };
 								firelight.ambient_color_	 = color::Gold;
-								firelight.ambient_intensity_ = 0.3f;
-								firelight.radius_			 = 400.0f;
+								firelight.ambient_intensity_ = 0.0f;
+								firelight.radius_			 = 450.0f;
 								firelight.compression_		 = 40.0f;
-								firelight.SetIntensity(0.7f);
+								firelight.SetIntensity(0.8f);
 								game.light.Load("fireplace", firelight);
 								break;
 							}
@@ -692,7 +701,19 @@ class GameScene : public Scene {
 									Origin::TopLeft
 								);
 								break;
-							case InteractionType::Pantry: break;
+							case InteractionType::Pantry1:
+								GetItem("pantry1").Add<Sprite>(
+									Texture{ "resources/tile/pantry_open.png" }, V2_float{},
+									Origin::TopLeft
+								);
+								break;
+							case InteractionType::Pantry2:
+								GetItem("pantry1").Remove<Sprite>();
+								GetItem("pantry2").Add<Sprite>(
+									Texture{ "resources/tile/pantry.png" }, V2_float{},
+									Origin::TopLeft
+								);
+								break;
 							case InteractionType::Pot2:
 								GetItem("pot2").Add<Sprite>(
 									Texture{ "resources/tile/pot_soup.png" }, V2_float{},
@@ -868,6 +889,7 @@ class GameScene : public Scene {
 		data = game.json.Load("data", json_path);
 #endif
 		game.sound.Get("snow").SetVolume(snow_volume);
+		game.sound.Get("wood").SetVolume(wood_volume);
 		GenerateHouse();
 
 #ifdef START_SEQUENCE
@@ -1011,8 +1033,6 @@ class GameScene : public Scene {
 			ui.Draw();
 		}
 		game.camera.GetPrimary().GetRect().Draw(color::DarkBlue.SetAlpha(0.5f), -1, 10);
-
-		game.light.Draw();
 	}
 };
 
@@ -1055,12 +1075,8 @@ public:
 														 milliseconds{ 1000 } }
 											.SetFadeColorDuration(milliseconds{ 100 })
 							);
-						} else if (transition_to_scene == "game") {
-							game.Start<MainMenu>(
-								"main_menu", SceneTransition{ TransitionType::FadeThroughColor,
-															  milliseconds{ 1000 } }
-												 .SetFadeColorDuration(milliseconds{ 200 })
-							);
+						} else if (transition_to_scene == "menu") {
+							GoToMainMenu();
 						}
 					})
 				);
@@ -1131,9 +1147,16 @@ void GameScene::GameEndSequence() {
 		"text_scene",
 		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ milliseconds{ 4000 } } }
 			.SetFadeColorDuration(milliseconds{ 1000 }),
-		"main_menu", "Press any key to restart...",
+		"main_menu", "Press any key to go to main menu...",
 		"In your cozy cabin, filled with fresh mountain air, you enter a soft slumber...",
 		color::Silver
+	);
+}
+
+void GoToMainMenu() {
+	game.Start<MainMenu>(
+		"main_menu", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
+						 .SetFadeColorDuration(milliseconds{ 200 })
 	);
 }
 
@@ -1149,6 +1172,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.music.Load("music", music_path);
 	game.music.SetVolume(music_volume);
 	game.sound.Load("snow", snow_sound_path);
+	game.sound.Load("wood", wood_sound_path);
 	game.Start<GameScene>(
 		"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
 	);
