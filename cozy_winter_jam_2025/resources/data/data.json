@@ -306,6 +306,11 @@
       "tooltip_text": "'E' to pick mushroom"
     },
     {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Brrr, it is cold out here"
+    },
+    {
       "name": "pot3",
       "interaction_type": 10,
       "tooltip_text": "'E' to add mushrooms"
