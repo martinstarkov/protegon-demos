@@ -1,44 +1,78 @@
 {
-    "items": {
-        "table": {
-            "sprite": "resources/tile/table.png",
-            "tile_position": [7, 9],
-            "hitbox_size": [24, 16],
-            "hitbox_offset": [0, 0],
-            "interaction_size": [30, 22],
-            "interaction_offset": [-3, -3],
-            "waypoint_offset": [12, 8],
-            "visibility": 1
-        },
-        "bed": {
-            "sprite": "resources/tile/bed.png",
-            "tile_position": [16, 14],
-            "hitbox_size": [32, 24],
-            "hitbox_offset": [0, 0],
-            "interaction_size": [30, 22],
-            "interaction_offset": [-3, -3],
-            "waypoint_offset": [12, 8],
-            "visibility": 1
-        }
+  "items": {
+    "table": {
+      "sprite": "resources/tile/table.png",
+      "tile_position": [7, 9],
+      "hitbox_size": [24, 16],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [30, 22],
+      "interaction_offset": [-3, -3],
+      "waypoint_offset": [12, 8],
+      "visibility": 1
     },
-    "sequence": [
-        { "name": "timer", "seconds_duration": 2 },
-        {
-            "name": "timer",
-            "seconds_duration": 3,
-            "text": "Oh wow!"
-        },
-        { "name": "timer", "seconds_duration": 2 },
-        {
-            "name": "table",
-            "interaction_type": 0,
-            "tooltip_text": "'E' to read letter"
-        },
-        { "name": "bed", "interaction_type": 1, "tooltip_text": "'E' to sleep" },
-        {
-            "name": "table",
-            "interaction_type": 2,
-            "tooltip_text": "'E' to write TODO list"
-        }
-    ]
+    "bed": {
+      "sprite": "resources/tile/bed.png",
+      "tile_position": [16, 14],
+      "hitbox_size": [32, 24],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [30, 22],
+      "interaction_offset": [-3, -3],
+      "waypoint_offset": [12, 8],
+      "visibility": 1
+    }
+  },
+  "sequence": [
+    { "name": "timer", "seconds_duration": 2 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Oh wow!"
+    },
+    { "name": "timer", "seconds_duration": 2 },
+    {
+      "name": "table",
+      "interaction_type": 0,
+      "tooltip_text": "'E' to read letter"
+    },
+    { "name": "bed", "interaction_type": 1, "tooltip_text": "'E' to sleep" },
+    {
+      "name": "table",
+      "interaction_type": 2,
+      "tooltip_text": "'E' to write TODO list"
+    }
+  ],
+  "house_hitboxes": [
+    {
+      "size": [2, 40],
+      "position": [100, 32]
+    },
+    {
+      "size": [6, 16],
+      "position": [2, 72]
+    },
+    {
+      "size": [6, 32],
+      "position": [2, 104]
+    },
+    {
+      "size": [19, 25],
+      "position": [8, 111]
+    },
+    {
+      "size": [166, 40],
+      "position": [2, 136]
+    },
+    {
+      "size": [6, 40],
+      "position": [96, 0]
+    },
+    {
+      "size": [66, 42],
+      "position": [102, 0]
+    },
+    {
+      "size": [6, 94],
+      "position": [162, 42]
+    }
+  ]
 }
