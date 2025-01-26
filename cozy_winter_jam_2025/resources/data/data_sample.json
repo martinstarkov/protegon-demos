@@ -120,6 +120,22 @@
       "interaction_offset": [7, 3],
       "waypoint_offset": [13, 1],
       "visibility": 1
+    },
+    "dirt1": {
+      "sprite": "resources/tile/dirt_1.png",
+      "tile_position": [3, 10],
+      "interaction_size": [56, 32],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [25, 0],
+      "visibility": 1
+    },
+    "dirt2": {
+      "sprite": "resources/tile/dirt_2.png",
+      "tile_position": [16, 6],
+      "interaction_size": [24, 40],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [12, 10],
+      "visibility": 1
     }
   },
   "sequence": [
