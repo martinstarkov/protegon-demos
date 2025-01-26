@@ -51,7 +51,7 @@
       "hitbox_offset": [0, 0],
       "interaction_size": [38, 29],
       "interaction_offset": [-3, -3],
-      "waypoint_offset": [17, -3],
+      "waypoint_offset": [18, -3],
       "visibility": 1
     },
     "tree": {
