@@ -16,8 +16,16 @@ constexpr CollisionCategory item_category{ 2 };
 constexpr CollisionCategory tree_category{ 3 };
 constexpr CollisionCategory player_category{ 4 };
 constexpr CollisionCategory interaction_category{ 5 };
+
+constexpr int wind_channel{ 0 };
+constexpr int snow_volume{ 128 };
+constexpr int wind_outside_volume{ 100 };
+constexpr int wind_inside_volume{ wind_outside_volume / 4 };
+
 const path json_path{ "resources/data/data_sample.json" };
-const path wind_music_path{ "resources/audio/breeze.ogg" };
+const path wind_sound_path{ "resources/audio/breeze.ogg" };
+const path music_path{ "resources/audio/music.ogg" };
+const path snow_sound_path{ "resources/audio/snow.ogg" };
 const path text_font_path{ "resources/font/BubbleGum-Regular.ttf" };
 
 struct Tree {};
@@ -251,6 +259,20 @@ class GameScene : public Scene {
 		return entity;
 	}
 
+	std::vector<Rect> house_area;
+
+	bool PlayerInHouse() {
+		const auto& sprite_size{ player.Get<Sprite>().texture.GetSize() };
+		const auto& pos{ player.Get<Transform>().position };
+		Rect player_rec{ pos, sprite_size, Origin::Center };
+		for (const auto& r : house_area) {
+			if (player_rec.Overlaps(r)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	ecs::Entity CreatePlayer() {
 		ecs::Entity entity = manager.CreateEntity();
 
@@ -307,14 +329,26 @@ class GameScene : public Scene {
 		auto& anim_map = entity.Add<AnimationMap>(
 			"down", player_animation, animation_count.x, animation_size, animation_duration
 		);
-		anim_map.Load(
+		auto& a0 = anim_map.GetActive();
+		auto& a1 = anim_map.Load(
 			"right", player_animation, animation_count.x, animation_size, animation_duration,
 			V2_float{ 0, animation_size.y }
 		);
-		anim_map.Load(
+		auto& a2 = anim_map.Load(
 			"up", player_animation, animation_count.x, animation_size, animation_duration,
 			V2_float{ 0, 2.0f * animation_size.y }
 		);
+
+		auto on_repeat = [&]() {
+			if (!PlayerInHouse()) {
+				game.sound.Get("snow").Play();
+			}
+		};
+
+		a0.on_repeat = on_repeat;
+		a1.on_repeat = on_repeat;
+		a2.on_repeat = on_repeat;
+
 		movement.on_move_start = [=]() {
 			player.Get<AnimationMap>().GetActive().StartIfNotRunning();
 		};
@@ -350,6 +384,7 @@ class GameScene : public Scene {
 	void Exit() override {
 		game.tween.Reset();
 		manager.Clear();
+		house_area.clear();
 	}
 
 	V2_float camera_intro_offset{ -250, 0 };
@@ -565,9 +600,19 @@ class GameScene : public Scene {
 	}
 
 	void GenerateHouse() {
+		house_area.clear();
 		PTGN_ASSERT(data.contains("house_hitboxes"));
-		const auto& house_hitboxes{ data.at("house_hitboxes") };
+		PTGN_ASSERT(data.contains("house_overlaps"));
 		V2_float house_pos{ house_rect.GetPosition(Origin::TopLeft) };
+		const auto& house_overlaps{ data.at("house_overlaps") };
+		for (const auto& obj : house_overlaps) {
+			PTGN_ASSERT(obj.contains("size"));
+			PTGN_ASSERT(obj.contains("position"));
+			Rect r{ house_pos + V2_float{ obj.at("position") }, V2_float{ obj.at("size") },
+					Origin::TopLeft };
+			house_area.push_back(r);
+		}
+		const auto& house_hitboxes{ data.at("house_hitboxes") };
 		for (const auto& obj : house_hitboxes) {
 			PTGN_ASSERT(obj.contains("size"));
 			PTGN_ASSERT(obj.contains("position"));
@@ -665,9 +710,11 @@ class GameScene : public Scene {
 #ifdef MENU_SCENES
 		data = game.json.Get("data");
 #else
-		game.music.Get("wind").Play();
+		game.sound.Get("wind").SetVolume(wind_outside_volume);
+		game.sound.Get("wind").Play(wind_channel, -1);
 		data = game.json.Load("data", json_path);
 #endif
+		game.sound.Get("snow").SetVolume(snow_volume);
 		GenerateHouse();
 
 #ifdef START_SEQUENCE
@@ -686,6 +733,13 @@ class GameScene : public Scene {
 		if (player.Get<TopDownMovement>().keys_enabled) {
 			game.camera.GetPrimary().SetPosition(player_pos);
 		}
+
+		if (PlayerInHouse()) {
+			game.sound.Get("wind").SetVolume(wind_outside_volume);
+		} else {
+			game.sound.Get("wind").SetVolume(wind_inside_volume);
+		}
+
 		Draw();
 	}
 
@@ -867,11 +921,13 @@ public:
 	MainMenu() {
 		game.json.Load("data", json_path);
 		game.font.Load("text_font", text_font_path);
-		game.music.Load("wind", wind_music_path);
+		game.music.Load("music", music_path);
+		game.sound.Load("wind", wind_sound_path);
+		game.sound.Load("snow", snow_sound_path);
 	}
 
 	void Enter() override {
-		game.music.Get("wind").Play();
+		game.sound.Get("wind").Play(wind_channel, -1);
 		play.Set<ButtonProperty::OnActivate>([]() {
 			game.scene.Enter<TextScene>(
 				"text_scene",
@@ -905,7 +961,9 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	);
 #else
 	game.font.Load("text_font", text_font_path);
-	game.music.Load("wind", wind_music_path);
+	game.sound.Load("wind", wind_sound_path);
+	game.music.Load("music", music_path);
+	game.sound.Load("snow", snow_sound_path);
 	game.Start<GameScene>(
 		"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
 	);
