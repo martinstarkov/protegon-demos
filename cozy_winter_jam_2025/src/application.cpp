@@ -631,7 +631,8 @@ class GameScene : public Scene {
 		Pot3		 = 10,
 		Bed1		 = 11,
 		Bed2		 = 12,
-		Pantry2		 = 7
+		Pantry2		 = 7,
+		Pot4		 = 14
 	};
 
 	InteractionType current_interaction_type{ InteractionType::None };
@@ -683,9 +684,9 @@ class GameScene : public Scene {
 													 fireplace_size / 2.0f,
 												 color::Orange };
 								firelight.ambient_color_	 = color::Gold;
-								firelight.ambient_intensity_ = 0.0f;
-								firelight.radius_			 = 450.0f;
-								firelight.compression_		 = 40.0f;
+								firelight.ambient_intensity_ = 0.1f;
+								firelight.radius_			 = 600.0f;
+								firelight.compression_		 = 30.0f;
 								firelight.SetIntensity(0.8f);
 								game.light.Load("fireplace", firelight);
 								break;
@@ -708,7 +709,6 @@ class GameScene : public Scene {
 								);
 								break;
 							case InteractionType::Pantry2:
-								GetItem("pantry1").Remove<Sprite>();
 								GetItem("pantry2").Add<Sprite>(
 									Texture{ "resources/tile/pantry.png" }, V2_float{},
 									Origin::TopLeft
@@ -726,6 +726,12 @@ class GameScene : public Scene {
 								GetItem("pot3").Add<Sprite>(
 									Texture{ "resources/tile/pot_soup.png" }, V2_float{},
 									Origin::TopLeft
+
+								);
+								break;
+							case InteractionType::Pot4:
+								GetItem("pot4").Add<Sprite>(
+									Texture{ "resources/tile/pot.png" }, V2_float{}, Origin::TopLeft
 
 								);
 								break;
@@ -953,8 +959,10 @@ class GameScene : public Scene {
 
 		auto cam_rect{ cam.GetRect() };
 
-		V2_int min{ cam_rect.Min() / tile_size - V2_int{ 1 } };
-		V2_int max{ cam_rect.Max() / tile_size + V2_int{ 1 } };
+		V2_float padding{ 40, 40 };
+
+		V2_int min{ (cam_rect.Min() - padding) / tile_size - V2_int{ 1 } };
+		V2_int max{ (cam_rect.Max() + padding) / tile_size + V2_int{ 1 } };
 
 		for (int i{ min.x }; i < max.x; i++) {
 			for (int j{ min.y }; j < max.y; j++) {
@@ -1068,14 +1076,14 @@ public:
 			.OnComplete([&]() {
 				game.event.key.Subscribe(
 					KeyEvent::Down, this, std::function([&](const KeyDownEvent&) {
+						game.event.key.Unsubscribe(this);
 						if (transition_to_scene == "game") {
-							game.event.key.Unsubscribe(this);
 							game.scene.Enter<GameScene>(
 								"game", SceneTransition{ TransitionType::FadeThroughColor,
 														 milliseconds{ 1000 } }
 											.SetFadeColorDuration(milliseconds{ 100 })
 							);
-						} else if (transition_to_scene == "menu") {
+						} else if (transition_to_scene == "main_menu") {
 							GoToMainMenu();
 						}
 					})
