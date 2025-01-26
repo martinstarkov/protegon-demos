@@ -8,8 +8,10 @@ using namespace ptgn;
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
-constexpr int tooltip_text_size{ 20 };
+constexpr int tooltip_text_size{ 22 };
 constexpr Color shading_color{ color::White.SetAlpha(0.5f) };
+
+constexpr std::size_t snow_sound_frequency{ 2 };
 
 constexpr CollisionCategory wall_category{ 1 };
 constexpr CollisionCategory item_category{ 2 };
@@ -18,15 +20,15 @@ constexpr CollisionCategory player_category{ 4 };
 constexpr CollisionCategory interaction_category{ 5 };
 
 constexpr int wind_channel{ 0 };
-constexpr int snow_volume{ 128 };
-constexpr int wind_outside_volume{ 100 };
-constexpr int wind_inside_volume{ wind_outside_volume / 4 };
+constexpr int snow_volume{ 60 };
+constexpr int wind_outside_volume{ 128 };
+constexpr int wind_inside_volume{ wind_outside_volume / 2 };
 
 const path json_path{ "resources/data/data_sample.json" };
 const path wind_sound_path{ "resources/audio/breeze.ogg" };
 const path music_path{ "resources/audio/music.ogg" };
 const path snow_sound_path{ "resources/audio/snow.ogg" };
-const path text_font_path{ "resources/font/BubbleGum-Regular.ttf" };
+const path text_font_path{ "resources/font/BubbleGum_Regular.ttf" };
 
 struct Tree {};
 
@@ -238,6 +240,8 @@ class GameScene : public Scene {
 	FractalNoise fractal_noise;
 
 	Texture player_animation{ "resources/entity/player.png" };
+	Texture letter_texture{ "resources/ui/letter.png" };
+	Texture letter_text_texture{ "resources/ui/letter_text.png" };
 	Texture snow_texture{ "resources/tile/snow.png" };
 	Texture tree_texture{ "resources/tile/tree.png" };
 	Texture house_texture{ "resources/tile/house.png" };
@@ -261,8 +265,10 @@ class GameScene : public Scene {
 
 	std::vector<Rect> house_area;
 
+	V2_float player_size;
+
 	bool PlayerInHouse() {
-		const auto& sprite_size{ player.Get<Sprite>().texture.GetSize() };
+		const auto& sprite_size{ player_size };
 		const auto& pos{ player.Get<Transform>().position };
 		Rect player_rec{ pos, sprite_size, Origin::Center };
 		for (const auto& r : house_area) {
@@ -272,6 +278,8 @@ class GameScene : public Scene {
 		}
 		return false;
 	}
+
+	std::size_t anim_repeats{ 0 };
 
 	ecs::Entity CreatePlayer() {
 		ecs::Entity entity = manager.CreateEntity();
@@ -323,8 +331,9 @@ class GameScene : public Scene {
 		movement.friction = 1.0f;
 
 		V2_uint animation_count{ 4, 3 };
-		V2_float animation_size{ 16, 17 };
-		milliseconds animation_duration{ 500 };
+		player_size				= { 16, 17 };
+		V2_float animation_size = player_size;
+		milliseconds animation_duration{ 1000 };
 
 		auto& anim_map = entity.Add<AnimationMap>(
 			"down", player_animation, animation_count.x, animation_size, animation_duration
@@ -340,7 +349,10 @@ class GameScene : public Scene {
 		);
 
 		auto on_repeat = [&]() {
-			if (!PlayerInHouse()) {
+			++anim_repeats;
+			bool repeat{ anim_repeats % snow_sound_frequency == 0 };
+			if (repeat && !PlayerInHouse()) {
+				game.sound.Get("snow").SetVolume(snow_volume);
 				game.sound.Get("snow").Play();
 			}
 		};
@@ -459,6 +471,26 @@ class GameScene : public Scene {
 		).Start();
 	}
 
+	void SequenceKeyDelay() {
+		auto tween = game.tween.Load().During(milliseconds{ 30 }).Repeat(-1);
+		tween
+			.OnUpdate([=]() mutable {
+				if (game.input.KeyDown(Key::E)) {
+					switch (current_interaction_type) {
+						case InteractionType::None: break;
+						case InteractionType::Letter:
+							player.Get<TopDownMovement>().keys_enabled = true;
+							show_letter								   = false;
+							break;
+						default: break;
+					}
+					StartSequence(++sequence_index);
+					tween.Stop();
+				}
+			})
+			.Start();
+	}
+
 	void SequenceSpawnPlayerText(std::string_view content, seconds duration, const Color& color) {
 		CreateFloatingText(
 			Text{ content, color, "text_font" }
@@ -485,6 +517,7 @@ class GameScene : public Scene {
 		const std::string& name, const json& item, int interaction_type,
 		std::string_view tooltip_text
 	) {
+		current_interaction_type = static_cast<InteractionType>(interaction_type);
 		PTGN_ASSERT(item.contains("tile_position"));
 		PTGN_ASSERT(item.contains("waypoint_offset"));
 		V2_float tile_position{ item.at("tile_position") };
@@ -520,6 +553,9 @@ class GameScene : public Scene {
 			} else {
 				SequenceSpawnDelay(time);
 			}
+		} else if (name == "keypress") {
+			waypoint.FadeOut();
+			SequenceKeyDelay();
 		} else {
 			PTGN_ASSERT(data.contains("items"));
 			const auto& items{ data.at("items") };
@@ -564,6 +600,26 @@ class GameScene : public Scene {
 
 	std::string tooltip_content;
 
+	enum class InteractionType {
+		None		 = -1,
+		Letter		 = 0,
+		Tree		 = 1,
+		Fireplace	 = 2,
+		RecordPlayer = 3,
+		Dirt1		 = 4,
+		Dirt2		 = 5,
+		Pot1		 = 6,
+		Pantry		 = 7,
+		Pot2		 = 8,
+		Mushroom	 = 9,
+		Pot3		 = 10,
+		Bed1		 = 11,
+		Bed2		 = 12
+	};
+
+	InteractionType current_interaction_type{ InteractionType::None };
+	bool show_letter = false;
+
 	ecs::Entity CreateInteractableItem(
 		const std::string& name, const Texture& texture, const Rect& rect,
 		const V2_float& hitbox_offset, const V2_float& hitbox_size,
@@ -582,12 +638,20 @@ class GameScene : public Scene {
 				tooltip.SetPosition(collision.entity1.Get<BoxColliderGroup>()
 										.GetBox("body")
 										.GetAbsoluteRect()
-										.GetPosition(Origin::CenterTop));
+										.GetPosition(Origin::Center));
 			},
 			[&](Collision collision) {
 				if (game.input.KeyDown(Key::E)) {
 					collision.entity1.Get<BoxColliderGroup>().GetBox("interaction").enabled = false;
 					tooltip.on_complete = [&]() {
+						switch (current_interaction_type) {
+							case InteractionType::None: break;
+							case InteractionType::Letter:
+								player.Get<TopDownMovement>().keys_enabled = false;
+								show_letter								   = true;
+								break;
+							default: break;
+						}
 						StartSequence(++sequence_index);
 						tooltip.on_complete = nullptr;
 					};
@@ -735,21 +799,22 @@ class GameScene : public Scene {
 		}
 
 		if (PlayerInHouse()) {
-			game.sound.Get("wind").SetVolume(wind_outside_volume);
-		} else {
 			game.sound.Get("wind").SetVolume(wind_inside_volume);
+		} else {
+			game.sound.Get("wind").SetVolume(wind_outside_volume);
 		}
 
 		Draw();
 	}
 
 	// Minimum pixels of separation between tree trunk centers.
-	float tree_separation_dist{ 100.0f };
+	float tree_separation_dist{ 30.0f };
 
 	void GenerateTree(const Rect& rect) {
 		auto trees{ manager.EntitiesWith<Tree, Transform, BoxCollider>() };
 		V2_float center{ rect.Center() };
-		if (rect.Overlaps(house_perimeter)) {
+		if (rect.Overlaps(house_perimeter) ||
+			rect.Overlaps(Rect{ { -87, -49 }, { 300, 100 }, Origin::TopRight })) {
 			return;
 		}
 		float tree_dist2{ tree_separation_dist * tree_separation_dist };
@@ -858,6 +923,16 @@ class GameScene : public Scene {
 
 		for (const auto [e, anim_map] : manager.EntitiesWith<AnimationMap>()) {
 			anim_map.Draw(e);
+		}
+
+		if (show_letter) {
+			RenderTarget ui{ color::Transparent };
+			ui.SetCamera({});
+			game.renderer.SetRenderTarget(ui);
+			letter_texture.Draw({ game.window.GetCenter(), {}, Origin::Center });
+			letter_text_texture.Draw({ game.window.GetCenter(), {}, Origin::Center });
+			game.renderer.SetRenderTarget({});
+			ui.Draw();
 		}
 	}
 };
