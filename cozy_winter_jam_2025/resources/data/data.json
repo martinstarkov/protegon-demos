@@ -56,9 +56,9 @@
     },
     "tree": {
       "sprite": "resources/tile/tree.png",
-      "tile_position": [-6, 10],
+      "tile_position": [2, 0],
       "hitbox_size": [16, 32],
-      "hitbox_offset": [0, 0],
+      "hitbox_offset": [8, 0],
       "interaction_size": [16, 16],
       "interaction_offset": [0, 20],
       "waypoint_offset": [8, 0],
