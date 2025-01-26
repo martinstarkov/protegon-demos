@@ -41,6 +41,8 @@ struct Tooltip {
 	Tooltip() = default;
 
 	Tooltip(Text tooltip_text, const V2_float& static_offset) {
+		float up_distance{ 15.0f / camera_zoom };
+
 		auto draw_tooltip = [this, tooltip_text, static_offset](
 								float alpha /* [0.0f, 1.0f] */, float v_offset
 							) mutable {
@@ -63,9 +65,9 @@ struct Tooltip {
 		tween = CreateFadingTween(
 			[=](float f) mutable { std::invoke(draw_tooltip, f / 2.0f, vertical_offset); },
 			[=](float f) mutable {
+				float vertical_distance{ up_distance };
 				// How much distance above the og_position the tween text moves up.
-				float up_distance{ 15.0f / camera_zoom };
-				std::invoke(draw_tooltip, 1.0f, -f * up_distance);
+				std::invoke(draw_tooltip, 1.0f, -f * vertical_distance);
 			},
 			[&]() { vertical_offset = 0.0f; }, [&]() { vertical_offset = 0.0f; }
 		);
@@ -160,6 +162,8 @@ class GameScene : public Scene {
 	json data;
 
 	Waypoint waypoint{ waypoint_texture };
+
+	std::size_t sequence_index{ 0 };
 
 	ecs::Entity CreateWall(const Rect& r) {
 		ecs::Entity entity = manager.CreateEntity();
@@ -279,7 +283,7 @@ class GameScene : public Scene {
 	V2_float camera_intro_offset{ -250, 0 };
 	float camera_intro_start_zoom{ camera_zoom };
 
-	Tooltip wasd_tooltip{ Text{ "'WASD' to move", color::Black }.SetSize(20), { 0, -5 } };
+	Tooltip wasd_tooltip{ Text{ "'WASD' to move", color::Black }.SetSize(20), { 0, -15 } };
 
 	Tooltip tree_tooltip{ Text{ "'E' to chop", color::Black }.SetSize(20), { 0, -5 } };
 
@@ -329,6 +333,29 @@ class GameScene : public Scene {
 
 	Rect house_rect;
 	Rect house_perimeter;
+
+	void SequenceSpawnDelay(seconds duration) {
+		game.tween.Load().During(duration).OnComplete([&]() { StartSequence(++sequence_index); });
+	}
+
+	void SequenceSpawnPlayerText(std::string_view content, seconds duration, const Color& color) {
+		game.tween.Load().During(duration).OnComplete([&]() { StartSequence(++sequence_index); });
+	}
+
+	void StartSequence(std::size_t index) {
+		const auto& e{ data.at("sequence").at(index) };
+		const auto& name{ e.at("name") };
+		if (name == "timer") {
+			PTGN_ASSERT(e.contains("seconds_duration"));
+			seconds time{ std::chrono::duration_cast<seconds>(duration<float>{
+				e.at("seconds_duration") }) };
+			if (e.contains("text")) {
+				SequenceSpawnPlayerText(e.at("text"), time, color::Black);
+			} else {
+				SequenceSpawnDelay(time);
+			}
+		}
+	}
 
 	void Enter() override {
 		game.renderer.SetClearColor(color::White);
@@ -402,6 +429,7 @@ class GameScene : public Scene {
 		ShowIntroTooltip();
 		player.Get<Transform>().position = { -150.0f, 0 };
 #endif
+		// StartSequence(sequence_index);
 	}
 
 	void Update() override {
