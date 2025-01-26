@@ -161,53 +161,59 @@
     { "name": "timer", "seconds_duration": 3 },
     {
       "name": "record player",
-      "interaction_type": 0,
+      "interaction_type": 3,
       "tooltip_text": "'E' to start music"
     },
     { "name": "timer", "seconds_duration": 3 },
     {
       "name": "dirt1",
-      "interaction_type": 1,
+      "interaction_type": 4,
       "tooltip_text": "'E' to clean-up"
     },
     {
       "name": "dirt2",
-      "interaction_type": 1,
+      "interaction_type": 5,
       "tooltip_text": "'E' to clean-up"
     },
     { "name": "timer", "seconds_duration": 3 },
     {
       "name": "pot",
-      "interaction_type": 2,
+      "interaction_type": 6,
       "tooltip_text": "'E' to fill pot"
     },
     { "name": "timer", "seconds_duration": 1 },
     {
       "name": "pantry",
-      "interaction_type": 2,
+      "interaction_type": 7,
       "tooltip_text": "'E' to get potatoes"
     },
     {
       "name": "pot",
-      "interaction_type": 2,
+      "interaction_type": 8,
       "tooltip_text": "'E' to add potatoes"
     },
     { "name": "timer", "seconds_duration": 1 },
     {
       "name": "mushroom",
-      "interaction_type": 1,
+      "interaction_type": 9,
       "tooltip_text": "'E' to pick mushroom"
     },
     {
       "name": "pot",
-      "interaction_type": 2,
+      "interaction_type": 10,
       "tooltip_text": "'E' to add mushrooms"
     },
     { "name": "timer", "seconds_duration": 3 },
     {
       "name": "bed",
-      "interaction_type": 1,
+      "interaction_type": 11,
       "tooltip_text": "'E' to make bed"
+    },
+    { "name": "timer", "seconds_duration": 5 },
+    {
+      "name": "bed",
+      "interaction_type": 12,
+      "tooltip_text": "'E' to go to sleep"
     }
   ]
 }
