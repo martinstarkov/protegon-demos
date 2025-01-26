@@ -67,6 +67,8 @@
     "pot": {
       "sprite": "resources/tile/pot.png",
       "tile_position": [17, 2],
+      "hitbox_size": [12, 20],
+      "hitbox_offset": [0, 0],
       "interaction_size": [12, 26],
       "interaction_offset": [3, 5],
       "waypoint_offset": [7, 3],
