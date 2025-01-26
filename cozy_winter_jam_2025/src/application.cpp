@@ -8,7 +8,7 @@ using namespace ptgn;
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
-constexpr int tooltip_text_size{ 22 };
+constexpr int tooltip_text_size{ 18 };
 constexpr Color shading_color{ color::White.SetAlpha(0.5f) };
 
 constexpr std::size_t snow_sound_frequency{ 2 };
@@ -20,10 +20,10 @@ constexpr CollisionCategory player_category{ 4 };
 constexpr CollisionCategory interaction_category{ 5 };
 
 constexpr int wind_channel{ 0 };
-constexpr int snow_volume{ 60 };
-constexpr int music_volume{ 90 };
+constexpr int snow_volume{ 40 };
+constexpr int music_volume{ 60 };
 constexpr int wind_outside_volume{ 128 };
-constexpr int wind_inside_volume{ wind_outside_volume / 2 };
+constexpr int wind_inside_volume{ 80 };
 
 const path json_path{ "resources/data/data.json" };
 const path wind_sound_path{ "resources/audio/breeze.ogg" };
@@ -1022,12 +1022,18 @@ public:
 	Color text_color;
 	Color bg_color{ color::Black };
 
-	bool continue_to{ false };
+	std::string_view transition_to_scene;
 
-	TextScene(bool continue_to, std::string_view content, const Color& text_color) :
-		content{ content }, text_color{ text_color }, continue_to{ continue_to } {}
+	TextScene(
+		std::string_view transition_to_scene, std::string_view continue_text_content,
+		std::string_view content, const Color& text_color
+	) :
+		content{ content },
+		text_color{ text_color },
+		transition_to_scene{ transition_to_scene },
+		continue_text{ continue_text_content, color::Red.SetAlpha(0.0f), "text_font" } {}
 
-	Text continue_text{ "Press any key to continue", color::Red.SetAlpha(0.0f), "text_font" };
+	Text continue_text;
 	Text text;
 	seconds reading_duration{ 4 };
 
@@ -1040,24 +1046,30 @@ public:
 		game.tween.Load()
 			.During(reading_duration)
 			.OnComplete([&]() {
-				if (continue_to) {
-					game.event.key.Subscribe(
-						KeyEvent::Down, this, std::function([&](const KeyDownEvent&) {
+				game.event.key.Subscribe(
+					KeyEvent::Down, this, std::function([&](const KeyDownEvent&) {
+						if (transition_to_scene == "game") {
 							game.event.key.Unsubscribe(this);
 							game.scene.Enter<GameScene>(
 								"game", SceneTransition{ TransitionType::FadeThroughColor,
 														 milliseconds{ 1000 } }
 											.SetFadeColorDuration(milliseconds{ 100 })
 							);
-						})
-					);
-					game.tween.Load()
-						.During(seconds{ 1 })
-						.OnUpdate([&](float f) {
-							continue_text.SetColor(continue_text.GetColor().SetAlpha(f));
-						})
-						.Start();
-				}
+						} else if (transition_to_scene == "game") {
+							game.Start<MainMenu>(
+								"main_menu", SceneTransition{ TransitionType::FadeThroughColor,
+															  milliseconds{ 1000 } }
+												 .SetFadeColorDuration(milliseconds{ 200 })
+							);
+						}
+					})
+				);
+				game.tween.Load()
+					.During(seconds{ 1 })
+					.OnUpdate([&](float f) {
+						continue_text.SetColor(continue_text.GetColor().SetAlpha(f));
+					})
+					.Start();
 			})
 			.Start();
 	}
@@ -1066,11 +1078,9 @@ public:
 		Rect::Fullscreen().Draw(bg_color);
 		Rect text_rect{ game.window.GetCenter(), text.GetSize(), Origin::Center };
 		text.Draw(text_rect);
-		if (continue_to) {
-			continue_text.Draw(
-				{ { text_rect.Center().x, text_rect.Max().y + 30 }, {}, Origin::CenterTop }
-			);
-		}
+		continue_text.Draw(
+			{ { text_rect.Center().x, text_rect.Max().y + 30 }, {}, Origin::CenterTop }
+		);
 	}
 };
 
@@ -1096,7 +1106,7 @@ public:
 				SceneTransition{ TransitionType::FadeThroughColor,
 								 milliseconds{ milliseconds{ 1000 } } }
 					.SetFadeColorDuration(milliseconds{ 500 }),
-				true,
+				"game", "Press any key to continue...",
 				"In your busy life full of work and stress you make time once a year to get away "
 				"from it all. Your cabin awaits you in the quiet wilderness of Alaska...",
 				color::White
@@ -1120,8 +1130,9 @@ void GameScene::GameEndSequence() {
 	game.scene.Enter<TextScene>(
 		"text_scene",
 		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ milliseconds{ 4000 } } }
-			.SetFadeColorDuration(milliseconds{ 500 }),
-		false, "In your cozy cabin, filled with fresh mountain air, you enter a soft slumber...",
+			.SetFadeColorDuration(milliseconds{ 1000 }),
+		"main_menu", "Press any key to restart...",
+		"In your cozy cabin, filled with fresh mountain air, you enter a soft slumber...",
 		color::Silver
 	);
 }
