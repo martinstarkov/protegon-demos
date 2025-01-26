@@ -60,7 +60,7 @@
       "hitbox_size": [16, 32],
       "hitbox_offset": [8, 0],
       "interaction_size": [16, 32],
-      "interaction_offset": [0, 0],
+      "interaction_offset": [8, 0],
       "waypoint_offset": [12, 0],
       "visibility": 1
     },
@@ -69,9 +69,9 @@
       "tile_position": [15, 13],
       "hitbox_size": [40, 28],
       "hitbox_offset": [0, 0],
-      "interaction_size": [40, 42],
-      "interaction_offset": [0, -4],
-      "waypoint_offset": [20, 14],
+      "interaction_size": [40, 28],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [20, 0],
       "visibility": 1
     },
     "bed2": {
@@ -165,8 +165,8 @@
       "sprite": "resources/tile/dirt_1.png",
       "tile_position": [3, 10],
       "interaction_size": [56, 32],
-      "interaction_offset": [0, 0],
-      "waypoint_offset": [25, 0],
+      "interaction_offset": [0, 5],
+      "waypoint_offset": [28, 0],
       "visibility": 1
     },
     "dirt2": {
@@ -174,17 +174,15 @@
       "tile_position": [16, 6],
       "interaction_size": [24, 40],
       "interaction_offset": [0, 0],
-      "waypoint_offset": [12, 10],
+      "waypoint_offset": [12, 15],
       "visibility": 1
     },
     "mushroom": {
       "sprite": "resources/tile/mushroom.png",
-      "tile_position": [-10, 15],
-      "hitbox_size": [15, 14],
-      "hitbox_offset": [0, 1],
-      "interaction_size": [15, 14],
+      "tile_position": [-15, 22],
+      "interaction_size": [16, 16],
       "interaction_offset": [0, 0],
-      "waypoint_offset": [4, -1],
+      "waypoint_offset": [8, 0],
       "visibility": 1
     }
   },
