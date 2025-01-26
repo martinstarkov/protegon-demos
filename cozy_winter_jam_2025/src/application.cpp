@@ -38,8 +38,10 @@ struct Tooltip {
 	Tooltip() = default;
 
 	Tooltip(Text tooltip_text, const V2_float& static_offset) {
-		auto draw_tooltip = [this, tooltip_text,
-							 static_offset](float alpha, float v_offset) mutable {
+		auto draw_tooltip = [this, tooltip_text, static_offset](
+								float alpha /* [0.0f, 1.0f] */, float v_offset
+							) mutable {
+			PTGN_ASSERT(alpha >= 0.0f && alpha <= 1.0f);
 			vertical_offset = v_offset;
 			PTGN_LOG(vertical_offset);
 			auto old_cam{ game.camera.GetPrimary() };
@@ -48,9 +50,7 @@ struct Tooltip {
 					),
 					{},
 					Origin::Center };
-			Color color{ tooltip_text.GetColor() };
-			color.a = static_cast<std::uint8_t>(alpha);
-			tooltip_text.SetColor(color);
+			tooltip_text.SetColor(tooltip_text.GetColor().SetAlpha(alpha));
 			game.renderer.Flush();
 			game.camera.SetPrimary({});
 			tooltip_text.Draw(r);
@@ -59,13 +59,13 @@ struct Tooltip {
 		};
 
 		tween = CreateFadingTween(
-			[=](float f) mutable { std::invoke(draw_tooltip, 128.0f * f, vertical_offset); },
+			[=](float f) mutable { std::invoke(draw_tooltip, f / 2.0f, vertical_offset); },
 			[=](float f) mutable {
 				// How much distance above the og_position the tween text moves up.
 				float up_distance{ 15.0f / camera_zoom };
 				PTGN_LOG("f: ", f);
 				PTGN_LOG("up_distance: ", up_distance);
-				std::invoke(draw_tooltip, 255.0f, -f * up_distance);
+				std::invoke(draw_tooltip, 1.0f, -f * up_distance);
 			},
 			[&]() { vertical_offset = 0.0f; }, [&]() { vertical_offset = 0.0f; }
 		);
@@ -98,17 +98,16 @@ struct Waypoint {
 	Waypoint(const Texture& texture) {
 		auto draw_waypoint = [&](float alpha, float vertical_offset) {
 			PTGN_ASSERT(texture.IsValid());
+			PTGN_ASSERT(alpha >= 0.0f && alpha <= 1.0f);
 			Rect r{ anchor_position + offset + V2_float{ 0.0f, vertical_offset },
 					{},
 					Origin::Center };
-			Color color{ color::White };
-			color.a = static_cast<std::uint8_t>(alpha);
-			texture.Draw(r, { color });
+			texture.Draw(r, { color::White.SetAlpha(alpha) });
 		};
 
 		tween = CreateFadingTween(
-			[=](float f) mutable { std::invoke(draw_waypoint, 128.0f * f, -f * up_distance); },
-			[=](float f) mutable { std::invoke(draw_waypoint, 255.0f, -f * up_distance); }
+			[=](float f) mutable { std::invoke(draw_waypoint, f / 2.0f, -f * up_distance); },
+			[=](float f) mutable { std::invoke(draw_waypoint, 1.0f, -f * up_distance); }
 		);
 	}
 
@@ -172,7 +171,7 @@ class GameScene : public Scene {
 	ecs::Entity CreatePlayer() {
 		ecs::Entity entity = manager.CreateEntity();
 
-		V2_float player_starting_position{ -305.0f, 0.0f };
+		V2_float player_starting_position{ -400.0f, 0.0f };
 		entity.Add<Transform>(player_starting_position);
 		auto& rb = entity.Add<RigidBody>();
 
@@ -274,7 +273,7 @@ class GameScene : public Scene {
 		manager.Clear();
 	}
 
-	V2_float camera_intro_offset{ -10, 0 };
+	V2_float camera_intro_offset{ -250, 0 };
 	float camera_intro_start_zoom{ camera_zoom };
 
 	Tooltip wasd_tooltip{ Text{ "'WASD' to move", color::Black }.SetSize(20), { 0, -5 } };
@@ -289,13 +288,13 @@ class GameScene : public Scene {
 		player.Get<TopDownMovement>().keys_enabled = false;
 
 		game.tween.Load()
-			.During(seconds{ 5 })
+			.During(seconds{ 6 })
 			.Reverse()
 			.OnUpdate([&](float f) {
 				auto& cam{ game.camera.GetPrimary() };
 				// Tween is reversed so zoom is lerped backward.
 				cam.SetZoom(Lerp(camera_zoom, camera_intro_start_zoom, f));
-				cam.SetPosition(player.Get<Transform>().position - camera_intro_offset * f);
+				cam.SetPosition(player.Get<Transform>().position + camera_intro_offset * f);
 				player.Get<TopDownMovement>().Move(MoveDirection::Right);
 			})
 			.OnComplete([&]() {
@@ -353,9 +352,6 @@ class GameScene : public Scene {
 		game.camera.GetPrimary().SetZoom(camera_zoom);
 
 		auto draw_waypoint_arrow = [=](float alpha, float waypoint_scale) {
-			Color color{ waypoint_arrow_color };
-			color.a = static_cast<std::uint8_t>(alpha);
-
 			const auto& player_pos{ player.Get<Transform>().position };
 			const auto& waypoint_pos{ waypoint.GetAnchorPosition() };
 
@@ -370,7 +366,8 @@ class GameScene : public Scene {
 			V2_float arrow_size{ arrow_texture.GetSize() * waypoint_scale };
 
 			arrow_texture.Draw(
-				Rect{ arrow_pos, arrow_size, Origin::Center, arrow_rotation }, { color }
+				Rect{ arrow_pos, arrow_size, Origin::Center, arrow_rotation },
+				{ waypoint_arrow_color.SetAlpha(alpha) }
 			);
 		};
 
@@ -436,7 +433,7 @@ class GameScene : public Scene {
 		auto tree = manager.CreateEntity();
 		tree.Add<Transform>(center);
 		tree.Add<Tree>();
-		V2_float tree_hitbox_size{ 3 * tile_size.x, 4 * tile_size.y };
+		V2_float tree_hitbox_size{ 2 * tile_size.x, 4 * tile_size.y };
 		auto& box = tree.Add<BoxCollider>(tree, tree_hitbox_size, Origin::Center);
 		box.SetCollisionCategory(tree_category);
 		tree.Add<DrawColor>(color::Red);
@@ -540,7 +537,7 @@ public:
 	TextScene(std::string_view content, const Color& text_color) :
 		content{ content }, text_color{ text_color } {}
 
-	Text continue_text{ "Press any key to continue", color::Red };
+	Text continue_text{ "Press any key to continue", color::Red.SetAlpha(0.0f) };
 	Text text;
 	seconds reading_duration{ 1 };
 
@@ -548,8 +545,6 @@ public:
 		text = Text{ content, text_color };
 		text.SetWrapAfter(400);
 		text.SetSize(30);
-
-		continue_text.SetVisibility(false);
 
 		game.tween.Load()
 			.During(reading_duration)
@@ -564,7 +559,12 @@ public:
 						);
 					})
 				);
-				continue_text.SetVisibility(true);
+				game.tween.Load()
+					.During(seconds{ 1 })
+					.OnUpdate([&](float f) {
+						continue_text.SetColor(continue_text.GetColor().SetAlpha(f));
+					})
+					.Start();
 			})
 			.Start();
 	}
