@@ -8,12 +8,23 @@ using namespace ptgn;
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
+constexpr int tooltip_text_size{ 20 };
+constexpr Color shading_color{ color::White.SetAlpha(0.5f) };
 
 constexpr CollisionCategory wall_category{ 1 };
-constexpr CollisionCategory tree_category{ 2 };
+constexpr CollisionCategory item_category{ 2 };
+constexpr CollisionCategory tree_category{ 3 };
+constexpr CollisionCategory player_category{ 4 };
+constexpr CollisionCategory interaction_category{ 5 };
 const path json_path{ "resources/data/data_sample.json" };
+const path wind_music_path{ "resources/audio/breeze.ogg" };
+const path text_font_path{ "resources/font/BubbleGum-Regular.ttf" };
 
 struct Tree {};
+
+struct ItemName {
+	std::string name;
+};
 
 Tween CreateFadingTween(
 	const std::function<void(float)>& fade_function,
@@ -40,23 +51,23 @@ Tween CreateFadingTween(
 struct Tooltip {
 	Tooltip() = default;
 
-	Tooltip(Text tooltip_text, const V2_float& static_offset) {
+	Tooltip(const Text& t, const V2_float& static_offset) : text{ t } {
 		float up_distance{ 15.0f / camera_zoom };
 
-		auto draw_text = [this, tooltip_text,
+		auto draw_text = [this,
 						  static_offset](float alpha /* [0.0f, 1.0f] */, float v_offset) mutable {
 			PTGN_ASSERT(alpha >= 0.0f && alpha <= 1.0f);
 			vertical_offset = v_offset;
 			auto old_cam{ game.camera.GetPrimary() };
 			Rect r{ old_cam.TransformToScreen(
-						anchor_position + static_offset + V2_float{ 0.0f, vertical_offset }
+						GetPosition() + static_offset + V2_float{ 0.0f, vertical_offset }
 					),
 					{},
 					Origin::Center };
-			tooltip_text.SetColor(tooltip_text.GetColor().SetAlpha(alpha));
+			text.SetColor(text.GetColor().SetAlpha(alpha));
 			game.renderer.Flush();
 			game.camera.SetPrimary({});
-			tooltip_text.Draw(r);
+			text.Draw(r);
 			game.renderer.Flush();
 			game.camera.SetPrimary(old_cam);
 		};
@@ -68,7 +79,11 @@ struct Tooltip {
 				// How much distance above the og_position the tween text moves up.
 				std::invoke(draw_text, 1.0f, -f * vertical_distance);
 			},
-			[&]() { vertical_offset = 0.0f; }, [&]() { vertical_offset = 0.0f; }
+			[&]() { vertical_offset = 0.0f; },
+			[&]() {
+				vertical_offset = 0.0f;
+				Invoke(on_complete);
+			}
 		);
 	}
 
@@ -85,9 +100,19 @@ struct Tooltip {
 		tween.IncrementTweenPoint();
 	}
 
-	V2_float anchor_position;
+	void SetPosition(const V2_float& position) {
+		anchor_position = position;
+	}
+
+	V2_float GetPosition() const {
+		return anchor_position;
+	}
+
+	Text text;
+	std::function<void()> on_complete;
 
 private:
+	V2_float anchor_position;
 	float vertical_offset{ 0.0f };
 	// Static offset of tooltip compared to anchor position.
 	Tween tween;
@@ -238,29 +263,24 @@ class GameScene : public Scene {
 
 		auto& b = entity.Add<BoxColliderGroup>(entity, manager);
 		b.AddBox(
-			"body", hitbox_offset, 0.0f, hitbox_size, Origin::CenterBottom, true, 0, {}, nullptr,
-			nullptr, nullptr, nullptr, false, true
+			"body", hitbox_offset, 0.0f, hitbox_size, Origin::CenterBottom, true, player_category,
+			{ wall_category, item_category, tree_category }, nullptr, nullptr, nullptr, nullptr,
+			false, true
 		);
 		b.AddBox(
-			"interaction", {}, 0.0f, { 28, 28 }, Origin::Center, false, 0, {},
-			[&](const Collision& collision) {
-				if (collision.entity2.Has<Tree>() && !tree_tooltip.IsShowing()) {
-					tree_tooltip.FadeIn();
-					tree_tooltip.anchor_position =
-						collision.entity2.Get<BoxCollider>().GetAbsoluteRect().GetPosition(
-							Origin::CenterTop
-						);
-				}
+			"interaction", {}, 0.0f, { 28, 28 }, Origin::Center, false, interaction_category,
+			{ interaction_category, tree_category }, [&](Collision collision) {},
+			[&](Collision collision) {
+				/*collision.entity1.Add<DrawColor>()	= color::Red;
+				collision.entity2.Add<DrawColor>()	= color::Red;
+				collision.entity1.Add<SpriteTint>() = color::Red;
+				collision.entity2.Add<SpriteTint>() = color::Red;*/
 			},
-			nullptr,
-			[&](const Collision& collision) {
-				if (collision.entity2.Has<Tree>() && tree_tooltip.IsShowing() &&
-					tree_tooltip.anchor_position ==
-						collision.entity2.Get<BoxCollider>().GetAbsoluteRect().GetPosition(
-							Origin::CenterTop
-						)) {
-					tree_tooltip.FadeOut();
-				}
+			[&](Collision collision) {
+				/*collision.entity1.Add<DrawColor>()	= color::Green;
+				collision.entity2.Add<DrawColor>()	= color::Green;
+				collision.entity1.Add<SpriteTint>() = color::Green;
+				collision.entity2.Add<SpriteTint>() = color::Green;*/
 			},
 			nullptr, true, false
 		);
@@ -335,9 +355,15 @@ class GameScene : public Scene {
 	V2_float camera_intro_offset{ -250, 0 };
 	float camera_intro_start_zoom{ camera_zoom };
 
-	Tooltip wasd_tooltip{ Text{ "'WASD' to move", color::Black }.SetSize(20), { 0, -15 } };
+	Tooltip wasd_tooltip{ Text{ "'WASD' to move", color::Black, "text_font" }
+							  .SetSize(tooltip_text_size)
+							  .SetShadingColor(shading_color),
+						  { 0, -15 } };
 
-	Tooltip tree_tooltip{ Text{ "'E' to chop", color::Black }.SetSize(20), { 0, -5 } };
+	Tooltip tooltip{ Text{ "NULL", color::Black, "text_font" }
+						 .SetSize(tooltip_text_size)
+						 .SetShadingColor(shading_color),
+					 { 0, -5 } };
 
 	void EnablePlayerInteraction(bool enable = true) {
 		player.Get<BoxColliderGroup>().GetBox("interaction").enabled = enable;
@@ -368,21 +394,26 @@ class GameScene : public Scene {
 		auto func = [&]() {
 			wasd_tooltip.FadeIn();
 		};
-		Tween tween{ game.tween.Load()
-						 .During(seconds{ 10 })
-						 .OnStart(func)
-						 .OnUpdate([&]() {
-							 V2_float pos{ player.Get<BoxColliderGroup>()
-											   .GetBox("body")
-											   .GetAbsoluteRect()
-											   .GetPosition(Origin::CenterTop) };
-							 wasd_tooltip.anchor_position = pos;
-						 })
-						 .OnComplete([&]() {
-							 wasd_tooltip.FadeOut();
-							 StartSequence(sequence_index);
-						 })
-						 .Start() };
+		Tween tween = game.tween.Load("wasd_tooltip").During(seconds{ 8 }).OnStart(func);
+		tween
+			.OnUpdate([&, tween](float f) mutable {
+				V2_float pos{
+					player.Get<BoxColliderGroup>().GetBox("body").GetAbsoluteRect().GetPosition(
+						Origin::CenterTop
+					)
+				};
+				wasd_tooltip.SetPosition(pos);
+				const auto& tdm = player.Get<TopDownMovement>();
+				if (!tdm.IsMoving(MoveDirection::None) && f < 0.8f) {
+					tween.Seek(0.8f);
+				}
+			})
+			.OnComplete([&]() {
+				wasd_tooltip.FadeOut();
+				StartSequence(sequence_index);
+				game.tween.Unload("wasd_tooltip");
+			})
+			.Start();
 	}
 
 	Rect house_rect;
@@ -395,7 +426,10 @@ class GameScene : public Scene {
 
 	void SequenceSpawnPlayerText(std::string_view content, seconds duration, const Color& color) {
 		CreateFloatingText(
-			Text{ content, color }, duration, seconds{ 1 }, 10.0f / camera_zoom,
+			Text{ content, color, "text_font" }
+				.SetSize(tooltip_text_size)
+				.SetShadingColor(shading_color),
+			duration, seconds{ 1 }, 10.0f / camera_zoom,
 			[=]() {
 				return player.Get<Transform>().position + V2_float{ 0, -13 };
 			},
@@ -403,22 +437,38 @@ class GameScene : public Scene {
 		);
 	}
 
-	void SequenceAction(const json& item, int interaction_type, std::string_view tooltip_text) {
+	ecs::Entity GetItem(const std::string& name) {
+		for (auto [e, n] : manager.EntitiesWith<ItemName>()) {
+			if (n.name == name) {
+				return e;
+			}
+		}
+		PTGN_ERROR("Failed to find entity item with name ", name);
+	}
+
+	void SequenceAction(
+		const std::string& name, const json& item, int interaction_type,
+		std::string_view tooltip_text
+	) {
 		PTGN_ASSERT(item.contains("tile_position"));
 		PTGN_ASSERT(item.contains("waypoint_offset"));
 		V2_float tile_position{ item.at("tile_position") };
 		V2_float waypoint_offset{ item.at("waypoint_offset") };
 		V2_float position{ house_rect.GetPosition(Origin::TopLeft) + tile_position * tile_size +
 						   waypoint_offset };
+		auto entity													 = GetItem(name);
+		entity.Get<BoxColliderGroup>().GetBox("interaction").enabled = true;
 		waypoint.SetAnchorPosition(position);
 		waypoint.FadeIn();
+		tooltip_content = tooltip_text;
 	}
 
 	void StartSequence(std::size_t index) {
 		PTGN_ASSERT(data.contains("sequence"));
 		const auto& sequence{ data.at("sequence") };
 		if (index >= sequence.size()) {
-			PTGN_LOG("Reached end of sequence!");
+			waypoint.FadeOut();
+			// PTGN_LOG("Reached end of sequence!");
 			return;
 		}
 
@@ -426,6 +476,7 @@ class GameScene : public Scene {
 		PTGN_ASSERT(e.contains("name"));
 		const auto& name{ e.at("name") };
 		if (name == "timer") {
+			waypoint.FadeOut();
 			PTGN_ASSERT(e.contains("seconds_duration"));
 			seconds time{ std::chrono::duration_cast<seconds>(duration<float>{
 				e.at("seconds_duration") }) };
@@ -441,7 +492,7 @@ class GameScene : public Scene {
 			PTGN_ASSERT(e.contains("interaction_type"));
 			PTGN_ASSERT(e.contains("tooltip_text"));
 			const auto& item{ items.at(name) };
-			SequenceAction(item, e.at("interaction_type"), e.at("tooltip_text"));
+			SequenceAction(name, item, e.at("interaction_type"), e.at("tooltip_text"));
 		}
 	}
 
@@ -457,47 +508,60 @@ class GameScene : public Scene {
 			   waypoint_arrow_disappear_radius * waypoint_arrow_disappear_radius;
 	}
 
-	void CreateItem(
-		const Texture& texture, const Rect& rect, const V2_float& hitbox_offset,
-		const V2_float& hitbox_size, const V2_float& interaction_offset,
-		const V2_float& interaction_size, int visibility
+	ecs::Entity CreateItem(
+		const std::string& name, const Texture& texture, const Rect& rect,
+		const V2_float& hitbox_offset, const V2_float& hitbox_size, int visibility
 	) {
 		auto entity = manager.CreateEntity();
 		entity.Add<Transform>(rect.position);
+		entity.Add<ItemName>(name);
 		entity.Add<DrawColor>(color::Red);
 		entity.Add<DrawLineWidth>(3.0f);
-		entity.Add<Sprite>(texture);
+		entity.Add<RenderLayer>(1);
+		entity.Add<Sprite>(texture, V2_float{}, Origin::TopLeft);
 		auto& b = entity.Add<BoxColliderGroup>(entity, manager);
 		b.AddBox(
-			"body", hitbox_offset, 0.0f, hitbox_size, Origin::TopLeft, true, wall_category, {},
-			nullptr, nullptr, nullptr, nullptr, false, true
+			"body", hitbox_offset, 0.0f, hitbox_size, Origin::TopLeft, true, item_category,
+			{ player_category }, nullptr, nullptr, nullptr, nullptr, false, true
 		);
+		return entity;
+	}
+
+	std::string tooltip_content;
+
+	ecs::Entity CreateInteractableItem(
+		const std::string& name, const Texture& texture, const Rect& rect,
+		const V2_float& hitbox_offset, const V2_float& hitbox_size,
+		const V2_float& interaction_offset, const V2_float& interaction_size, int visibility
+	) {
+		ecs::Entity entity{
+			CreateItem(name, texture, rect, hitbox_offset, hitbox_size, visibility)
+		};
+		auto& b = entity.Get<BoxColliderGroup>();
 		b.AddBox(
 			"interaction", interaction_offset, 0.0f, interaction_size, Origin::TopLeft, false,
-			wall_category, {},
-			[&](const Collision& collision) {
-				PTGN_LOG("Started interacting with ", rect.position);
-				/*if (collision.entity2.Has<Tree>() && !tree_tooltip.IsShowing()) {
-					tree_tooltip.FadeIn();
-					tree_tooltip.anchor_position =
-						collision.entity2.Get<BoxCollider>().GetAbsoluteRect().GetPosition(
-							Origin::CenterTop
-						);
-				}*/
+			interaction_category, { interaction_category },
+			[&](Collision collision) {
+				tooltip.text.SetContent(tooltip_content);
+				tooltip.FadeIn();
+				tooltip.SetPosition(collision.entity1.Get<BoxColliderGroup>()
+										.GetBox("body")
+										.GetAbsoluteRect()
+										.GetPosition(Origin::CenterTop));
 			},
-			nullptr,
-			[&](const Collision& collision) {
-				PTGN_LOG("Stopped interacting with ", rect.position);
-				/*if (collision.entity2.Has<Tree>() && tree_tooltip.IsShowing() &&
-					tree_tooltip.anchor_position ==
-						collision.entity2.Get<BoxCollider>().GetAbsoluteRect().GetPosition(
-							Origin::CenterTop
-						)) {
-					tree_tooltip.FadeOut();
-				}*/
+			[&](Collision collision) {
+				if (game.input.KeyDown(Key::E)) {
+					collision.entity1.Get<BoxColliderGroup>().GetBox("interaction").enabled = false;
+					tooltip.on_complete = [&]() {
+						StartSequence(++sequence_index);
+						tooltip.on_complete = nullptr;
+					};
+					tooltip.FadeOut();
+				}
 			},
-			nullptr, true, false
+			[&](Collision collision) { tooltip.FadeOut(); }, nullptr, true, false
 		);
+		return entity;
 	}
 
 	void GenerateHouse() {
@@ -513,24 +577,29 @@ class GameScene : public Scene {
 		}
 		PTGN_ASSERT(data.contains("items"));
 		const auto& items{ data.at("items") };
-		for (const auto& item : items) {
+		for (const auto& [name, item] : items.items()) {
 			PTGN_ASSERT(item.contains("sprite"));
 			PTGN_ASSERT(item.contains("tile_position"));
 			PTGN_ASSERT(item.contains("hitbox_size"));
 			PTGN_ASSERT(item.contains("hitbox_offset"));
-			PTGN_ASSERT(item.contains("interaction_size"));
-			PTGN_ASSERT(item.contains("interaction_offset"));
-			PTGN_ASSERT(item.contains("waypoint_offset"));
 			PTGN_ASSERT(item.contains("visibility"));
 			int visibility{ item.at("visibility") };
 			Texture texture{ item.at("sprite") };
 			Rect rect{ house_pos + V2_float{ item.at("tile_position") } * tile_size,
 					   texture.GetSize(), Origin::TopLeft };
-			CreateItem(
-				texture, rect, V2_float{ item.at("hitbox_offset") },
-				V2_float{ item.at("hitbox_size") }, V2_float{ item.at("interaction_offset") },
-				V2_float{ item.at("interaction_size") }, visibility
-			);
+			if (item.contains("interaction_offset") && item.contains("interaction_size") &&
+				item.contains("waypoint_offset")) {
+				CreateInteractableItem(
+					name, texture, rect, V2_float{ item.at("hitbox_offset") },
+					V2_float{ item.at("hitbox_size") }, V2_float{ item.at("interaction_offset") },
+					V2_float{ item.at("interaction_size") }, visibility
+				);
+			} else {
+				CreateItem(
+					name, texture, rect, V2_float{ item.at("hitbox_offset") },
+					V2_float{ item.at("hitbox_size") }, visibility
+				);
+			}
 		}
 		manager.Refresh();
 	}
@@ -596,6 +665,7 @@ class GameScene : public Scene {
 #ifdef MENU_SCENES
 		data = game.json.Get("data");
 #else
+		game.music.Get("wind").Play();
 		data = game.json.Load("data", json_path);
 #endif
 		GenerateHouse();
@@ -616,16 +686,6 @@ class GameScene : public Scene {
 		if (player.Get<TopDownMovement>().keys_enabled) {
 			game.camera.GetPrimary().SetPosition(player_pos);
 		}
-
-		if (game.input.MouseDown(Mouse::Left)) {
-			auto mouse_pos = game.input.GetMousePosition();
-			waypoint.SetAnchorPosition(mouse_pos);
-			waypoint.FadeIn();
-		}
-		if (game.input.MouseDown(Mouse::Right)) {
-			waypoint.FadeOut();
-		}
-
 		Draw();
 	}
 
@@ -719,6 +779,8 @@ class GameScene : public Scene {
 			waypoint_arrow_tween.IncrementTweenPoint();
 		}
 
+		game.renderer.Flush();
+
 		// Debug: Draw hitboxes.
 		/*for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
@@ -755,12 +817,12 @@ public:
 	TextScene(std::string_view content, const Color& text_color) :
 		content{ content }, text_color{ text_color } {}
 
-	Text continue_text{ "Press any key to continue", color::Red.SetAlpha(0.0f) };
+	Text continue_text{ "Press any key to continue", color::Red.SetAlpha(0.0f), "text_font" };
 	Text text;
 	seconds reading_duration{ 1 };
 
 	void Enter() override {
-		text = Text{ content, text_color };
+		text = Text{ content, text_color, "text_font" };
 		text.SetWrapAfter(400);
 		text.SetSize(30);
 
@@ -804,9 +866,12 @@ public:
 
 	MainMenu() {
 		game.json.Load("data", json_path);
+		game.font.Load("text_font", text_font_path);
+		game.music.Load("wind", wind_music_path);
 	}
 
 	void Enter() override {
+		game.music.Get("wind").Play();
 		play.Set<ButtonProperty::OnActivate>([]() {
 			game.scene.Enter<TextScene>(
 				"text_scene",
@@ -839,6 +904,8 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		"main_menu", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 500 } }
 	);
 #else
+	game.font.Load("text_font", text_font_path);
+	game.music.Load("wind", wind_music_path);
 	game.Start<GameScene>(
 		"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
 	);
