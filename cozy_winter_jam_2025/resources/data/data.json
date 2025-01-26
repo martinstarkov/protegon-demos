@@ -56,15 +56,15 @@
     },
     "tree": {
       "sprite": "resources/tile/tree.png",
-      "tile_position": [-6, 10],
+      "tile_position": [2, 0],
       "hitbox_size": [16, 32],
-      "hitbox_offset": [0, 0],
-      "interaction_size": [16, 16],
-      "interaction_offset": [0, 20],
-      "waypoint_offset": [8, 0],
+      "hitbox_offset": [8, 0],
+      "interaction_size": [16, 32],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [12, 0],
       "visibility": 1
     },
-    "bed": {
+    "bed1": {
       "sprite": "resources/tile/bed.png",
       "tile_position": [15, 13],
       "hitbox_size": [40, 28],
@@ -73,6 +73,16 @@
       "interaction_offset": [0, -4],
       "waypoint_offset": [20, 0],
       "visibility": 1
+    },
+    "bed2": {
+      "sprite": "resources/tile/bed_made.png",
+      "tile_position": [15, 13],
+      "hitbox_size": [40, 28],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [40, 28],
+      "interaction_offset": [0, -4],
+      "waypoint_offset": [20, 0],
+      "visibility": 0
     },
     "fireplace": {
       "sprite": "resources/tile/fireplace.png",
@@ -84,7 +94,7 @@
       "waypoint_offset": [12, 24],
       "visibility": 1
     },
-    "pot": {
+    "pot1": {
       "sprite": "resources/tile/pot.png",
       "tile_position": [17, 2],
       "hitbox_size": [12, 20],
@@ -93,6 +103,26 @@
       "interaction_offset": [3, 5],
       "waypoint_offset": [7, 3],
       "visibility": 1
+    },
+    "pot2": {
+      "sprite": "resources/tile/pot_water.png",
+      "tile_position": [17, 2],
+      "hitbox_size": [12, 20],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [12, 26],
+      "interaction_offset": [3, 5],
+      "waypoint_offset": [7, 3],
+      "visibility": 0
+    },
+    "pot3": {
+      "sprite": "resources/tile/pot_soup.png",
+      "tile_position": [17, 2],
+      "hitbox_size": [12, 20],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [12, 26],
+      "interaction_offset": [3, 5],
+      "waypoint_offset": [7, 3],
+      "visibility": 0
     },
     "bowl": {
       "sprite": "resources/tile/bowl.png",
@@ -146,6 +176,16 @@
       "interaction_offset": [0, 0],
       "waypoint_offset": [12, 10],
       "visibility": 1
+    },
+    "mushroom": {
+      "sprite": "resources/tile/mushroom.png",
+      "tile_position": [-6, 2],
+      "hitbox_size": [5, 4],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [5, 4],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [0, 0],
+      "visibility": 1
     }
   },
   "sequence": [
@@ -170,7 +210,7 @@
     },
     { "name": "timer", "seconds_duration": 3 },
     {
-      "name": "record player",
+      "name": "record_player",
       "interaction_type": 3,
       "tooltip_text": "'E' to start music"
     },
