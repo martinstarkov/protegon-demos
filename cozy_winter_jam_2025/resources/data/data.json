@@ -169,7 +169,7 @@
       "interaction_size": [18, 21],
       "interaction_offset": [7, 3],
       "waypoint_offset": [13, 1],
-      "visibility": 1
+      "visibility": 0
     },
     "dirt1": {
       "sprite": "resources/tile/dirt_1.png",
