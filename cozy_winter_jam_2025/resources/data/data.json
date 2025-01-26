@@ -180,9 +180,9 @@
     "mushroom": {
       "sprite": "resources/tile/mushroom.png",
       "tile_position": [-10, 15],
-      "hitbox_size": [5, 4],
-      "hitbox_offset": [0, 0],
-      "interaction_size": [5, 4],
+      "hitbox_size": [15, 14],
+      "hitbox_offset": [0, 1],
+      "interaction_size": [15, 14],
       "interaction_offset": [0, 0],
       "waypoint_offset": [0, 0],
       "visibility": 1
