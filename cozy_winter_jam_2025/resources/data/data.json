@@ -53,9 +53,6 @@
       "tile_position": [8, 6],
       "hitbox_size": [27, 27],
       "hitbox_offset": [0, 0],
-      "interaction_size": [30, 22],
-      "interaction_offset": [-3, -3],
-      "waypoint_offset": [12, 8],
       "visibility": 1
     },
     "record_player": {
@@ -70,12 +67,12 @@
     },
     "pantry": {
       "sprite": "resources/tile/pantry.png",
-      "tile_position": [16, 14],
-      "hitbox_size": [32, 24],
-      "hitbox_offset": [0, 0],
-      "interaction_size": [30, 22],
-      "interaction_offset": [-3, -3],
-      "waypoint_offset": [12, 8],
+      "tile_position": [12, 5],
+      "hitbox_size": [13, 23],
+      "hitbox_offset": [7, 3],
+      "interaction_size": [18, 21],
+      "interaction_offset": [7, 3],
+      "waypoint_offset": [13, 1],
       "visibility": 1
     }
   },
