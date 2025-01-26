@@ -87,6 +87,8 @@
     "bowl": {
       "sprite": "resources/tile/bowl.png",
       "tile_position": [12, 13],
+      "hitbox_size": [7, 5],
+      "hitbox_offset": [0, 0],
       "interaction_size": [8, 14],
       "interaction_offset": [0, -8],
       "waypoint_offset": [12, 8],
