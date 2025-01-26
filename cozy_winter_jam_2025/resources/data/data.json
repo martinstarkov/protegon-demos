@@ -2,16 +2,74 @@
   "items": {
     "table": {
       "sprite": "resources/tile/table.png",
-      "tile_position": [7, 9],
-      "hitbox_size": [24, 16],
+      "tile_position": [10, 13],
+      "hitbox_size": [35, 26],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [38, 29],
+      "interaction_offset": [-3, -3],
+      "waypoint_offset": [17, -3],
+      "visibility": 1
+    },
+    "bed": {
+      "sprite": "resources/tile/bed.png",
+      "tile_position": [15, 13],
+      "hitbox_size": [40, 28],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [40, 28],
+      "interaction_offset": [0, -4],
+      "waypoint_offset": [20, 10],
+      "visibility": 1
+    },
+    "fireplace": {
+      "sprite": "resources/tile/fireplace.png",
+      "tile_position": [5, 5],
+      "hitbox_size": [26, 40],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [26, 44],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [12, 24],
+      "visibility": 1
+    },
+    "pot": {
+      "sprite": "resources/tile/pot.png",
+      "tile_position": [17, 2],
+      "interaction_size": [12, 26],
+      "interaction_offset": [3, 5],
+      "waypoint_offset": [7, 3],
+      "visibility": 1
+    },
+    "bowl": {
+      "sprite": "resources/tile/bowl.png",
+      "tile_position": [16, 14],
+      "hitbox_size": [32, 24],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [30, 22],
+      "interaction_offset": [-3, -3],
+      "waypoint_offset": [12, 8],
+      "visibility": 0
+    },
+    "chair": {
+      "sprite": "resources/tile/chair.png",
+      "tile_position": [8, 6],
+      "hitbox_size": [27, 27],
       "hitbox_offset": [0, 0],
       "interaction_size": [30, 22],
       "interaction_offset": [-3, -3],
       "waypoint_offset": [12, 8],
       "visibility": 1
     },
-    "bed": {
-      "sprite": "resources/tile/bed.png",
+    "record_player": {
+      "sprite": "resources/tile/record_player.png",
+      "tile_position": [2, 6],
+      "hitbox_size": [19, 31],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [19, 34],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [9, 0],
+      "visibility": 1
+    },
+    "pantry": {
+      "sprite": "resources/tile/pantry.png",
       "tile_position": [16, 14],
       "hitbox_size": [32, 24],
       "hitbox_offset": [0, 0],
