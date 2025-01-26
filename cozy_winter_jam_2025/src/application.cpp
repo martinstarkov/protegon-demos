@@ -2,13 +2,14 @@
 
 using namespace ptgn;
 
-// #define MENU_SCENES
-// #define START_SEQUENCE
+#define MENU_SCENES
+#define START_SEQUENCE
 
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
 constexpr int tooltip_text_size{ 28 };
+constexpr int reading_text_size{ 40 };
 constexpr Color shading_color{ color::White.SetAlpha(0.5f) };
 
 constexpr std::size_t sound_frequency{ 2 };
@@ -20,10 +21,10 @@ constexpr CollisionCategory player_category{ 4 };
 constexpr CollisionCategory interaction_category{ 5 };
 
 constexpr int wind_channel{ 0 };
-constexpr int snow_volume{ 40 };
-constexpr int wood_volume{ 40 };
-constexpr int music_volume{ 60 };
-constexpr int wind_outside_volume{ 128 };
+constexpr int snow_volume{ 30 };
+constexpr int wood_volume{ 30 };
+constexpr int music_volume{ 40 };
+constexpr int wind_outside_volume{ 120 };
 constexpr int wind_inside_volume{ 80 };
 
 const path json_path{ "resources/data/data.json" };
@@ -34,8 +35,6 @@ const path wood_sound_path{ "resources/audio/wood.ogg" };
 const path text_font_path{ "resources/font/BubbleGum_Regular.ttf" };
 
 struct Tree {};
-
-void GoToMainMenu();
 
 struct ItemName {
 	std::string name;
@@ -143,7 +142,7 @@ struct Waypoint {
 			Rect r{ anchor_position + offset + V2_float{ 0.0f, vertical_offset },
 					{},
 					Origin::Center };
-			texture.Draw(r, { color::White.SetAlpha(alpha) });
+			texture.Draw(r, { color::White.SetAlpha(alpha) }, 500);
 		};
 
 		tween = CreateFadingTween(
@@ -463,8 +462,8 @@ class GameScene : public Scene {
 				};
 				wasd_tooltip.SetPosition(pos);
 				const auto& tdm = player.Get<TopDownMovement>();
-				if (!tdm.IsMoving(MoveDirection::None) && f < 0.8f) {
-					tween.Seek(0.8f);
+				if (!tdm.IsMoving(MoveDirection::None) && f < 0.5f) {
+					tween.Seek(0.5f);
 				}
 			})
 			.OnComplete([&]() {
@@ -640,6 +639,8 @@ class GameScene : public Scene {
 
 	void GameEndSequence();
 
+	Light light;
+
 	ecs::Entity CreateInteractableItem(
 		const std::string& name, const Texture& texture, const Rect& rect,
 		const V2_float& hitbox_offset, const V2_float& hitbox_size,
@@ -680,15 +681,14 @@ class GameScene : public Scene {
 								) };
 								anim.Start();
 								const Camera& c{ game.camera.GetPrimary() };
-								Light firelight{ collision.entity1.Get<Transform>().position +
-													 fireplace_size / 2.0f,
-												 color::Orange };
+								V2_float pos{ -30000, -30000 };
+								Light firelight{ pos, color::Orange };
 								firelight.ambient_color_	 = color::Gold;
-								firelight.ambient_intensity_ = 0.1f;
+								firelight.ambient_intensity_ = 0.3f;
 								firelight.radius_			 = 600.0f;
 								firelight.compression_		 = 30.0f;
-								firelight.SetIntensity(0.8f);
-								game.light.Load("fireplace", firelight);
+								firelight.SetIntensity(0.6f);
+								light = game.light.Load("fireplace", firelight);
 								break;
 							}
 							case InteractionType::RecordPlayer:
@@ -707,8 +707,16 @@ class GameScene : public Scene {
 									Texture{ "resources/tile/pantry_open.png" }, V2_float{},
 									Origin::TopLeft
 								);
+								GetItem("pantry2").Add<Sprite>(
+									Texture{ "resources/tile/pantry_open.png" }, V2_float{},
+									Origin::TopLeft
+								);
 								break;
 							case InteractionType::Pantry2:
+								GetItem("pantry1").Add<Sprite>(
+									Texture{ "resources/tile/pantry.png" }, V2_float{},
+									Origin::TopLeft
+								);
 								GetItem("pantry2").Add<Sprite>(
 									Texture{ "resources/tile/pantry.png" }, V2_float{},
 									Origin::TopLeft
@@ -1040,7 +1048,12 @@ class GameScene : public Scene {
 			game.renderer.SetRenderTarget({});
 			ui.Draw();
 		}
-		game.camera.GetPrimary().GetRect().Draw(color::DarkBlue.SetAlpha(0.5f), -1, 10);
+
+		Rect camera_rect{ game.camera.GetPrimary().GetRect() };
+
+		camera_rect.size += V2_float{ 40.0f };
+
+		camera_rect.Draw(color::DarkBlue.SetAlpha(0.5f), -1, 10);
 	}
 };
 
@@ -1050,8 +1063,6 @@ public:
 	Color text_color;
 	Color bg_color{ color::Black };
 
-	std::string_view transition_to_scene;
-
 	TextScene(
 		std::string_view transition_to_scene, std::string_view continue_text_content,
 		std::string_view content, const Color& text_color
@@ -1059,17 +1070,19 @@ public:
 		content{ content },
 		text_color{ text_color },
 		transition_to_scene{ transition_to_scene },
-		continue_text{ continue_text_content, color::Red.SetAlpha(0.0f), "text_font" } {}
+		continue_text{ continue_text_content, color::Cyan.SetAlpha(0.0f), "text_font" } {}
 
 	Text continue_text;
 	Text text;
 	seconds reading_duration{ 4 };
 
+	std::string transition_to_scene;
+
 	void Enter() override {
 		game.camera.SetPrimary({});
 		text = Text{ content, text_color, "text_font" };
-		text.SetWrapAfter(400);
-		text.SetSize(30);
+		text.SetWrapAfter(450);
+		text.SetSize(reading_text_size);
 
 		game.tween.Load()
 			.During(reading_duration)
@@ -1083,8 +1096,6 @@ public:
 														 milliseconds{ 1000 } }
 											.SetFadeColorDuration(milliseconds{ 100 })
 							);
-						} else if (transition_to_scene == "main_menu") {
-							GoToMainMenu();
 						}
 					})
 				);
@@ -1114,16 +1125,22 @@ public:
 	Texture background{ "resources/ui/background.png" };
 
 	MainMenu() {
+		game.tween.Clear();
 		game.json.Load("data", json_path);
 		game.font.Load("text_font", text_font_path);
 		game.music.Load("music", music_path);
 		game.music.SetVolume(music_volume);
 		game.sound.Load("wind", wind_sound_path);
 		game.sound.Load("snow", snow_sound_path);
+		game.sound.Load("wood", wood_sound_path);
 	}
 
 	void Enter() override {
+		game.music.Stop();
+		game.light.Clear();
+
 		game.sound.Get("wind").Play(wind_channel, -1);
+
 		play.Set<ButtonProperty::OnActivate>([]() {
 			game.scene.Enter<TextScene>(
 				"text_scene",
@@ -1136,12 +1153,20 @@ public:
 				color::White
 			);
 		});
-		play.Set<ButtonProperty::BackgroundColor>(color::DarkGray);
-		play.Set<ButtonProperty::BackgroundColor>(color::Gray, ButtonState::Hover);
-		Text text{ "Play", color::Black };
+		Texture texture{ "resources/ui/play_button.png" };
+		play.Set<ButtonProperty::Texture>(texture);
+		play.Set<ButtonProperty::Texture>(
+			Texture{ "resources/ui/play_button_hover.png" }, ButtonState::Hover
+		);
+		play.Set<ButtonProperty::Texture>(
+			Texture{ "resources/ui/play_button_click.png" }, ButtonState::Pressed
+		);
+		/*Text text{ "Play", color::Black };
 		play.Set<ButtonProperty::Text>(text);
-		play.Set<ButtonProperty::TextSize>(V2_float{ 0.0f, 0.0f });
-		play.SetRect({ game.window.GetCenter(), { 200, 100 }, Origin::CenterTop });
+		play.Set<ButtonProperty::TextSize>(V2_float{ 0.0f, 0.0f });*/
+		play.SetRect({ { game.window.GetCenter().x, game.window.GetSize().y * 0.75f },
+					   texture.GetSize() * 2.0f,
+					   Origin::Center });
 	}
 
 	void Update() override {
@@ -1153,18 +1178,12 @@ public:
 void GameScene::GameEndSequence() {
 	game.scene.Enter<TextScene>(
 		"text_scene",
-		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ milliseconds{ 4000 } } }
+		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ milliseconds{ 3000 } } }
 			.SetFadeColorDuration(milliseconds{ 1000 }),
-		"main_menu", "Press any key to go to main menu...",
-		"In your cozy cabin, filled with fresh mountain air, you enter a soft slumber...",
+		"main_menu", "The end...",
+		"In your newly transformed cozy cabin, filled with fresh mountain air, you enter a soft "
+		"slumber...",
 		color::Silver
-	);
-}
-
-void GoToMainMenu() {
-	game.Start<MainMenu>(
-		"main_menu", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
-						 .SetFadeColorDuration(milliseconds{ 200 })
 	);
 }
 
