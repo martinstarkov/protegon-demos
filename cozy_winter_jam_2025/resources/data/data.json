@@ -173,11 +173,11 @@
     },
     "pantry2": {
       "sprite": "resources/tile/pantry_open.png",
-      "tile_position": [12, 5],
+      "tile_position": [12, 3],
       "hitbox_size": [13, 23],
-      "hitbox_offset": [7, 3],
+      "hitbox_offset": [13, 19],
       "interaction_size": [18, 21],
-      "interaction_offset": [7, 3],
+      "interaction_offset": [13, 9],
       "waypoint_offset": [13, 1],
       "visibility": 0
     },
