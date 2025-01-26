@@ -21,6 +21,7 @@ constexpr CollisionCategory interaction_category{ 5 };
 
 constexpr int wind_channel{ 0 };
 constexpr int snow_volume{ 60 };
+constexpr int music_volume{ 90 };
 constexpr int wind_outside_volume{ 128 };
 constexpr int wind_inside_volume{ wind_outside_volume / 2 };
 
@@ -287,6 +288,7 @@ class GameScene : public Scene {
 		V2_float player_starting_position{ -400.0f, 0.0f };
 		entity.Add<Transform>(player_starting_position);
 		auto& rb = entity.Add<RigidBody>();
+		entity.Add<RenderLayer>(2);
 
 		V2_float hitbox_size{ 10, 6 };
 		V2_float hitbox_offset{ 0, 8 };
@@ -589,7 +591,9 @@ class GameScene : public Scene {
 		entity.Add<DrawColor>(color::Red);
 		entity.Add<DrawLineWidth>(3.0f);
 		entity.Add<RenderLayer>(1);
-		entity.Add<Sprite>(texture, V2_float{}, Origin::TopLeft);
+		if (visibility != 0) {
+			entity.Add<Sprite>(texture, V2_float{}, Origin::TopLeft);
+		}
 		auto& b = entity.Add<BoxColliderGroup>(entity, manager);
 		if (!hitbox_size.IsZero()) {
 			b.AddBox(
@@ -621,6 +625,8 @@ class GameScene : public Scene {
 
 	InteractionType current_interaction_type{ InteractionType::None };
 	bool show_letter = false;
+
+	void GameEndSequence();
 
 	ecs::Entity CreateInteractableItem(
 		const std::string& name, const Texture& texture, const Rect& rect,
@@ -664,28 +670,62 @@ class GameScene : public Scene {
 								const Camera& c{ game.camera.GetPrimary() };
 								Light firelight{ c.TransformToScreen(
 													 collision.entity1.Get<Transform>().position +
-													 fireplace_size
+													 fireplace_size / 2.0f
 												 ),
 												 color::Orange };
-								firelight.ambient_color_	 = color::Transparent;
-								firelight.ambient_intensity_ = 0.0f;
+								firelight.ambient_color_	 = color::Gold;
+								firelight.ambient_intensity_ = 0.3f;
 								firelight.radius_			 = 400.0f;
 								firelight.compression_		 = 40.0f;
-								firelight.SetIntensity(0.6f);
+								firelight.SetIntensity(0.7f);
 								game.light.Load("fireplace", firelight);
 								break;
 							}
-							case InteractionType::RecordPlayer: PTGN_LOG("RecordPlayer"); break;
-							case InteractionType::Dirt1:		PTGN_LOG("Dirt1"); break;
-							case InteractionType::Dirt2:		PTGN_LOG("Dirt2"); break;
-							case InteractionType::Pot1:			PTGN_LOG("Pot1"); break;
-							case InteractionType::Pantry:		PTGN_LOG("Pantry"); break;
-							case InteractionType::Pot2:			PTGN_LOG("Pot2"); break;
-							case InteractionType::Mushroom:		PTGN_LOG("Mushroom"); break;
-							case InteractionType::Pot3:			PTGN_LOG("Pot3"); break;
-							case InteractionType::Bed1:			PTGN_LOG("Bed1"); break;
-							case InteractionType::Bed2:			PTGN_LOG("Bed2"); break;
-							default:							break;
+							case InteractionType::RecordPlayer:
+								game.music.Get("music").FadeIn(seconds{ 3 });
+								break;
+							case InteractionType::Dirt1: GetItem("dirt1").Destroy(); break;
+							case InteractionType::Dirt2: GetItem("dirt2").Destroy(); break;
+							case InteractionType::Pot1:
+								GetItem("pot1").Add<Sprite>(
+									Texture{ "resources/tile/pot_water.png" }, V2_float{},
+									Origin::TopLeft
+								);
+								break;
+							case InteractionType::Pantry: break;
+							case InteractionType::Pot2:
+								GetItem("pot2").Add<Sprite>(
+									Texture{ "resources/tile/pot_soup.png" }, V2_float{},
+									Origin::TopLeft
+
+								);
+								break;
+							case InteractionType::Mushroom: collision.entity1.Destroy(); break;
+							case InteractionType::Pot3:
+								GetItem("pot3").Add<Sprite>(
+									Texture{ "resources/tile/pot_soup.png" }, V2_float{},
+									Origin::TopLeft
+
+								);
+								break;
+							case InteractionType::Bed1:
+								GetItem("bed1").Add<Sprite>(
+									Texture{ "resources/tile/bed_made.png" }, V2_float{},
+									Origin::TopLeft
+
+								);
+								break;
+							case InteractionType::Bed2:
+								GetItem("bed2").Add<Sprite>(
+									Texture{ "resources/tile/bed_sleep.png" }, V2_float{},
+									Origin::TopLeft
+
+								);
+								player.Get<TopDownMovement>().keys_enabled = false;
+								player.Remove<AnimationMap>();
+								GameEndSequence();
+								break;
+							default: break;
 						}
 						manager.Refresh();
 						StartSequence(++sequence_index);
@@ -800,6 +840,17 @@ class GameScene : public Scene {
 				);
 			}
 		);
+
+		/*seconds day_duration{ 10 };
+		game.tween.Load()
+			.During(day_duration)
+			.Yoyo()
+			.Repeat(-1)
+			.OnUpdate([&](float f) {
+				Color dusk{ color::DarkBlue.SetAlpha(f / 2.0f) };
+				game.camera.GetPrimary().GetRect().Draw(dusk, -1, 10);
+			})
+			.Start();*/
 
 		/*	Light ambient{ game.window.GetCenter(), color::Orange };
 			ambient.ambient_color_	   = color::DarkBlue;
@@ -917,8 +968,6 @@ class GameScene : public Scene {
 	float waypoint_arrow_start_scale{ 1.2f };
 	float waypoint_arrow_end_scale{ 0.8f };
 
-	float sky_opacity{ 128.0f };
-
 	void Draw() {
 		auto& player_pos{ player.Get<Transform>().position };
 
@@ -942,22 +991,7 @@ class GameScene : public Scene {
 		/*for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
 		}*/
-
-		Color dusk{ color::DarkBlue };
-
-		if (game.input.KeyPressed(Key::UP)) {
-			sky_opacity += 10.0f * game.dt();
-		}
-		if (game.input.KeyPressed(Key::DOWN)) {
-			sky_opacity -= 10.0f * game.dt();
-		}
-		sky_opacity = std::clamp(sky_opacity, 0.0f, 255.0f);
-
-		dusk.a = static_cast<std::uint8_t>(sky_opacity);
-		// game.camera.GetPrimary().GetRect().Draw(dusk);
-
 		// game.light.Get("ambient_light").SetPosition(player_pos);
-		game.light.Draw();
 
 		for (const auto [e, anim] : manager.EntitiesWith<Animation>()) {
 			anim.Draw(e);
@@ -976,6 +1010,9 @@ class GameScene : public Scene {
 			game.renderer.SetRenderTarget({});
 			ui.Draw();
 		}
+		game.camera.GetPrimary().GetRect().Draw(color::DarkBlue.SetAlpha(0.5f), -1, 10);
+
+		game.light.Draw();
 	}
 };
 
@@ -985,14 +1022,17 @@ public:
 	Color text_color;
 	Color bg_color{ color::Black };
 
-	TextScene(std::string_view content, const Color& text_color) :
-		content{ content }, text_color{ text_color } {}
+	bool continue_to{ false };
+
+	TextScene(bool continue_to, std::string_view content, const Color& text_color) :
+		content{ content }, text_color{ text_color }, continue_to{ continue_to } {}
 
 	Text continue_text{ "Press any key to continue", color::Red.SetAlpha(0.0f), "text_font" };
 	Text text;
-	seconds reading_duration{ 1 };
+	seconds reading_duration{ 4 };
 
 	void Enter() override {
+		game.camera.SetPrimary({});
 		text = Text{ content, text_color, "text_font" };
 		text.SetWrapAfter(400);
 		text.SetSize(30);
@@ -1000,22 +1040,24 @@ public:
 		game.tween.Load()
 			.During(reading_duration)
 			.OnComplete([&]() {
-				game.event.key.Subscribe(
-					KeyEvent::Down, this, std::function([&](const KeyDownEvent&) {
-						game.event.key.Unsubscribe(this);
-						game.scene.Enter<GameScene>(
-							"game", SceneTransition{ TransitionType::FadeThroughColor,
-													 milliseconds{ 1000 } }
-										.SetFadeColorDuration(milliseconds{ 100 })
-						);
-					})
-				);
-				game.tween.Load()
-					.During(seconds{ 1 })
-					.OnUpdate([&](float f) {
-						continue_text.SetColor(continue_text.GetColor().SetAlpha(f));
-					})
-					.Start();
+				if (continue_to) {
+					game.event.key.Subscribe(
+						KeyEvent::Down, this, std::function([&](const KeyDownEvent&) {
+							game.event.key.Unsubscribe(this);
+							game.scene.Enter<GameScene>(
+								"game", SceneTransition{ TransitionType::FadeThroughColor,
+														 milliseconds{ 1000 } }
+											.SetFadeColorDuration(milliseconds{ 100 })
+							);
+						})
+					);
+					game.tween.Load()
+						.During(seconds{ 1 })
+						.OnUpdate([&](float f) {
+							continue_text.SetColor(continue_text.GetColor().SetAlpha(f));
+						})
+						.Start();
+				}
 			})
 			.Start();
 	}
@@ -1024,9 +1066,11 @@ public:
 		Rect::Fullscreen().Draw(bg_color);
 		Rect text_rect{ game.window.GetCenter(), text.GetSize(), Origin::Center };
 		text.Draw(text_rect);
-		continue_text.Draw(
-			{ { text_rect.Center().x, text_rect.Max().y + 30 }, {}, Origin::CenterTop }
-		);
+		if (continue_to) {
+			continue_text.Draw(
+				{ { text_rect.Center().x, text_rect.Max().y + 30 }, {}, Origin::CenterTop }
+			);
+		}
 	}
 };
 
@@ -1039,6 +1083,7 @@ public:
 		game.json.Load("data", json_path);
 		game.font.Load("text_font", text_font_path);
 		game.music.Load("music", music_path);
+		game.music.SetVolume(music_volume);
 		game.sound.Load("wind", wind_sound_path);
 		game.sound.Load("snow", snow_sound_path);
 	}
@@ -1051,6 +1096,7 @@ public:
 				SceneTransition{ TransitionType::FadeThroughColor,
 								 milliseconds{ milliseconds{ 1000 } } }
 					.SetFadeColorDuration(milliseconds{ 500 }),
+				true,
 				"In your busy life full of work and stress you make time once a year to get away "
 				"from it all. Your cabin awaits you in the quiet wilderness of Alaska...",
 				color::White
@@ -1070,6 +1116,16 @@ public:
 	}
 };
 
+void GameScene::GameEndSequence() {
+	game.scene.Enter<TextScene>(
+		"text_scene",
+		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ milliseconds{ 4000 } } }
+			.SetFadeColorDuration(milliseconds{ 500 }),
+		false, "In your cozy cabin, filled with fresh mountain air, you enter a soft slumber...",
+		color::Silver
+	);
+}
+
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Cozy Winter Jam", window_size, color::Transparent);
 #ifdef MENU_SCENES
@@ -1080,6 +1136,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.font.Load("text_font", text_font_path);
 	game.sound.Load("wind", wind_sound_path);
 	game.music.Load("music", music_path);
+	game.music.SetVolume(music_volume);
 	game.sound.Load("snow", snow_sound_path);
 	game.Start<GameScene>(
 		"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
