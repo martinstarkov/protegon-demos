@@ -436,7 +436,7 @@ class GameScene : public Scene {
 		auto tree = manager.CreateEntity();
 		tree.Add<Transform>(center);
 		tree.Add<Tree>();
-		V2_float tree_hitbox_size{ tile_size.x, 3 * tile_size.y };
+		V2_float tree_hitbox_size{ 3 * tile_size.x, 4 * tile_size.y };
 		auto& box = tree.Add<BoxCollider>(tree, tree_hitbox_size, Origin::Center);
 		box.SetCollisionCategory(tree_category);
 		tree.Add<DrawColor>(color::Red);
@@ -505,9 +505,9 @@ class GameScene : public Scene {
 			waypoint_arrow_tween.IncrementTweenPoint();
 		}
 
-		/*for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
-		}*/
+		}
 
 		Color dusk{ color::DarkBlue };
 
@@ -612,7 +612,7 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Cozy Winter Jam", window_size, color::Transparent);
-	if (true) {
+	if (false) {
 		game.Start<GameScene>(
 			"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
 		);
