@@ -145,6 +145,7 @@
       "interaction_type": 0,
       "tooltip_text": "'E' to read letter"
     },
+    { "name": "keypress" },
     { "name": "timer", "seconds_duration": 5 },
     {
       "name": "tree",
@@ -157,21 +158,30 @@
       "interaction_type": 2,
       "tooltip_text": "'E' to light fire"
     },
-    {
-      "name": "dirt",
-      "interaction_type": 1,
-      "tooltip_text": "'E' to clean-up"
-    },
+    { "name": "timer", "seconds_duration": 3 },
     {
       "name": "record player",
       "interaction_type": 0,
       "tooltip_text": "'E' to start music"
     },
+    { "name": "timer", "seconds_duration": 3 },
+    {
+      "name": "dirt1",
+      "interaction_type": 1,
+      "tooltip_text": "'E' to clean-up"
+    },
+    {
+      "name": "dirt2",
+      "interaction_type": 1,
+      "tooltip_text": "'E' to clean-up"
+    },
+    { "name": "timer", "seconds_duration": 3 },
     {
       "name": "pot",
       "interaction_type": 2,
       "tooltip_text": "'E' to fill pot"
     },
+    { "name": "timer", "seconds_duration": 1 },
     {
       "name": "pantry",
       "interaction_type": 2,
@@ -182,6 +192,7 @@
       "interaction_type": 2,
       "tooltip_text": "'E' to add potatoes"
     },
+    { "name": "timer", "seconds_duration": 1 },
     {
       "name": "mushroom",
       "interaction_type": 1,
@@ -192,10 +203,11 @@
       "interaction_type": 2,
       "tooltip_text": "'E' to add mushrooms"
     },
+    { "name": "timer", "seconds_duration": 3 },
     {
-      "name": "pot",
-      "interaction_type": 2,
-      "tooltip_text": "'E' to fill pot"
+      "name": "bed",
+      "interaction_type": 1,
+      "tooltip_text": "'E' to make bed"
     }
   ]
 }
