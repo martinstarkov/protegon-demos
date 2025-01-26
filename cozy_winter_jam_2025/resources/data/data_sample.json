@@ -33,6 +33,16 @@
       "position": [162, 42]
     }
   ],
+  "house_overlaps": [
+    {
+      "size": [166, 97],
+      "position": [2, 40]
+    },
+    {
+      "size": [72, 40],
+      "position": [96, 0]
+    }
+  ],
   "items": {
     "table": {
       "sprite": "resources/tile/table.png",
