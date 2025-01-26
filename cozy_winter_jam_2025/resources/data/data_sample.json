@@ -1,7 +1,6 @@
 {
     "items": {
         "table": {
-            "type": 0,
             "sprite": "resources/tile/table.png",
             "tile_position": [7, 9],
             "hitbox_size": [24, 16],
@@ -12,7 +11,6 @@
             "visibility": 1
         },
         "bed": {
-            "type": 0,
             "sprite": "resources/tile/bed.png",
             "tile_position": [16, 14],
             "hitbox_size": [32, 24],
@@ -23,5 +21,24 @@
             "visibility": 1
         }
     },
-    "sequence": ["table", "bed", "table"]
+    "sequence": [
+        { "name": "timer", "seconds_duration": 2 },
+        {
+            "name": "timer",
+            "seconds_duration": 3,
+            "text": "Oh wow!"
+        },
+        { "name": "timer", "seconds_duration": 2 },
+        {
+            "name": "table",
+            "interaction_type": 0,
+            "tooltip_text": "'E' to read letter"
+        },
+        { "name": "bed", "interaction_type": 1, "tooltip_text": "'E' to sleep" },
+        {
+            "name": "table",
+            "interaction_type": 2,
+            "tooltip_text": "'E' to write TODO list"
+        }
+    ]
 }

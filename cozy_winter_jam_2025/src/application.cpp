@@ -2,12 +2,16 @@
 
 using namespace ptgn;
 
+// #define MENU_SCENES
+// #define START_SEQUENCE
+
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
 
 constexpr CollisionCategory ground_category{ 1 };
 constexpr CollisionCategory tree_category{ 2 };
+const path json_path{ "resources/data/data_sample.json" };
 
 struct Tree {};
 
@@ -22,7 +26,6 @@ Tween CreateFadingTween(
 					 .OnStart(start_function)
 					 .OnUpdate(fade_function)
 					 .During(seconds{ 1 })
-					 .OnStart([](float f) { PTGN_ASSERT(f == 0.0f); })
 					 .Yoyo()
 					 .Repeat(-1)
 					 .Ease(TweenEase::InOutSine)
@@ -43,7 +46,6 @@ struct Tooltip {
 							) mutable {
 			PTGN_ASSERT(alpha >= 0.0f && alpha <= 1.0f);
 			vertical_offset = v_offset;
-			PTGN_LOG(vertical_offset);
 			auto old_cam{ game.camera.GetPrimary() };
 			Rect r{ old_cam.TransformToScreen(
 						anchor_position + static_offset + V2_float{ 0.0f, vertical_offset }
@@ -63,8 +65,6 @@ struct Tooltip {
 			[=](float f) mutable {
 				// How much distance above the og_position the tween text moves up.
 				float up_distance{ 15.0f / camera_zoom };
-				PTGN_LOG("f: ", f);
-				PTGN_LOG("up_distance: ", up_distance);
 				std::invoke(draw_tooltip, 1.0f, -f * up_distance);
 			},
 			[&]() { vertical_offset = 0.0f; }, [&]() { vertical_offset = 0.0f; }
@@ -157,6 +157,8 @@ class GameScene : public Scene {
 	Texture waypoint_texture{ "resources/ui/waypoint.png" };
 	Texture arrow_texture{ "resources/ui/arrow.png" };
 
+	json data;
+
 	Waypoint waypoint{ waypoint_texture };
 
 	ecs::Entity CreateWall(const Rect& r) {
@@ -175,15 +177,16 @@ class GameScene : public Scene {
 		entity.Add<Transform>(player_starting_position);
 		auto& rb = entity.Add<RigidBody>();
 
-		V2_float hitbox_size{ 14, 14 };
+		V2_float hitbox_size{ 10, 6 };
+		V2_float hitbox_offset{ 0, 8 };
 
 		auto& b = entity.Add<BoxColliderGroup>(entity, manager);
 		b.AddBox(
-			"body", {}, 0.0f, hitbox_size, Origin::Center, true, 0, {}, nullptr, nullptr, nullptr,
-			nullptr, false, true
+			"body", hitbox_offset, 0.0f, hitbox_size, Origin::CenterBottom, true, 0, {}, nullptr,
+			nullptr, nullptr, nullptr, false, true
 		);
 		b.AddBox(
-			"interaction", {}, 0.0f, hitbox_size * 2.0f, Origin::Center, false, 0, {},
+			"interaction", {}, 0.0f, { 28, 28 }, Origin::Center, false, 0, {},
 			[&](const Collision& collision) {
 				if (collision.entity2.Has<Tree>() && !tree_tooltip.IsShowing()) {
 					tree_tooltip.FadeIn();
@@ -320,10 +323,7 @@ class GameScene : public Scene {
 				};
 				wasd_tooltip.anchor_position = pos;
 			})
-			.OnComplete([&]() {
-				PTGN_LOG("Fading out wasd tooltip");
-				wasd_tooltip.FadeOut();
-			})
+			.OnComplete([&]() { wasd_tooltip.FadeOut(); })
 			.Start();
 	}
 
@@ -372,10 +372,10 @@ class GameScene : public Scene {
 		};
 
 		waypoint_arrow_tween = CreateFadingTween(
-			[=](float f) { std::invoke(draw_waypoint_arrow, 128.0f * f, 1.0f); },
+			[=](float f) { std::invoke(draw_waypoint_arrow, f / 2.0f, 1.0f); },
 			[=](float f) mutable {
 				std::invoke(
-					draw_waypoint_arrow, 128.0f + 128.0f * f,
+					draw_waypoint_arrow, 0.5f + f / 2.0f,
 					Lerp(waypoint_arrow_start_scale, waypoint_arrow_end_scale, f)
 				);
 			}
@@ -389,9 +389,19 @@ class GameScene : public Scene {
 		ambient.SetIntensity(0.6f);
 		game.light.Load("ambient_light", ambient);
 
+#ifdef MENU_SCENES
+		data = game.json.Get("data");
+#else
+		data = game.json.Load("data", json_path);
+#endif
+
+#ifdef START_SEQUENCE
 		PlayIntro();
-		// EnablePlayerInteraction();
-		// ShowIntroTooltip();
+#else
+		EnablePlayerInteraction();
+		ShowIntroTooltip();
+		player.Get<Transform>().position = { -150.0f, 0 };
+#endif
 	}
 
 	void Update() override {
@@ -584,6 +594,10 @@ public:
 	Button play;
 	Texture background{ "resources/ui/background.png" };
 
+	MainMenu() {
+		game.json.Load("data", json_path);
+	}
+
 	void Enter() override {
 		play.Set<ButtonProperty::OnActivate>([]() {
 			game.scene.Enter<TextScene>(
@@ -612,14 +626,14 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Cozy Winter Jam", window_size, color::Transparent);
-	if (false) {
-		game.Start<GameScene>(
-			"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
-		);
-	} else {
-		game.Start<MainMenu>(
-			"main_menu", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 500 } }
-		);
-	}
+#ifdef MENU_SCENES
+	game.Start<MainMenu>(
+		"main_menu", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 500 } }
+	);
+#else
+	game.Start<GameScene>(
+		"game", SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
+	);
+#endif
 	return 0;
 }
