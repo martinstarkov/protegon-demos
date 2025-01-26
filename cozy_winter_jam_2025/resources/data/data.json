@@ -89,11 +89,55 @@
       "interaction_type": 0,
       "tooltip_text": "'E' to read letter"
     },
-    { "name": "bed", "interaction_type": 1, "tooltip_text": "'E' to sleep" },
     {
-      "name": "table",
+      "name": "tree",
+      "interaction_type": 1,
+      "tooltip_text": "'E' to chop wood"
+    },
+    {
+      "name": "fireplace",
       "interaction_type": 2,
-      "tooltip_text": "'E' to write TODO list"
+      "tooltip_text": "'E' to light fire"
+    },
+    {
+      "name": "dirt",
+      "interaction_type": 1,
+      "tooltip_text": "'E' to clean-up"
+    },
+    {
+      "name": "record player",
+      "interaction_type": 0,
+      "tooltip_text": "'E' to start music"
+    },
+    {
+      "name": "pot",
+      "interaction_type": 2,
+      "tooltip_text": "'E' to fill pot"
+    },
+    {
+      "name": "pantry",
+      "interaction_type": 2,
+      "tooltip_text": "'E' to get potatoes"
+    },
+    {
+      "name": "pot",
+      "interaction_type": 2,
+      "tooltip_text": "'E' to add potatoes"
+    },
+    {
+      "name": "mushroom",
+      "interaction_type": 1,
+      "tooltip_text": "'E' to pick mushroom"
+    },
+    {
+      "name": "pot",
+      "interaction_type": 2,
+      "tooltip_text": "'E' to add mushrooms"
+    },
+    {
+      "name": "pot",
+      "interaction_type": 2,
+      "tooltip_text": "'E' to fill pot"
     }
   ],
   "house_hitboxes": [
