@@ -654,12 +654,25 @@ class GameScene : public Scene {
 								break;
 							case InteractionType::Tree:		 collision.entity1.Destroy(); break;
 							case InteractionType::Fireplace: {
+								V2_float fireplace_size{ 26, 40 };
 								auto& anim{ collision.entity1.Add<Animation>(
 									Texture{ "resources/tile/fireplace_anim.png" }, 3,
-									V2_float{ 26, 40 }, milliseconds{ 300 }, V2_float{}, V2_float{},
+									fireplace_size, milliseconds{ 300 }, V2_float{}, V2_float{},
 									Origin::TopLeft
 								) };
 								anim.Start();
+								const Camera& c{ game.camera.GetPrimary() };
+								Light firelight{ c.TransformToScreen(
+													 collision.entity1.Get<Transform>().position +
+													 fireplace_size
+												 ),
+												 color::Orange };
+								firelight.ambient_color_	 = color::Transparent;
+								firelight.ambient_intensity_ = 0.0f;
+								firelight.radius_			 = 400.0f;
+								firelight.compression_		 = 40.0f;
+								firelight.SetIntensity(0.6f);
+								game.light.Load("fireplace", firelight);
 								break;
 							}
 							case InteractionType::RecordPlayer: PTGN_LOG("RecordPlayer"); break;
@@ -788,13 +801,13 @@ class GameScene : public Scene {
 			}
 		);
 
-		Light ambient{ game.window.GetCenter(), color::Orange };
-		ambient.ambient_color_	   = color::DarkBlue;
-		ambient.ambient_intensity_ = 0.3f;
-		ambient.radius_			   = 400.0f;
-		ambient.compression_	   = 50.0f;
-		ambient.SetIntensity(0.6f);
-		game.light.Load("ambient_light", ambient);
+		/*	Light ambient{ game.window.GetCenter(), color::Orange };
+			ambient.ambient_color_	   = color::DarkBlue;
+			ambient.ambient_intensity_ = 0.3f;
+			ambient.radius_			   = 400.0f;
+			ambient.compression_	   = 50.0f;
+			ambient.SetIntensity(0.6f);
+			game.light.Load("ambient_light", ambient);*/
 
 #ifdef MENU_SCENES
 		data = game.json.Get("data");
@@ -944,7 +957,11 @@ class GameScene : public Scene {
 		// game.camera.GetPrimary().GetRect().Draw(dusk);
 
 		// game.light.Get("ambient_light").SetPosition(player_pos);
-		// game.light.Draw();
+		game.light.Draw();
+
+		for (const auto [e, anim] : manager.EntitiesWith<Animation>()) {
+			anim.Draw(e);
+		}
 
 		for (const auto [e, anim_map] : manager.EntitiesWith<AnimationMap>()) {
 			anim_map.Draw(e);
