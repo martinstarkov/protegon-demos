@@ -80,8 +80,8 @@
       "hitbox_size": [40, 28],
       "hitbox_offset": [0, 0],
       "interaction_size": [40, 42],
-      "interaction_offset": [0, -4],
-      "waypoint_offset": [20, 14],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [20, 0],
       "visibility": 0
     },
     "fireplace": {
