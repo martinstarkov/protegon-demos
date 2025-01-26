@@ -151,8 +151,18 @@
       "waypoint_offset": [9, 0],
       "visibility": 1
     },
-    "pantry": {
+    "pantry1": {
       "sprite": "resources/tile/pantry.png",
+      "tile_position": [12, 5],
+      "hitbox_size": [13, 23],
+      "hitbox_offset": [7, 3],
+      "interaction_size": [18, 21],
+      "interaction_offset": [7, 3],
+      "waypoint_offset": [13, 1],
+      "visibility": 1
+    },
+    "pantry2": {
+      "sprite": "resources/tile/pantry_open.png",
       "tile_position": [12, 5],
       "hitbox_size": [13, 23],
       "hitbox_offset": [7, 3],
@@ -231,7 +241,12 @@
     },
     { "name": "timer", "seconds_duration": 1 },
     {
-      "name": "pantry",
+      "name": "pantry1",
+      "interaction_type": 13,
+      "tooltip_text": "'E' to open pantry"
+    },
+    {
+      "name": "pantry2",
       "interaction_type": 7,
       "tooltip_text": "'E' to get potatoes"
     },
