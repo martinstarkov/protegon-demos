@@ -86,11 +86,9 @@
     },
     "bowl": {
       "sprite": "resources/tile/bowl.png",
-      "tile_position": [16, 14],
-      "hitbox_size": [32, 24],
-      "hitbox_offset": [0, 0],
-      "interaction_size": [30, 22],
-      "interaction_offset": [-3, -3],
+      "tile_position": [12, 13],
+      "interaction_size": [8, 14],
+      "interaction_offset": [0, -8],
       "waypoint_offset": [12, 8],
       "visibility": 0
     },
