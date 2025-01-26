@@ -179,7 +179,7 @@
     },
     "mushroom": {
       "sprite": "resources/tile/mushroom.png",
-      "tile_position": [-6, 2],
+      "tile_position": [-10, 15],
       "hitbox_size": [5, 4],
       "hitbox_offset": [0, 0],
       "interaction_size": [5, 4],
