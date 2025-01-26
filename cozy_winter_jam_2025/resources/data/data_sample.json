@@ -22,7 +22,13 @@
         }
     },
     "sequence": [
-        { "name": "timer", "seconds_delay": 2 },
+        { "name": "timer", "seconds_duration": 2 },
+        {
+            "name": "timer",
+            "seconds_duration": 3,
+            "text": "Oh wow!"
+        },
+        { "name": "timer", "seconds_duration": 2 },
         {
             "name": "table",
             "interaction_type": 0,
