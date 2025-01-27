@@ -168,7 +168,7 @@
       "hitbox_offset": [13, 19],
       "interaction_size": [13, 23],
       "interaction_offset": [13, 19],
-      "waypoint_offset": [19, 29],
+      "waypoint_offset": [19, 18],
       "visibility": 1
     },
     "pantry2": {
@@ -178,7 +178,7 @@
       "hitbox_offset": [13, 19],
       "interaction_size": [13, 23],
       "interaction_offset": [13, 19],
-      "waypoint_offset": [19, 29],
+      "waypoint_offset": [19, 18],
       "visibility": 0
     },
     "dirt1": {

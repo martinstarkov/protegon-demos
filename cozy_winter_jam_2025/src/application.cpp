@@ -23,9 +23,9 @@ constexpr CollisionCategory interaction_category{ 5 };
 constexpr int wind_channel{ 0 };
 constexpr int snow_volume{ 30 };
 constexpr int wood_volume{ 30 };
-constexpr int music_volume{ 40 };
-constexpr int wind_outside_volume{ 120 };
-constexpr int wind_inside_volume{ 80 };
+constexpr int music_volume{ 50 };
+constexpr int wind_outside_volume{ 20 };
+constexpr int wind_inside_volume{ 5 };
 
 const path json_path{ "resources/data/data.json" };
 const path wind_sound_path{ "resources/audio/breeze.ogg" };
@@ -502,7 +502,7 @@ class GameScene : public Scene {
 			.Start();
 	}
 
-	void SequenceSpawnPlayerText(std::string_view content, seconds duration, const Color& color) {
+	void SequenceSpawnPlayerText(std::string content, seconds duration, const Color& color) {
 		CreateFloatingText(
 			Text{ content, color, "text_font" }
 				.SetSize(tooltip_text_size)
@@ -525,8 +525,7 @@ class GameScene : public Scene {
 	}
 
 	void SequenceAction(
-		const std::string& name, const json& item, int interaction_type,
-		std::string_view tooltip_text
+		const std::string& name, const json& item, int interaction_type, std::string tooltip_text
 	) {
 		current_interaction_type = static_cast<InteractionType>(interaction_type);
 		PTGN_ASSERT(item.contains("tile_position"));
@@ -560,7 +559,7 @@ class GameScene : public Scene {
 			seconds time{ std::chrono::duration_cast<seconds>(duration<float>{
 				e.at("seconds_duration") }) };
 			if (e.contains("text")) {
-				SequenceSpawnPlayerText(e.at("text"), time, color::Black);
+				SequenceSpawnPlayerText(std::string(e.at("text")), time, color::Black);
 			} else {
 				SequenceSpawnDelay(time);
 			}
@@ -1059,13 +1058,13 @@ class GameScene : public Scene {
 
 class TextScene : public Scene {
 public:
-	std::string_view content;
+	std::string content;
 	Color text_color;
 	Color bg_color{ color::Black };
 
 	TextScene(
-		std::string_view transition_to_scene, std::string_view continue_text_content,
-		std::string_view content, const Color& text_color
+		std::string transition_to_scene, std::string continue_text_content, std::string content,
+		const Color& text_color
 	) :
 		content{ content },
 		text_color{ text_color },
@@ -1139,6 +1138,7 @@ public:
 		game.music.Stop();
 		game.light.Clear();
 
+		game.sound.Get("wind").SetVolume(wind_outside_volume);
 		game.sound.Get("wind").Play(wind_channel, -1);
 
 		play.Set<ButtonProperty::OnActivate>([]() {
