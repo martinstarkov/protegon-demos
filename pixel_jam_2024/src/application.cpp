@@ -1,3 +1,4 @@
+/*
 #include <cassert>
 
 #include "protegon/protegon.h"
@@ -102,7 +103,7 @@ struct PlanterComponent {
         bool on_path = false;
 
         for (const ecs::Entity& e : paths) {
-          assert(e.Has<TileComponent>());
+          PTGN_ASSERT(e.Has<TileComponent>());
           const TileComponent& tile = e.Get<TileComponent>();
           if (src_candidate == tile.coordinate) {
             on_path = true;
@@ -114,15 +115,13 @@ struct PlanterComponent {
 
         bool on_structure = false;
 
-        manager.ForEachEntityWith<StructureComponent, TileComponent,
-                                  TextureComponent>(
-            [&](ecs::Entity e, StructureComponent&, TileComponent& tile,
-                TextureComponent&) {
+        for (auto [e, s, tile, t] : manager.EntitiesWith<StructureComponent, TileComponent,
+                                  TextureComponent>()) {
               if (src_candidate == tile.coordinate) {
                 on_structure = true;
                 return;
               }
-            });
+        }
 
         if (on_structure) continue;
 
@@ -132,7 +131,6 @@ struct PlanterComponent {
       }
 
       entities.push_back(func(src_candidate));
-      spawn_timer.Reset();
       spawn_timer.Start();
     }
     entities.erase(
@@ -157,14 +155,9 @@ struct SpawnerComponent {
                    std::function<ecs::Entity(V2_int source)> func)
       : max_spawn_count{max_spawn_count}, spawn_rate{spawn_rate}, func{func} {}
   void Update() {
-    /*manager.ForEachEntityWith<Rectangle<float>, VelocityComponent,
-    LifetimeComponent>([&]( ecs::Entity e, Rectangle<float>& rect,
-    VelocityComponent& velocity, LifetimeComponent& life) {
-    });*/
     if (spawn_timer.Elapsed() > spawn_rate &&
         entities.size() < max_spawn_count) {
       entities.push_back(func(source));
-      spawn_timer.Reset();
       spawn_timer.Start();
     }
     entities.erase(
@@ -193,7 +186,7 @@ std::vector<V2_int> GetNeighborTiles(const std::vector<ecs::Entity>& paths,
                                      const V2_int& tile) {
   std::vector<V2_int> neighbors;
   for (const auto& e : paths) {
-    assert(e.Has<TileComponent>());
+    PTGN_ASSERT(e.Has<TileComponent>());
     V2_int o_tile = e.Get<TileComponent>().coordinate;
     if (o_tile == tile) continue;
     V2_int dist = o_tile - tile;
@@ -208,14 +201,14 @@ struct PathingComponent {
   PathingComponent(const std::vector<ecs::Entity>& paths,
                    const V2_int& start_tile) {
     for (auto& e : paths) {
-      assert(e.Has<TileComponent>());
+      PTGN_ASSERT(e.Has<TileComponent>());
       path_visits.emplace(e.Get<TileComponent>().coordinate, 0);
     }
     IncreaseVisitCount(start_tile);
   }
   void IncreaseVisitCount(const V2_int& tile) {
     auto it = path_visits.find(tile);
-    assert(it != path_visits.end() &&
+    PTGN_ASSERT(it != path_visits.end() &&
            "Cannot increase visit count for tile which does not exist in "
            "pathing component");
     ++(it->second);
@@ -223,13 +216,13 @@ struct PathingComponent {
   V2_int GetTargetTile(const V2_int& prev_tile, const V2_int& tile) const {
     std::vector<V2_int> neighbors = GetNeighborTiles(tile);
     V2_int new_tile = GetNextTile(prev_tile, neighbors);
-    assert(new_tile != tile &&
+    PTGN_ASSERT(new_tile != tile &&
            "Algorithm failed to find a new tile to move to");
     return new_tile;
   }
   V2_int GetNextTile(const V2_int& prev_tile,
                      const std::vector<V2_int>& neighbors) const {
-    assert(neighbors.size() > 0 &&
+    PTGN_ASSERT(neighbors.size() > 0 &&
            "Cannot get next tile when there exist no neighbors");
     if (neighbors.size() == 1) return neighbors.at(0);
 
@@ -238,7 +231,7 @@ struct PathingComponent {
       if (candidate == prev_tile) continue;
       candidates.emplace_back(candidate);
     }
-    assert(candidates.size() > 0 &&
+    PTGN_ASSERT(candidates.size() > 0 &&
            "Algorithm failed to find two valid candidate tiles");
     if (candidates.size() == 1) {
       return candidates.at(0);
@@ -296,7 +289,7 @@ struct PathingComponent {
   }
   int GetVisitCount(const V2_int& tile) const {
     auto it = path_visits.find(tile);
-    assert(it != path_visits.end() &&
+    PTGN_ASSERT(it != path_visits.end() &&
            "Cannot get visit count for tile which does not exist in pathing "
            "component");
     return it->second;
@@ -356,15 +349,15 @@ struct ParticleComponent {
     auto entity = manager.CreateEntity();
     RNG<int> rng{0, static_cast<int>(texture_keys.size()) - 1};
     int texture_index = rng();
-    assert(texture_index < texture_keys.size());
+    PTGN_ASSERT(texture_index < texture_keys.size());
     entity.Add<ScaleComponent>(V2_float{0.5f, 0.5f});
     std::size_t texture_key = texture_keys[texture_index];
-    assert(texture::Has(texture_key));
-    V2_int texture_size = texture::Get(texture_key).GetSize();
-    entity.Add<Rectangle<float>>(Rectangle<float>{source, texture_size});
+    PTGN_ASSERT(game.texture.Has(texture_key));
+    V2_int texture_size = game.texture.Get(texture_key).GetSize();
+    entity.Add<Rect>(Rect{source, texture_size});
 
-    assert(x_min_speed < x_max_speed);
-    assert(y_min_speed < y_max_speed);
+    PTGN_ASSERT(x_min_speed < x_max_speed);
+    PTGN_ASSERT(y_min_speed < y_max_speed);
 
     RNG<float> rng_speed_x{x_min_speed, x_max_speed};
     RNG<float> rng_speed_y{y_min_speed, y_max_speed};
@@ -378,53 +371,46 @@ struct ParticleComponent {
   }
   void Pause() {
     spawn_timer.Pause();
-    manager.ForEachEntityWith<LifetimeComponent>(
-        [&](ecs::Entity e, LifetimeComponent& life) { life.timer.Pause(); });
+    for (auto [e, life] : manager.EntitiesWith<LifetimeComponent>()) {
+      life.timer.Pause();
+    }
   }
   void Unpause() {
     spawn_timer.Unpause();
-    manager.ForEachEntityWith<LifetimeComponent>(
-        [&](ecs::Entity e, LifetimeComponent& life) { life.timer.Unpause(); });
+
+    for (auto [e, life] : manager.EntitiesWith<LifetimeComponent>()) {
+      life.timer.Unpause();
+    }
   }
   void Update() {
-    manager.ForEachEntityWith<Rectangle<float>, VelocityComponent,
-                              LifetimeComponent>(
-        [&](ecs::Entity e, Rectangle<float>& rect, VelocityComponent& velocity,
-            LifetimeComponent& life) {
-          rect.pos += velocity.vel;
-          velocity.vel *= 0.99f;
-          milliseconds elapsed = life.timer.Elapsed();
-          if (elapsed > life.time) {
-            e.Destroy();
-          }
-        });
+    for (auto [e, rect, velocity, life] : manager.EntitiesWith<Rect, VelocityComponent,
+                              LifetimeComponent>()) {
+        rect.position += velocity.vel;
+        velocity.vel *= 0.99f;
+        milliseconds elapsed = life.timer.Elapsed();
+        if (elapsed > life.time) {
+          e.Destroy();
+        }
+    }
     if (spawn_timer.Elapsed() > spawn_rate) {
       GenerateParticle();
-      spawn_timer.Reset();
       spawn_timer.Start();
     }
     manager.Refresh();
   }
   // TODO: Add const ForEachEntityWith to ecs library.
   void Draw() {
-    manager.ForEachEntityWith<Rectangle<float>, LifetimeComponent,
+    for (auto [e, rect, life, offset, texture, scale] : manager.EntitiesWith<Rect, LifetimeComponent,
                               OffsetComponent, TextureComponent,
-                              ScaleComponent>(
-        [&](ecs::Entity e, const Rectangle<float>& rect,
-            const LifetimeComponent& life, const OffsetComponent& offset,
-            const TextureComponent& texture, ScaleComponent& scale) {
+                              ScaleComponent>()) {
           float elapsed = life.timer.ElapsedPercentage(life.time);
-          std::uint8_t alpha =
-              static_cast<std::uint8_t>((1.0f - elapsed) * 255);
-          assert(texture::Has(texture.key));
-          Texture t = texture::Get(texture.key);
-          t.SetAlpha(alpha);
-          t.Draw(
-              rect.ScaleSize(scale.scale).Offset(offset.offset * scale.scale));
-        });
+          std::uint8_t alpha = static_cast<std::uint8_t>((1.0f - elapsed) * 255);
+          PTGN_ASSERT(game.texture.Has(texture.key));
+          Texture t = game.texture.Get(texture.key);
+          Color c{ 255, 255, 255, alpha };
+          t.Draw(Rect{ rect.position + offset.offset * scale.scale, rect.size * scale.scale, rect.origin, rect.rotation }, TextureInfo{ {}, {}, Flip::None, c });
+    }
     // Draw debug point to identify source of particles.
-    /*Circle<float> c{ source, 2 };
-    c.DrawSolid(color::Red);*/
   }
   void SetSource(const V2_int& new_source) { source = new_source; }
   void SetSpeed(const V2_float& min, const V2_float& max) {
@@ -448,7 +434,7 @@ struct ParticleComponent {
   std::vector<std::size_t> texture_keys;
 };
 
-ecs::Entity CreatePath(ecs::Manager& manager, const Rectangle<float>& rect,
+ecs::Entity CreatePath(ecs::Manager& manager, const Rect& rect,
                        const V2_int& coordinate, std::size_t key) {
   auto entity = manager.CreateEntity();
   entity.Add<PathComponent>();
@@ -456,12 +442,12 @@ ecs::Entity CreatePath(ecs::Manager& manager, const Rectangle<float>& rect,
   entity.Add<DrawComponent>();
   entity.Add<RotationComponent>();
   entity.Add<FlipComponent>();
-  assert(texture::Has(key));
+  PTGN_ASSERT(game.texture.Has(key));
   entity.Add<TextureComponent>(key);
   entity.Add<TextureMapComponent>();
 
   entity.Add<TileComponent>(coordinate);
-  entity.Add<Rectangle<float>>(rect);
+  entity.Add<Rect>(rect);
   manager.Refresh();
   return entity;
 }
@@ -472,22 +458,22 @@ enum class Particle {
   CARBON_DIOXIDE,
 };
 
-ecs::Entity CreateFish(ecs::Manager& manager, const Rectangle<float> rect,
+ecs::Entity CreateFish(ecs::Manager& manager, const Rect rect,
                        const V2_int coordinate, const std::string& str_key,
                        const std::vector<ecs::Entity>& paths, float speed) {
   auto entity = manager.CreateEntity();
   entity.Add<DrawComponent>();
   std::size_t key = Hash(str_key.c_str());
-  assert(texture::Has(key));
+  PTGN_ASSERT(game.texture.Has(key));
   entity.Add<TextureComponent>(key, str_key);
   auto& waypoint = entity.Add<WaypointProgressComponent>();
   entity.Add<SpeedComponent>(speed);
   entity.Add<FlipComponent>();
   entity.Add<ScaleComponent>(V2_float{0.5f, 0.5f});
   auto& tile = entity.Add<TileComponent>(coordinate);
-  V2_int texture_size = texture::Get(key).GetSize();
+  V2_int texture_size = game.texture.Get(key).GetSize();
   entity.Add<OffsetComponent>(-texture_size / 2);
-  entity.Add<Rectangle<float>>(Rectangle<float>{rect.pos, texture_size});
+  entity.Add<Rect>(Rect{rect.position, texture_size});
   entity.Add<PrevTileComponent>(coordinate);
   entity.Add<FishComponent>();
   auto& pathing = entity.Add<PathingComponent>(paths, coordinate);
@@ -499,7 +485,7 @@ ecs::Entity CreateFish(ecs::Manager& manager, const Rectangle<float> rect,
                                Hash("co_2_2")},
       milliseconds{500}, milliseconds{2000});
   particle_component.SetSpeed({-0.1f, -0.2f}, {0.1f, -0.1f});
-  particle_component.SetSource(rect.pos);
+  particle_component.SetSource(rect.position);
   particle_component.spawn_timer.Start();
   manager.Refresh();
   return entity;
@@ -512,31 +498,31 @@ enum class Spawner {
   SUCKER,
 };
 
-ecs::Entity CreateGoldfish(ecs::Manager& manager, const Rectangle<float> rect,
+ecs::Entity CreateGoldfish(ecs::Manager& manager, const Rect rect,
                            const V2_int coordinate,
                            const std::vector<ecs::Entity>& paths) {
   return CreateFish(manager, rect, coordinate, "goldfish", paths, 1.5f);
 }
 
-ecs::Entity CreateDory(ecs::Manager& manager, const Rectangle<float> rect,
+ecs::Entity CreateDory(ecs::Manager& manager, const Rect rect,
                        const V2_int coordinate,
                        const std::vector<ecs::Entity>& paths) {
   return CreateFish(manager, rect, coordinate, "dory", paths, 2.5f);
 }
 
-ecs::Entity CreateSucker(ecs::Manager& manager, const Rectangle<float> rect,
+ecs::Entity CreateSucker(ecs::Manager& manager, const Rect rect,
                          const V2_int coordinate,
                          const std::vector<ecs::Entity>& paths) {
   return CreateFish(manager, rect, coordinate, "sucker", paths, 0.8f);
 }
 
-ecs::Entity CreateShrimp(ecs::Manager& manager, const Rectangle<float> rect,
+ecs::Entity CreateShrimp(ecs::Manager& manager, const Rect rect,
                          const V2_int coordinate,
                          const std::vector<ecs::Entity>& paths) {
   return CreateFish(manager, rect, coordinate, "shrimp", paths, 3.0f);
 }
 
-ecs::Entity CreateNemo(ecs::Manager& manager, const Rectangle<float> rect,
+ecs::Entity CreateNemo(ecs::Manager& manager, const Rect rect,
                        const V2_int coordinate,
                        const std::vector<ecs::Entity>& paths) {
   ecs::Entity nemo = CreateFish(manager, rect, coordinate, "nemo", paths, 1.3f);
@@ -546,7 +532,7 @@ ecs::Entity CreateNemo(ecs::Manager& manager, const Rectangle<float> rect,
 }
 
 ecs::Entity CreateRandomFish(int fish, ecs::Manager& manager,
-                             const Rectangle<float> rect,
+                             const Rect rect,
                              const V2_int coordinate,
                              const std::vector<ecs::Entity>& paths) {
   switch (fish) {
@@ -561,14 +547,14 @@ ecs::Entity CreateRandomFish(int fish, ecs::Manager& manager,
     case 4:
       return CreateShrimp(manager, rect, coordinate, paths);
     default: {
-      assert(!"Fish index out of range");
+      PTGN_ASSERT(!"Fish index out of range");
       return ecs::null;
     }
   }
 }
 
 ecs::Entity CreateStructure(ecs::Manager& manager,
-                            const Rectangle<float> pos_rect,
+                            const Rect pos_rect,
                             const V2_int coordinate, std::size_t key,
                             Particle particle = Particle::NONE,
                             Spawner spawner = Spawner::NONE, V2_int source = {},
@@ -576,13 +562,13 @@ ecs::Entity CreateStructure(ecs::Manager& manager,
   auto entity = manager.CreateEntity();
   entity.Add<DrawComponent>();
   entity.Add<StructureComponent>();
-  assert(texture::Has(key));
-  V2_int texture_size = texture::Get(key).GetSize();
+  PTGN_ASSERT(game.texture.Has(key));
+  V2_int texture_size = game.texture.Get(key).GetSize();
   entity.Add<ScaleComponent>(V2_float{0.5f, 0.5f});
   entity.Add<TextureComponent>(key);
 
-  auto& rect = entity.Add<Rectangle<float>>(
-      Rectangle<float>{pos_rect.pos, texture_size});
+  auto& rect = entity.Add<Rect>(
+      Rect{pos_rect.position, texture_size});
   entity.Add<OffsetComponent>(
       V2_int{-texture_size.x / 2, -texture_size.y + texture_size.y / 4});
 
@@ -597,7 +583,7 @@ ecs::Entity CreateStructure(ecs::Manager& manager,
           std::vector<std::size_t>{Hash("o_2_1"), Hash("o_2_2"), Hash("o_2_2"),
                                    Hash("o_2_2")},
           milliseconds{1000}, milliseconds{500});
-      particle_component.SetSource(rect.pos);
+      particle_component.SetSource(rect.position);
       particle_component.spawn_timer.Start();
       break;
     }
@@ -607,13 +593,13 @@ ecs::Entity CreateStructure(ecs::Manager& manager,
           std::vector<std::size_t>{Hash("co_2_1"), Hash("co_2_2"),
                                    Hash("co_2_2"), Hash("co_2_2")},
           milliseconds{1000}, milliseconds{500});
-      particle_component.SetSource(rect.pos);
+      particle_component.SetSource(rect.position);
       particle_component.spawn_timer.Start();
       break;
     }
   }
   if (spawner != Spawner::NONE) {
-    assert(paths.size() > 0 &&
+    PTGN_ASSERT(paths.size() > 0 &&
            "Must provide spawned fish with vector of path tiles");
   }
 
@@ -712,18 +698,18 @@ ecs::Entity CreateStructure(ecs::Manager& manager,
   return entity;
 }
 
-ecs::Entity CreateSpawn(ecs::Manager& manager, Rectangle<float> rect,
+ecs::Entity CreateSpawn(ecs::Manager& manager, Rect rect,
                         V2_int coordinate) {
   // Move spawns outside of tile grid so fish go off screen.
   if (coordinate.x == 0) coordinate.x = -1;
   if (coordinate.x == grid_size.x - 1) coordinate.x = grid_size.x;
   if (coordinate.y == 0) coordinate.y = -1;
   if (coordinate.y == grid_size.y - 1) coordinate.y = grid_size.y;
-  rect.pos = coordinate * tile_size + tile_size / 2;
+  rect.position = coordinate * tile_size + tile_size / 2;
 
   auto entity = manager.CreateEntity();
   entity.Add<TileComponent>(coordinate);
-  entity.Add<Rectangle<float>>(rect);
+  entity.Add<Rect>(rect);
   manager.Refresh();
   return entity;
 }
@@ -732,7 +718,7 @@ struct UILevelComponent {};
 
 struct TextComponent {
   TextComponent(std::size_t font_key, const char* content, const Color& color)
-      : text{font_key, content, color} {}
+      : text{content, color, font_key} {}
   Text text;
 };
 
@@ -745,32 +731,32 @@ struct UILevelIndicator {
               const V2_float scale = {0.75f, 0.75f}) {
     entity = manager.CreateEntity();
     std::size_t texture_key = Hash("level_indicator");
-    assert(texture::Has(texture_key));
-    Texture texture = texture::Get(texture_key);
+    PTGN_ASSERT(game.texture.Has(texture_key));
+    Texture texture = game.texture.Get(texture_key);
     entity.Add<UILevelComponent>();
     entity.Add<ScaleComponent>(scale);
     entity.Add<TextureComponent>(texture_key);
     std::size_t indicator_font = Hash("default_font");
     entity.Add<TextComponent>(indicator_font, label, text_color);
-    entity.Add<Rectangle<float>>(
-        Rectangle<float>{V2_float{coordinate * tile_size}, texture.GetSize()});
+    entity.Add<Rect>(
+        Rect{V2_float{coordinate * tile_size}, texture.GetSize()});
     manager.Refresh();
   }
   virtual void Draw() {
-    const Rectangle<float>& rect = entity.Get<Rectangle<float>>();
+    const Rect& rect = entity.Get<Rect>();
     const TextureComponent& texture = entity.Get<TextureComponent>();
     entity.Get<UILevelComponent>();
     const ScaleComponent& scale = entity.Get<ScaleComponent>();
     const TextComponent& text = entity.Get<TextComponent>();
-    assert(texture::Has(texture.key));
-    const Rectangle<float> rect_scaled = rect.ScaleSize(scale.scale);
+    PTGN_ASSERT(game.texture.Has(texture.key));
+    const Rect rect_scaled = rect.ScaleSize(scale.scale);
     // -1 from radius is so the circle fully fits inside the texture.
-    Circle<float> circle{rect_scaled.Center(), rect_scaled.Half().x - 1};
+    Circle circle{rect_scaled.Center(), rect_scaled.Half().x - 1};
     circle.DrawSolidSliced(
         color, [&](double y_frac) { return y_frac >= 1.0f - level; });
-    texture::Get(texture.key).Draw(rect_scaled);
-    const Rectangle<float> text_rect{
-        V2_float{rect_scaled.pos.x, -1.0f},
+    game.texture.Get(texture.key).Draw(rect_scaled);
+    const Rect text_rect{
+        V2_float{rect_scaled.position.x, -1.0f},
         V2_float{rect_scaled.size.x, 0.5f * tile_size.y}};
     text.text.Draw(text_rect);
     V2_float text_size = rect_scaled.Half() * 0.5f;
@@ -800,25 +786,25 @@ struct DayNightIndicator : public UILevelIndicator {
  public:
   using UILevelIndicator::UILevelIndicator;
   void Draw(bool night) {
-    const Rectangle<float>& rect = entity.Get<Rectangle<float>>();
+    const Rect& rect = entity.Get<Rect>();
     const TextureComponent& texture = entity.Get<TextureComponent>();
     entity.Get<UILevelComponent>();
     const ScaleComponent& scale = entity.Get<ScaleComponent>();
     const TextComponent& text = entity.Get<TextComponent>();
-    assert(texture::Has(texture.key));
-    const Rectangle<float> rect_scaled = rect.ScaleSize(scale.scale);
+    PTGN_ASSERT(game.texture.Has(texture.key));
+    const Rect rect_scaled = rect.ScaleSize(scale.scale);
 
-    Circle<float> top_circle{rect_scaled.Center(), rect_scaled.Half().x - 1};
+    Circle top_circle{rect_scaled.Center(), rect_scaled.Half().x - 1};
     top_circle.DrawSolidSliced(
         color::DarkBlue, [&](double y_frac) { return y_frac >= 1.0 - level; });
 
-    Circle<float> bottom_circle{rect_scaled.Center(), rect_scaled.Half().x - 1};
+    Circle bottom_circle{rect_scaled.Center(), rect_scaled.Half().x - 1};
     bottom_circle.DrawSolidSliced(
         color::Gold, [&](double y_frac) { return y_frac <= 1.0 - level; });
 
-    texture::Get(texture.key).Draw(rect_scaled);
-    const Rectangle<float> text_rect{
-        V2_float{rect_scaled.pos.x, -1.0f},
+    game.texture.Get(texture.key).Draw(rect_scaled);
+    const Rect text_rect{
+        V2_float{rect_scaled.position.x, -1.0f},
         V2_float{rect_scaled.size.x, 0.5f * tile_size.y}};
     text.text.Draw(text_rect);
 
@@ -836,7 +822,7 @@ class ChoiceScreen : public Scene {
  public:
   // Text text0{ Hash("0"), "Stroll of the Dice", color::Cyan };
 
-  std::array<TexturedButton, 8> choices;
+  std::array<Button, 8> choices;
 
   Text choice_text{Hash("default_font"), "", color::Black};
   Text skip_text{Hash("default_font"), "Skip", color::Black};
@@ -848,14 +834,14 @@ class ChoiceScreen : public Scene {
       std::string name = "choice_" + std::to_string(i + 1);
       std::size_t key = Hash(name.c_str());
       std::size_t hover_key = Hash((name + "_hover").c_str());
-      texture::Load(key, ("resources/ui/" + name + ".png").c_str());
-      texture::Load(hover_key, ("resources/ui/" + name + "_hover.png").c_str());
-      choices.at(i) = TexturedButton{{}, key, hover_key, hover_key};
+      game.texture.Load(key, ("resources/ui/" + name + ".png").c_str());
+      game.texture.Load(hover_key, ("resources/ui/" + name + "_hover.png").c_str());
+      choices.at(i) = Button{{}, key, hover_key, hover_key};
     }
 
-    texture::Load(Hash("choice_menu"), "resources/ui/choice_menu.png");
+    game.texture.Load(Hash("choice_menu"), "resources/ui/choice_menu.png");
 
-    V2_int choice_texture_size = texture::Get(Hash("choice_1")).GetSize();
+    V2_int choice_texture_size = game.texture.Get(Hash("choice_1")).GetSize();
     V2_int top_left{97, 63};
     V2_float choice_size = choice_texture_size / 2;
 
@@ -881,35 +867,35 @@ class ChoiceScreen : public Scene {
     // for human readability.
     choices[0].SetOnActivate([&]() {
       StartChoosing(1);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     choices[1].SetOnActivate([&]() {
       StartChoosing(2);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     choices[2].SetOnActivate([&]() {
       StartChoosing(3);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     choices[3].SetOnActivate([&]() {
       StartChoosing(4);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     choices[4].SetOnActivate([&]() {
       StartChoosing(5);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     choices[5].SetOnActivate([&]() {
       StartChoosing(6);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     choices[6].SetOnActivate([&]() {
       StartChoosing(7);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     choices[7].SetOnActivate([&]() {
       StartChoosing(8);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
 
     Reset();
@@ -926,10 +912,10 @@ class ChoiceScreen : public Scene {
 
     // V2_int logical_size{ game.window.GetLogicalSize() };
     V2_int window_size{game.window.GetSize()};
-    V2_int texture_size = texture::Get(Hash("choice_menu")).GetSize();
-    Rectangle<float> bg{(window_size - texture_size) / 2, texture_size};
+    V2_int texture_size = game.texture.Get(Hash("choice_menu")).GetSize();
+    Rect bg{(window_size - texture_size) / 2, texture_size};
 
-    texture::Get(Hash("choice_menu")).Draw(bg);
+    game.texture.Get(Hash("choice_menu")).Draw(bg);
 
     V2_int choice_text_size{V2_int{75, 15}};
     V2_int choice_text_pos =
@@ -938,20 +924,17 @@ class ChoiceScreen : public Scene {
     choice_text_pos.y += 72;
 
     for (auto& c : choices) {
-      /*choice.ForEachTexture([](Texture t) {
-              t.SetAlpha(128);
-      });*/
       c.Draw();
     }
 
-    Rectangle<float> skip_rect =
+    Rect skip_rect =
         choices[7].GetRectangle().ScaleSize(V2_float{0.9f, 0.3f});
 
-    V2_int choice_texture_size = texture::Get(Hash("choice_1")).GetSize();
+    V2_int choice_texture_size = game.texture.Get(Hash("choice_1")).GetSize();
     V2_float choice_size = choice_texture_size / 2;
-    skip_text.Draw(
-        skip_rect.Offset({choice_size.x / 2 - skip_rect.size.x / 2,
-                          choice_size.y / 2 - skip_rect.size.y / 2}));
+    Rect skip_text_rect{ skip_rect };
+    skip_text_rect.position += V2_int{ choice_size.x / 2 - skip_rect.size.x / 2, choice_size.y / 2 - skip_rect.size.y / 2 };
+    skip_text.Draw(skip_text_rect);
 
     std::string choice_content =
         "Choices Remaining: " + std::to_string(choice_count);
@@ -1000,11 +983,11 @@ class GameScene : public Scene {
   bool paused{false};
   int choice_{-1};
 
-  TexturedButton manage_button{
+  Button manage_button{
       {}, Hash("manage"), Hash("manage"), Hash("manage")};
-  TexturedButton confirm_button{
+  Button confirm_button{
       {}, Hash("confirm"), Hash("confirm"), Hash("confirm")};
-  TexturedButton cancel_button{
+  Button cancel_button{
       {}, Hash("cancel"), Hash("cancel"), Hash("cancel")};
 
   Text t_cancel{Hash("default_font"), "Cancel", color::White};
@@ -1017,101 +1000,90 @@ class GameScene : public Scene {
 
   GameScene(const IndicatorCondition& starting_conditions, int level)
       : starting_conditions{starting_conditions}, level_{level} {
-    assert(level_ < levels.size() &&
+    PTGN_ASSERT(level_ < levels.size() &&
            "Could not find level from list of levels");
     // game.window.SetLogicalSize(grid_size * tile_size);
-    /*music::Unmute();
-    music::Load(Hash("in_game"), "resources/music/in_game.wav");
-    music::Get(Hash("in_game"))->Play(-1);*/
-
-    // Load json data.
-    /*std::ifstream f{ "resources/data/level_data.json" };
-    if (f.fail())
-            f = std::ifstream{ GetAbsolutePath("resources/data/level_data.json")
-    }; assert(!f.fail() && "Failed to load json file"); j = json::parse(f);
-
-    levels = j["levels"].size();*/
 
     // Load textures.
-    texture::Load(Hash("floor"), "resources/tile/floor.png");
+    game.texture.Load(Hash("floor"), "resources/tile/floor.png");
 
-    texture::Load(Hash("nemo"), "resources/units/nemo_right.png");
-    texture::Load(Hash("nemo_up"), "resources/units/nemo_up.png");
-    texture::Load(Hash("nemo_down"), "resources/units/nemo_down.png");
-    texture::Load(Hash("sucker"), "resources/units/sucker_right.png");
-    texture::Load(Hash("sucker_up"), "resources/units/sucker_up.png");
-    texture::Load(Hash("sucker_down"), "resources/units/sucker_down.png");
-    texture::Load(Hash("shrimp"), "resources/units/shrimp_right.png");
-    texture::Load(Hash("shrimp_up"), "resources/units/shrimp_up.png");
-    texture::Load(Hash("shrimp_down"), "resources/units/shrimp_down.png");
-    texture::Load(Hash("dory"), "resources/units/dory_right.png");
-    texture::Load(Hash("dory_up"), "resources/units/dory_up.png");
-    texture::Load(Hash("dory_down"), "resources/units/dory_down.png");
-    texture::Load(Hash("goldfish"), "resources/units/goldfish_right.png");
-    texture::Load(Hash("goldfish_up"), "resources/units/goldfish_up.png");
-    texture::Load(Hash("goldfish_down"), "resources/units/goldfish_down.png");
+    game.texture.Load(Hash("nemo"), "resources/units/nemo_right.png");
+    game.texture.Load(Hash("nemo_up"), "resources/units/nemo_up.png");
+    game.texture.Load(Hash("nemo_down"), "resources/units/nemo_down.png");
+    game.texture.Load(Hash("sucker"), "resources/units/sucker_right.png");
+    game.texture.Load(Hash("sucker_up"), "resources/units/sucker_up.png");
+    game.texture.Load(Hash("sucker_down"), "resources/units/sucker_down.png");
+    game.texture.Load(Hash("shrimp"), "resources/units/shrimp_right.png");
+    game.texture.Load(Hash("shrimp_up"), "resources/units/shrimp_up.png");
+    game.texture.Load(Hash("shrimp_down"), "resources/units/shrimp_down.png");
+    game.texture.Load(Hash("dory"), "resources/units/dory_right.png");
+    game.texture.Load(Hash("dory_up"), "resources/units/dory_up.png");
+    game.texture.Load(Hash("dory_down"), "resources/units/dory_down.png");
+    game.texture.Load(Hash("goldfish"), "resources/units/goldfish_right.png");
+    game.texture.Load(Hash("goldfish_up"), "resources/units/goldfish_up.png");
+    game.texture.Load(Hash("goldfish_down"), "resources/units/goldfish_down.png");
 
-    texture::Load(Hash("kelp_1"), "resources/structure/kelp_1.png");
-    texture::Load(Hash("kelp_2"), "resources/structure/kelp_2.png");
-    texture::Load(Hash("driftwood"), "resources/structure/driftwood.png");
-    texture::Load(Hash("anenome"), "resources/structure/anenome.png");
-    texture::Load(Hash("yellow_anenome"),
+    game.texture.Load(Hash("kelp_1"), "resources/structure/kelp_1.png");
+    game.texture.Load(Hash("kelp_2"), "resources/structure/kelp_2.png");
+    game.texture.Load(Hash("driftwood"), "resources/structure/driftwood.png");
+    game.texture.Load(Hash("anenome"), "resources/structure/anenome.png");
+    game.texture.Load(Hash("yellow_anenome"),
                   "resources/structure/yellow_anenome.png");
-    texture::Load(Hash("calcium_statue_1"),
+    game.texture.Load(Hash("calcium_statue_1"),
                   "resources/structure/calcium_statue_1.png");
-    texture::Load(Hash("coral"), "resources/structure/coral.png");
-    texture::Load(Hash("bleached_coral"),
+    game.texture.Load(Hash("coral"), "resources/structure/coral.png");
+    game.texture.Load(Hash("bleached_coral"),
                   "resources/structure/bleached_coral.png");
-    texture::Load(Hash("cave"), "resources/structure/cave.png");
-    texture::Load(Hash("seed_dispenser"),
+    game.texture.Load(Hash("cave"), "resources/structure/cave.png");
+    game.texture.Load(Hash("seed_dispenser"),
                   "resources/structure/seed_dispenser.png");
-    texture::Load(Hash("delete"), "resources/structure/delete.png");
+    game.texture.Load(Hash("delete"), "resources/structure/delete.png");
 
-    texture::Load(Hash("o_2_1"), "resources/particle/o_2_1.png");
-    texture::Load(Hash("o_2_2"), "resources/particle/o_2_2.png");
-    texture::Load(Hash("co_2_1"), "resources/particle/co_2_1.png");
-    texture::Load(Hash("co_2_2"), "resources/particle/co_2_2.png");
+    game.texture.Load(Hash("o_2_1"), "resources/particle/o_2_1.png");
+    game.texture.Load(Hash("o_2_2"), "resources/particle/o_2_2.png");
+    game.texture.Load(Hash("co_2_1"), "resources/particle/co_2_1.png");
+    game.texture.Load(Hash("co_2_2"), "resources/particle/co_2_2.png");
 
-    texture::Load(Hash("level_indicator"), "resources/ui/level_indicator.png");
-    texture::Load(Hash("choice_menu"), "resources/ui/choice_menu.png");
-    texture::Load(Hash("manage"), "resources/ui/manage.png");
-    texture::Load(Hash("confirm"), "resources/ui/confirm.png");
-    texture::Load(Hash("cancel"), "resources/ui/cancel.png");
+    game.texture.Load(Hash("level_indicator"), "resources/ui/level_indicator.png");
+    game.texture.Load(Hash("choice_menu"), "resources/ui/choice_menu.png");
+    game.texture.Load(Hash("manage"), "resources/ui/manage.png");
+    game.texture.Load(Hash("confirm"), "resources/ui/confirm.png");
+    game.texture.Load(Hash("cancel"), "resources/ui/cancel.png");
 
-    texture::Load(Hash("exit"), "resources/ui/exit.png");
-    texture::Load(Hash("exit_hover"), "resources/ui/exit_hover.png");
+    game.texture.Load(Hash("exit"), "resources/ui/exit.png");
+    game.texture.Load(Hash("exit_hover"), "resources/ui/exit_hover.png");
 
-    sound::Load(Hash("sand"), "resources/sound/sand.wav");
+    game.sound.Load(Hash("sand"), "resources/sound/sand.wav");
 
     mute_button.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
-      music::Toggle();
-      if (music::GetVolume() == 0) {
-        sound::HaltChannel(0);
+      game.sound.Get("click").Play(1, 0);
+      game.music.Toggle();
+      if (game.music.GetVolume() == 0) {
+        game.sound.HaltChannel(0);
       } else {
-        sound::ResumeChannel(0);
-        sound::Get(Hash("aqualife_theme")).Play(0, -1);
+        game.sound.ResumeChannel(0);
+        game.sound.Get(Hash("aqualife_theme")).Play(0, -1);
       }
     });
 
     exit_button.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
       Exit();
     });
 
-    // texture::Load(Hash("blue_nemo"), "resources/units/blue_nemo.png");
-    // texture::Load(Hash("jelly"), "resources/units/jelly.png");
+    // game.texture.Load(Hash("blue_nemo"), "resources/units/blue_nemo.png");
+    // game.texture.Load(Hash("jelly"), "resources/units/jelly.png");
 
     Reset();
   }
 
-  TexturedToggleButton mute_button{
+  Button mute_button{
       {},
       {Hash("mute"), Hash("mute_disabled")},
       {Hash("mute_hover"), Hash("mute_disabled_hover")},
       {Hash("mute_hover"), Hash("mute_hover")}};
 
-  TexturedButton exit_button{
+  Button exit_button{
       {}, Hash("exit"), Hash("exit_hover"), Hash("exit_hover")};
 
   const std::size_t full_days_before_choices{1};
@@ -1129,7 +1101,7 @@ class GameScene : public Scene {
     // Setup node grid for the map.
     levels[level_].ForEachPixel([&](const V2_int& coordinate,
                                     const Color& color) {
-      Rectangle<float> rect{
+      Rect rect{
           pixel_scaling * (coordinate * tile_size + tile_size / 2),
           pixel_scaling * tile_size};
       if (color == color::Silver) {
@@ -1138,9 +1110,9 @@ class GameScene : public Scene {
         paths.push_back(CreatePath(manager, rect, coordinate, Hash("floor")));
         ecs::Entity spawn = CreateSpawn(manager, rect, coordinate);
         spawn_points.push_back(spawn);
-        Rectangle<float> r{spawn.Get<Rectangle<float>>()};
+        Rect r{spawn.Get<Rect>()};
         paths.push_back(
-            CreatePath(manager, {pixel_scaling * r.pos, pixel_scaling * r.size},
+            CreatePath(manager, {pixel_scaling * r.position, pixel_scaling * r.size},
                        spawn.Get<TileComponent>().coordinate, Hash("floor")));
       } else if (color == color::DarkGreen) {
         RNG<int> rng{0, 1};
@@ -1161,9 +1133,7 @@ class GameScene : public Scene {
       // }
     });
 
-    day_timer.Reset();
     day_timer.Start();
-    cycle_timer.Reset();
     cycle_timer.Start();
 
     day = 0;
@@ -1177,17 +1147,17 @@ class GameScene : public Scene {
         {{manage_offset, window_size.y - manage_texture_size.y - manage_offset},
          manage_texture_size});
     manage_button.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
       PresentChoices();
     });
     manage_button.SetOnHover([&]() { t_manage.SetColor(color::Black); },
                              [&]() { t_manage.SetColor(color::White); });
 
-    mute_button.SetRectangle(Rectangle<float>{
+    mute_button.SetRectangle(Rect{
         window_size - tile_size - V2_float{manage_offset, manage_offset},
         tile_size});
     exit_button.SetRectangle(
-        Rectangle<float>{V2_float{manage_offset, manage_offset}, tile_size});
+        Rect{V2_float{manage_offset, manage_offset}, tile_size});
 
     V2_int confirm_texture_size =
         confirm_button.GetCurrentTexture().GetSize() / 4;
@@ -1197,10 +1167,10 @@ class GameScene : public Scene {
           window_size.y - confirm_texture_size.y - manage_offset},
          confirm_texture_size});
     confirm_button.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
-      assert(scene::Has(Hash("choices")));
+      game.sound.Get("click").Play(1, 0);
+      PTGN_ASSERT(game.scene.Has(Hash("choices")));
       if (choice_structure != ecs::null || delete_structure != ecs::null) {
-        scene::Get<ChoiceScreen>(Hash("choices"))->choice_count--;
+        game.scene.Get<ChoiceScreen>(Hash("choices"))->choice_count--;
       }
       choice_structure = ecs::null;
       if (delete_structure != ecs::null) {
@@ -1244,7 +1214,7 @@ class GameScene : public Scene {
           window_size.y - cancel_texture_size.y - manage_offset},
          cancel_texture_size});
     cancel_button.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
       DestroyChoiceEntity();
       PresentChoices();
     });
@@ -1306,11 +1276,8 @@ class GameScene : public Scene {
     acidity_indicator.SetStartingLevel(starting_conditions.acidity);
     salinity_indicator.SetStartingLevel(starting_conditions.salinity);
 
-    manager.ForEachEntityWith<PathComponent, TileComponent, TextureMapComponent,
-                              RotationComponent, FlipComponent>(
-        [&](ecs::Entity e, PathComponent&, TileComponent& tile,
-            TextureMapComponent& texture_map, RotationComponent& rotation,
-            FlipComponent& flip) {
+    for (auto [e, path, tile, texture_map, rotation, flip] : manager.EntitiesWith<PathComponent, TileComponent, TextureMapComponent,
+                              RotationComponent, FlipComponent>()) {
           std::vector<V2_int> neighbors =
               GetNeighborTiles(paths, tile.coordinate);
 
@@ -1382,14 +1349,14 @@ class GameScene : public Scene {
     } else {
       Unpause();
     }
-    if (music::GetVolume() == 0)
+    if (game.music.GetVolume() == 0)
       mute_button.SetToggleState(true);
     else
       mute_button.SetToggleState(false);
   }
 
   // spawn rect, spawn coordinate, spawn time, spawned
-  std::vector<std::tuple<Rectangle<float>, V2_int, seconds, bool>> fish_spawns;
+  std::vector<std::tuple<Rect, V2_int, seconds, bool>> fish_spawns;
 
   void RerollFish() {
     ++day;
@@ -1402,8 +1369,8 @@ class GameScene : public Scene {
 
     float crowding_level = crowding_indicator.GetLevel();
 
-    assert(crowding_level <= 1.0f);
-    assert(crowding_level >= 0.0f);
+    PTGN_ASSERT(crowding_level <= 1.0f);
+    PTGN_ASSERT(crowding_level >= 0.0f);
 
     int potential_maximum = (int)(maximum_fish * (1.0f - crowding_level));
 
@@ -1414,11 +1381,11 @@ class GameScene : public Scene {
     RNG<long long> spawn_time_rng{0, day_length.count()};
 
     for (int i = 0; i < fish_to_spawn; i++) {
-      auto get_spawn_location = [&]() -> std::pair<Rectangle<float>, V2_int> {
+      auto get_spawn_location = [&]() -> std::pair<Rect, V2_int> {
         RNG<int> rng{0, static_cast<int>(spawn_points.size()) - 1};
         int spawn_index = rng();
         ecs::Entity spawn_point = spawn_points.at(spawn_index);
-        const Rectangle<float>& rect = spawn_point.Get<Rectangle<float>>();
+        const Rect& rect = spawn_point.Get<Rect>();
         const TileComponent& tile = spawn_point.Get<TileComponent>();
         return {rect, tile.coordinate};
       };
@@ -1439,7 +1406,7 @@ class GameScene : public Scene {
     V2_int window_size{game.window.GetSize()};
     V2_int mouse_pos = game.input.GetMousePosition();
     V2_int mouse_tile = V2_int{V2_float{mouse_pos} / V2_float{tile_size}};
-    Rectangle<float> mouse_box{mouse_tile * tile_size + tile_size / 2,
+    Rect mouse_box{mouse_tile * tile_size + tile_size / 2,
                                tile_size};
 
     seconds time_passed{cycle_timer.Elapsed<seconds>()};
@@ -1458,25 +1425,13 @@ class GameScene : public Scene {
     manager.Refresh();
 
     if (!paused) {
-      /*if (game.input.MouseScroll() > 0) {
-              oxygen_indicator.UpdateLevel(+0.1f);
-      }
-      if (game.input.MouseScroll() < 0) {
-              oxygen_indicator.UpdateLevel(-0.1f);
-      }
-      if (game.input.KeyPressed(Key::UP)) {
-              acidity_indicator.UpdateLevel(+0.1f);
-      }
-      if (game.input.KeyPressed(Key::DOWN)) {
-              acidity_indicator.UpdateLevel(-0.1f);
-      }*/
     }
 
     // Draw background tiles
     for (std::size_t i = 0; i < grid_size.x; i++) {
       for (std::size_t j = 0; j < grid_size.y; j++) {
-        Rectangle<int> r{V2_int{i, j} * tile_size, tile_size};
-        texture::Get(Hash("floor")).Draw(r, {{0, 0}, tile_size});
+        Rect r{V2_int{i, j} * tile_size, tile_size};
+        game.texture.Get(Hash("floor")).Draw(r, {{0, 0}, tile_size});
       }
     }
 
@@ -1489,14 +1444,6 @@ class GameScene : public Scene {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "sucker",
       // paths, 0.8f);
       // }
-      ///*if (game.input.KeyDown(Key::B)) {
-      //	CreateFish(manager, spawn_rect, spawn_coordinate, "blue_nemo",
-      // paths, 1.0f);
-      //}*/
-      ///*if (game.input.KeyDown(Key::J)) {
-      //	CreateFish(manager, spawn_rect, spawn_coordinate, "jelly",
-      // paths, 1.0f);
-      //}*/
       // if (game.input.KeyDown(Key::D)) {
       //	CreateFish(manager, spawn_rect, spawn_coordinate, "dory",
       // paths, 2.5f);
@@ -1516,21 +1463,21 @@ class GameScene : public Scene {
           });
     }
 
-    auto draw_texture = [&](const ecs::Entity& e, Rectangle<float> rect,
+    auto draw_texture = [&](const ecs::Entity& e, Rect rect,
                             std::size_t texture_key) {
-      V2_int og_pos = rect.pos;
+      V2_int og_pos = rect.position;
       bool has_scale = e.Has<ScaleComponent>();
       V2_float scale =
           has_scale ? e.Get<ScaleComponent>().scale : V2_float{1.0f, 1.0f};
       rect.size *= scale;
       if (e.Has<OffsetComponent>()) {
-        rect.pos += e.Get<OffsetComponent>().offset * scale;
+        rect.position += e.Get<OffsetComponent>().offset * scale;
       } else {
-        rect.pos -= tile_size / 2;
+        rect.position -= tile_size / 2;
       }
-      Rectangle<int> source;
+      Rect source;
       if (e.Has<TextureMapComponent>()) {
-        source.pos = e.Get<TextureMapComponent>().coordinate * tile_size;
+        source.position = e.Get<TextureMapComponent>().coordinate * tile_size;
         source.size = tile_size;
       }
       float angle{0.0f};
@@ -1541,16 +1488,12 @@ class GameScene : public Scene {
       if (e.Has<FlipComponent>()) {
         flip = e.Get<FlipComponent>().flip;
       }
-      texture::Get(texture_key).Draw(rect, source, angle, flip);
-      /*
-      // DEBUG: Display positions.
-      Circle<float> circle{ og_pos, 1 };
-      circle.DrawSolid(color::Red);*/
+      game.texture.Get(texture_key).Draw(rect, source, angle, flip);
     };
 
     manager
-        .ForEachEntityWith<Rectangle<float>, TextureComponent, DrawComponent>(
-            [&](ecs::Entity e, Rectangle<float>& rect,
+        .ForEachEntityWith<Rect, TextureComponent, DrawComponent>(
+            [&](ecs::Entity e, Rect& rect,
                 TextureComponent& texture, DrawComponent&) {
               if (texture.key == Hash("coral")) return;
               draw_texture(e, rect, texture.key);
@@ -1561,20 +1504,20 @@ class GameScene : public Scene {
     //		ecs::Entity e, PathingComponent& pathing, TileComponent& tile) {
     //		std::vector<V2_int> neighbors =
     // pathing.GetNeighborTiles(tile.coordinate); 		for (const
-    // V2_int& neighbor : neighbors) { 			Rectangle<int> r{
+    // V2_int& neighbor : neighbors) { 			Rect r{
     // neighbor * tile_size, tile_size };
     // r.DrawSolid(color::Red);
     //		}
-    //		//texture::Get(texture.key).Draw(rect);
+    //		//game.texture.Get(texture.key).Draw(rect);
     //	});
     // }
 
     if (!paused) {
       manager.ForEachEntityWith<PathingComponent, TileComponent,
-                                PrevTileComponent, Rectangle<float>,
+                                PrevTileComponent, Rect,
                                 WaypointProgressComponent, SpeedComponent>(
           [&](ecs::Entity e, PathingComponent& pathing, TileComponent& tile,
-              PrevTileComponent& prev_tile, Rectangle<float>& rect,
+              PrevTileComponent& prev_tile, Rect& rect,
               WaypointProgressComponent& waypoint, SpeedComponent& speed) {
             if (e.Has<EatingComponent>()) {
               auto& eating = e.Get<EatingComponent>();
@@ -1601,19 +1544,19 @@ class GameScene : public Scene {
               }
             }
 
-            rect.pos = Lerp(tile.coordinate * tile_size + tile_size / 2,
+            rect.position = Lerp(tile.coordinate * tile_size + tile_size / 2,
                             waypoint.target_tile * tile_size + tile_size / 2,
                             waypoint.progress);
 
             auto& particle_component = e.Get<ParticleComponent>();
-            particle_component.SetSource(rect.pos);
+            particle_component.SetSource(rect.position);
           });
 
       manager.ForEachEntityWith<
-          PathingComponent, TileComponent, Rectangle<float>, TextureComponent,
+          PathingComponent, TileComponent, Rect, TextureComponent,
           FlipComponent, OffsetComponent, WaypointProgressComponent>(
           [&](ecs::Entity e, PathingComponent&, TileComponent& tile,
-              Rectangle<float>& rect, TextureComponent& texture,
+              Rect& rect, TextureComponent& texture,
               FlipComponent& flip, OffsetComponent& offset,
               WaypointProgressComponent& waypoint) {
             if (texture.str_key != "") {
@@ -1623,9 +1566,9 @@ class GameScene : public Scene {
               flip.flip = right || !horizontal ? Flip::None : Flip::Horizontal;
               std::string dir = horizontal ? "" : up ? "_up" : "_down";
               std::size_t key = Hash((texture.str_key + dir).c_str());
-              if (key != texture.key && texture::Has(key)) {
+              if (key != texture.key && game.texture.Has(key)) {
                 texture.key = key;
-                V2_int texture_size = texture::Get(texture.key).GetSize();
+                V2_int texture_size = game.texture.Get(texture.key).GetSize();
                 rect.size = texture_size;
                 offset.offset = -texture_size / 2;
               }
@@ -1704,7 +1647,7 @@ class GameScene : public Scene {
       }
     }
 
-    Rectangle<float> bg{{}, game.window.GetResolution()};
+    Rect bg{{}, game.window.GetResolution()};
     bg.DrawSolid({6, 64, 75, time});
     Color acidity_color = color::Yellow;
     Color pollution_color = color::Brown;
@@ -1716,15 +1659,15 @@ class GameScene : public Scene {
     std::size_t bleached_key = Hash("bleached_coral");
     std::size_t coral_key = Hash("coral");
 
-    manager.ForEachEntityWith<Rectangle<float>, TextureComponent, DrawComponent,
+    manager.ForEachEntityWith<Rect, TextureComponent, DrawComponent,
                               StructureComponent>(
-        [&](ecs::Entity e, Rectangle<float>& rect, TextureComponent& texture,
+        [&](ecs::Entity e, Rect& rect, TextureComponent& texture,
             DrawComponent&, StructureComponent&) {
           if (texture.key == coral_key) {
-            assert(texture::Has(texture.key));
-            assert(texture::Has(bleached_key));
-            texture::Get(texture.key).SetAlpha(salinity);
-            texture::Get(bleached_key).SetAlpha(255 - salinity);
+            PTGN_ASSERT(game.texture.Has(texture.key));
+            PTGN_ASSERT(game.texture.Has(bleached_key));
+            game.texture.Get(texture.key).SetAlpha(salinity);
+            game.texture.Get(bleached_key).SetAlpha(255 - salinity);
             draw_texture(e, rect, texture.key);
             draw_texture(e, rect, bleached_key);
           }
@@ -1810,7 +1753,7 @@ class GameScene : public Scene {
 
     V2_int manage_texture_size{manage_button.GetRectangle().size * 0.8};
     V2_int manage_text_size{manage_texture_size};
-    V2_int manage_text_pos = manage_button.GetRectangle().pos +
+    V2_int manage_text_pos = manage_button.GetRectangle().position +
                              manage_button.GetRectangle().size / 2 -
                              manage_text_size / 2;
     t_manage.SetVisibility(manage_button.GetVisibility());
@@ -1818,7 +1761,7 @@ class GameScene : public Scene {
 
     V2_int confirm_texture_size{confirm_button.GetRectangle().size * 0.8};
     V2_int confirm_text_size{confirm_texture_size};
-    V2_int confirm_text_pos = confirm_button.GetRectangle().pos +
+    V2_int confirm_text_pos = confirm_button.GetRectangle().position +
                               confirm_button.GetRectangle().size / 2 -
                               confirm_text_size / 2;
     t_confirm.SetVisibility(confirm_button.GetVisibility());
@@ -1826,7 +1769,7 @@ class GameScene : public Scene {
 
     V2_int cancel_texture_size{cancel_button.GetRectangle().size * 0.8};
     V2_int cancel_text_size{cancel_texture_size};
-    V2_int cancel_text_pos = cancel_button.GetRectangle().pos +
+    V2_int cancel_text_pos = cancel_button.GetRectangle().position +
                              cancel_button.GetRectangle().size / 2 -
                              cancel_text_size / 2;
     t_cancel.SetVisibility(cancel_button.GetVisibility());
@@ -1837,7 +1780,7 @@ class GameScene : public Scene {
       bool near_path = false;
       bool on_path = false;
       for (const ecs::Entity& e : paths) {
-        assert(e.Has<TileComponent>());
+        PTGN_ASSERT(e.Has<TileComponent>());
         const TileComponent& tile = e.Get<TileComponent>();
         if (mouse_tile == tile.coordinate) {
           near_path = false;
@@ -1908,12 +1851,12 @@ class GameScene : public Scene {
           break;
         }
         case 8: {
-          assert(!"Choice 8 should be dealt with beforehand");
+          PTGN_ASSERT(!"Choice 8 should be dealt with beforehand");
           break;
         }
 
         default:
-          assert(!"Choice outside of range, something went wrong");
+          PTGN_ASSERT(!"Choice outside of range, something went wrong");
           break;
       }
 
@@ -1971,17 +1914,17 @@ class GameScene : public Scene {
           if (choice_structure != ecs::null) {
             DestroyChoiceEntity();
           }
-          sound::HaltChannel(2);
-          sound::Get(Hash("sand")).Play(2, 0);
+          game.sound.HaltChannel(2);
+          game.sound.Get(Hash("sand")).Play(2, 0);
           choice_structure =
               CreateStructure(manager, mouse_box, mouse_tile, key, particle,
                               spawner, source, paths);
         }
 
         if (!removing && choice_structure != ecs::null) {
-          assert(choice_structure.Has<TileComponent>());
+          PTGN_ASSERT(choice_structure.Has<TileComponent>());
           const TileComponent& tile = choice_structure.Get<TileComponent>();
-          Rectangle<float> choice_rect{tile.coordinate * tile_size, tile_size};
+          Rect choice_rect{tile.coordinate * tile_size, tile_size};
           choice_rect.Draw(color::Green, 3);
           if (tile.coordinate == mouse_tile) {
             mouse_box_color = color::Green;
@@ -2000,30 +1943,30 @@ class GameScene : public Scene {
       }
 
       if (!over_button && !removing && key != Hash("invalid")) {
-        assert(texture::Has(key));
-        V2_int texture_size = texture::Get(key).GetSize();
+        PTGN_ASSERT(game.texture.Has(key));
+        V2_int texture_size = game.texture.Get(key).GetSize();
         V2_float scale{0.5f, 0.5f};
-        Rectangle<float> rect{mouse_box.pos, texture_size};
+        Rect rect{mouse_box.position, texture_size};
         V2_int offset{-texture_size.x / 2,
                       -texture_size.y + texture_size.y / 4};
 
         rect.size *= scale;
-        rect.pos += offset * scale;
-        Texture texture = texture::Get(key);
+        rect.position += offset * scale;
+        Texture texture = game.texture.Get(key);
         texture.SetAlpha(180);
         texture.Draw(rect);
       }
 
       if (removing && delete_structure != ecs::null) {
-        assert(delete_structure.Has<TileComponent>());
+        PTGN_ASSERT(delete_structure.Has<TileComponent>());
         const TileComponent& delete_tile =
             delete_structure.Get<TileComponent>();
-        Rectangle<float> delete_rect{delete_tile.coordinate * tile_size,
+        Rect delete_rect{delete_tile.coordinate * tile_size,
                                      tile_size};
         delete_rect.Draw(color::DarkRed, 3);
         std::size_t delete_key = Hash("delete");
-        assert(texture::Has(delete_key));
-        Texture texture = texture::Get(delete_key);
+        PTGN_ASSERT(game.texture.Has(delete_key));
+        Texture texture = game.texture.Get(delete_key);
         texture.Draw(delete_rect);
       }
       // Text choice_text{ Hash("default_font"), std::to_string(choice_),
@@ -2047,34 +1990,13 @@ class GameScene : public Scene {
       } else if (elapsed_fade_in <= milliseconds{4000} &&
                  !fade_out.IsRunning()) {
         day_text_color = color::Black;
-        fade_out.Reset();
         fade_out.Start();
-        fade_in.Reset();
         fade_in.Stop();
         day_text.SetVisibility(false);
       }
     } else {
       day_text.SetVisibility(false);
     }
-
-    /*if (fade_out.IsRunning()) {
-            milliseconds elapsed_fade_out = fade_out.Elapsed<milliseconds>();
-            if (elapsed_fade_out <= milliseconds{ 300 }) {
-                    Color day_text_color = color::Black;
-                    day_text.SetColor(day_text_color);
-            } else if (elapsed_fade_out <= milliseconds{ 1300 }) {
-                    Color day_text_color = { color::Black.r, color::Black.g,
-    color::Black.b, static_cast<std::uint8_t>(255 * (1 -
-    std::clamp(fade_out.ElapsedPercentage(milliseconds{ 1300 }), 0.0f, 1.0f)))
-    }; day_text.SetColor(day_text_color); } else if (elapsed_fade_out <=
-    milliseconds{ 2000 }) { Color day_text_color = color::Black;
-                    day_text_color.a = 0;
-                    day_text.SetColor(day_text_color);
-                    fade_out.Reset();
-                    fade_out.Stop();
-                    day_text.SetVisibility(false);
-            }
-    }*/
 
     if (day_text.GetVisibility()) {
       V2_float day_text_size{75, 15};
@@ -2091,13 +2013,13 @@ class GameScene : public Scene {
     if (!choosing && day_timer.IsPaused() && game.input.KeyDown(Key::ESCAPE)) {
       manage_button.SetInteractable(true);
       manage_button.SetVisibility(true);
-      if (scene::Has(Hash("choices"))) scene::RemoveActive(Hash("choices"));
+      if (game.scene.Has(Hash("choices"))) game.scene.RemoveActive(Hash("choices"));
     }
   }
 
-  ecs::Entity delete_structure{ecs::null};
-  ecs::Entity choice_structure{ecs::null};
-  Text day_text{Hash("default_font"), "", color::Black};
+  ecs::Entity delete_structure;
+  ecs::Entity choice_structure;
+  Text day_text{ "", color::Black, "default_font" };
   Timer fade_in;
   Timer fade_out;
 
@@ -2112,13 +2034,12 @@ class GameScene : public Scene {
     choice_ = -1;
     choosing = false;
     RerollFish();
-    cycle_timer.Reset();
     cycle_timer.Start();
     manager.ForEachEntityWith<LifetimeComponent, StructureComponent>(
         [](ecs::Entity e, LifetimeComponent& life, StructureComponent&) {
           if (!life.timer.IsRunning()) life.timer.Start();
         });
-    scene::Get<ChoiceScreen>(Hash("choices"))->DisableButtons();
+    game.scene.Get<ChoiceScreen>(Hash("choices"))->DisableButtons();
     Unpause();
     manage_button.SetInteractable(false);
     manage_button.SetVisibility(false);
@@ -2146,8 +2067,8 @@ class GameScene : public Scene {
     cycle_timer.Stop();
     cycles_since_choices = 0;
     Pause();
-    if (scene::Has(Hash("choices"))) {
-      scene::Get<ChoiceScreen>(Hash("choices"))->Reset();
+    if (game.scene.Has(Hash("choices"))) {
+      game.scene.Get<ChoiceScreen>(Hash("choices"))->Reset();
     }
 
     manage_button.SetInteractable(true);
@@ -2199,12 +2120,12 @@ class GameScene : public Scene {
     manage_button.SetInteractable(false);
     choosing = false;
     ToggleChoiceButtons();
-    if (!scene::Has(Hash("choices"))) {
-      scene::Load<ChoiceScreen>(Hash("choices"));
+    if (!game.scene.Has(Hash("choices"))) {
+      game.scene.Load<ChoiceScreen>(Hash("choices"));
     }
-    scene::Get<ChoiceScreen>(Hash("choices"))->EnableButtons();
-    if (scene::Get<ChoiceScreen>(Hash("choices"))->choice_count > 0) {
-      scene::AddActive(Hash("choices"));
+    game.scene.Get<ChoiceScreen>(Hash("choices"))->EnableButtons();
+    if (game.scene.Get<ChoiceScreen>(Hash("choices"))->choice_count > 0) {
+      game.scene.AddActive(Hash("choices"));
     } else {
       RanOutOfChoices();
     }
@@ -2230,11 +2151,11 @@ class LevelScene : public Scene {
  public:
   // Text text0{ Hash("0"), "Stroll of the Dice", color::Cyan };
 
-  TexturedButton level1{{}, Hash("level"), Hash("level"), Hash("level")};
-  TexturedButton level2{{}, Hash("level"), Hash("level"), Hash("level")};
-  TexturedButton level3{{}, Hash("level"), Hash("level"), Hash("level")};
+  Button level1{{}, Hash("level"), Hash("level"), Hash("level")};
+  Button level2{{}, Hash("level"), Hash("level"), Hash("level")};
+  Button level3{{}, Hash("level"), Hash("level"), Hash("level")};
 
-  TexturedButton back{{}, Hash("back"), Hash("back"), Hash("back")};
+  Button back{{}, Hash("back"), Hash("back"), Hash("back")};
 
   Color level1_text_color{color::White};
   Color level2_text_color{color::White};
@@ -2251,19 +2172,19 @@ class LevelScene : public Scene {
   LevelScene() {
     // game.window.SetLogicalSize({ 1689, 1001 });
 
-    texture::Load(Hash("level"), "resources/ui/level.png");
-    texture::Load(Hash("back"), "resources/ui/back.png");
-    texture::Load(Hash("level_background"),
+    game.texture.Load(Hash("level"), "resources/ui/level.png");
+    game.texture.Load(Hash("back"), "resources/ui/back.png");
+    game.texture.Load(Hash("level_background"),
                   "resources/ui/level_background.png");
 
     mute_button.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
-      music::Toggle();
-      if (music::GetVolume() == 0) {
-        sound::HaltChannel(0);
+      game.sound.Get("click").Play(1, 0);
+      game.music.Toggle();
+      if (game.music.GetVolume() == 0) {
+        game.sound.HaltChannel(0);
       } else {
-        sound::ResumeChannel(0);
-        sound::Get(Hash("aqualife_theme")).Play(0, -1);
+        game.sound.ResumeChannel(0);
+        game.sound.Get(Hash("aqualife_theme")).Play(0, -1);
       }
     });
 
@@ -2272,8 +2193,8 @@ class LevelScene : public Scene {
     V2_float mute_offset = {12, 12};
     V2_float mute_size{62, 62};
     mute_button.SetRectangle(
-        Rectangle<float>{window_size - mute_size - mute_offset, mute_size});
-    if (music::GetVolume() == 0)
+        Rect{window_size - mute_size - mute_offset, mute_size});
+    if (game.music.GetVolume() == 0)
       mute_button.SetToggleState(true);
     else
       mute_button.SetToggleState(false);
@@ -2281,10 +2202,10 @@ class LevelScene : public Scene {
   static void Exit();
   void Update() final {
     V2_int window_size{game.window.GetSize()};
-    V2_int texture_size = texture::Get(Hash("level_background")).GetSize();
-    Rectangle<float> bg{(window_size - texture_size) / 2, texture_size};
+    V2_int texture_size = game.texture.Get(Hash("level_background")).GetSize();
+    Rect bg{(window_size - texture_size) / 2, texture_size};
     // bg.DrawSolid(color::Blue);
-    texture::Get(Hash("level_background")).Draw(bg);
+    game.texture.Get(Hash("level_background")).Draw(bg);
 
     V2_int level_texture_size = level1.GetCurrentTexture().GetSize();
     V2_int back_texture_size = back.GetCurrentTexture().GetSize();
@@ -2316,26 +2237,26 @@ class LevelScene : public Scene {
 
     auto play_press = [&](const IndicatorCondition& starting_conditions,
                           int level) {
-      scene::Load<GameScene>(Hash("game"), starting_conditions, level);
-      scene::Unload(Hash("level_select"));
-      scene::SetActive(Hash("game"));
+      game.scene.Load<GameScene>(Hash("game"), starting_conditions, level);
+      game.scene.Unload(Hash("level_select"));
+      game.scene.SetActive(Hash("game"));
     };
 
     level1.SetOnActivate([&]() {
       play_press({0.3f, 0.7f, 0.5f, 0.3f, 0.6f}, 0);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     level2.SetOnActivate([&]() {
       play_press({0.4f, 0.7f, 0.1f, 0.1f, 0.6f}, 1);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
     level3.SetOnActivate([&]() {
       play_press({0.4f, 1.0f, 0.8f, 1.0f, 1.0f}, 2);
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
     });
 
     back.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
+      game.sound.Get("click").Play(1, 0);
       Exit();
     });
 
@@ -2384,28 +2305,28 @@ class StartScreen : public Scene {
       {Hash("mute_hover"), Hash("mute_disabled_hover")},
       {Hash("mute_hover"), Hash("mute_hover")}};
 
-  TexturedButton play{{}, Hash("play"), Hash("play"), Hash("play")};
+  Button play{{}, Hash("play"), Hash("play"), Hash("play")};
   Color play_text_color{color::White};
 
   StartScreen() {
     // game.window.SetLogicalSize({ 1689, 1001 });
 
-    texture::Load(Hash("play"), "resources/ui/play.png");
-    texture::Load(Hash("start_background"),
+    game.texture.Load(Hash("play"), "resources/ui/play.png");
+    game.texture.Load(Hash("start_background"),
                   "resources/ui/start_background.png");
 
     mute_button.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
-      music::Toggle();
-      if (music::GetVolume() == 0) {
-        sound::HaltChannel(0);
+      game.sound.Get("click").Play(1, 0);
+      game.music.Toggle();
+      if (game.music.GetVolume() == 0) {
+        game.sound.HaltChannel(0);
       } else {
-        sound::ResumeChannel(0);
-        sound::Get(Hash("aqualife_theme")).Play(0, -1);
+        game.sound.ResumeChannel(0);
+        game.sound.Get(Hash("aqualife_theme")).Play(0, -1);
       }
     });
     V2_int window_size{game.window.GetSize()};
-    if (music::GetVolume() == 0)
+    if (game.music.GetVolume() == 0)
       mute_button.SetToggleState(true);
     else
       mute_button.SetToggleState(false);
@@ -2413,14 +2334,14 @@ class StartScreen : public Scene {
     V2_float mute_offset = {12, 12};
     V2_float mute_size{62, 62};
     mute_button.SetRectangle(
-        Rectangle<float>{window_size - mute_size - mute_offset, mute_size});
+        Rect{window_size - mute_size - mute_offset, mute_size});
   }
   void Update() final {
     V2_int window_size{game.window.GetSize()};
-    V2_int texture_size = texture::Get(Hash("start_background")).GetSize();
-    Rectangle<float> bg{(window_size - texture_size) / 2, texture_size};
+    V2_int texture_size = game.texture.Get(Hash("start_background")).GetSize();
+    Rect bg{(window_size - texture_size) / 2, texture_size};
     // bg.DrawSolid(color::Blue);
-    texture::Get(Hash("start_background")).Draw(bg);
+    game.texture.Get(Hash("start_background")).Draw(bg);
 
     V2_int play_texture_size = play.GetCurrentTexture().GetSize();
 
@@ -2436,10 +2357,10 @@ class StartScreen : public Scene {
     play_text_pos.y += offset_y;
 
     play.SetOnActivate([&]() {
-      sound::Get(Hash("click")).Play(1, 0);
-      scene::Load<LevelScene>(Hash("level_select"));
-      scene::Unload(Hash("start_menu"));
-      scene::SetActive(Hash("level_select"));
+      game.sound.Get("click").Play(1, 0);
+      game.scene.Load<LevelScene>(Hash("level_select"));
+      game.scene.Unload(Hash("start_menu"));
+      game.scene.SetActive(Hash("level_select"));
     });
     play.SetOnHover([&]() { play_text_color = color::Black; },
                     [&]() { play_text_color = color::White; });
@@ -2468,42 +2389,42 @@ class PixelJam2024 : public Scene {
     game.window.SetResizeable(true);
     game.window.Maximize();
 
-    music::Load(Hash("ocean_loop"), "resources/music/ocean_loop.mp3");
-    sound::Load(Hash("aqualife_theme"), "resources/music/aqualife_theme.mp3");
-    sound::Load(Hash("click"), "resources/sound/bubble.wav");
+    game.music.Load(Hash("ocean_loop"), "resources/music/ocean_loop.mp3");
+    game.sound.Load(Hash("aqualife_theme"), "resources/music/aqualife_theme.mp3");
+    game.sound.Load("click", "resources/sound/bubble.wav");
     font::Load(Hash("04B_30"), path{"resources/font/04B_30.ttf"}, 32);
     font::Load(Hash("default_font"), path{"resources/font/retro_gaming.ttf"},
                32);
 
-    texture::Load(Hash("mute"), "resources/ui/mute.png");
-    texture::Load(Hash("mute_hover"), "resources/ui/mute_hover.png");
-    texture::Load(Hash("mute_disabled"), "resources/ui/mute_disabled.png");
-    texture::Load(Hash("mute_disabled_hover"),
+    game.texture.Load(Hash("mute"), "resources/ui/mute.png");
+    game.texture.Load(Hash("mute_hover"), "resources/ui/mute_hover.png");
+    game.texture.Load(Hash("mute_disabled"), "resources/ui/mute_disabled.png");
+    game.texture.Load(Hash("mute_disabled_hover"),
                   "resources/ui/mute_disabled_hover.png");
 
-    if (!music::IsPlaying()) {
-      sound::Get(Hash("aqualife_theme")).Play(0, -1);
-      music::Get(Hash("ocean_loop")).Play(-1);
+    if (!game.music.IsPlaying()) {
+      game.sound.Get(Hash("aqualife_theme")).Play(0, -1);
+      game.music.Get(Hash("ocean_loop")).Play(-1);
     }
 
-    scene::Load<StartScreen>(Hash("start_menu"));
-    scene::SetActive(Hash("start_menu"));
-    // scene::Load<GameScene>(Hash("game"), IndicatorCondition{ 0.0f, 1.0f,
-    // 0.7f, 0.7f, 0.7f }, 0); scene::SetActive(Hash("game"));
+    game.scene.Load<StartScreen>(Hash("start_menu"));
+    game.scene.SetActive(Hash("start_menu"));
+    // game.scene.Load<GameScene>(Hash("game"), IndicatorCondition{ 0.0f, 1.0f,
+    // 0.7f, 0.7f, 0.7f }, 0); game.scene.SetActive(Hash("game"));
   }
 };
 
 void GameScene::Exit() {
-  scene::Load<LevelScene>(Hash("level_select"));
-  scene::Unload(Hash("game"));
-  scene::Unload(Hash("choices"));
-  scene::SetActive(Hash("level_select"));
+  game.scene.Load<LevelScene>(Hash("level_select"));
+  game.scene.Unload(Hash("game"));
+  game.scene.Unload(Hash("choices"));
+  game.scene.SetActive(Hash("level_select"));
 }
 
 void LevelScene::Exit() {
-  scene::Load<StartScreen>(Hash("start_menu"));
-  scene::Unload(Hash("level_select"));
-  scene::SetActive(Hash("start_menu"));
+  game.scene.Load<StartScreen>(Hash("start_menu"));
+  game.scene.Unload(Hash("level_select"));
+  game.scene.SetActive(Hash("start_menu"));
 }
 
 void ChoiceScreen::StartChoosing(int choice) {
@@ -2517,20 +2438,23 @@ void ChoiceScreen::StartChoosing(int choice) {
       }
     }
     if (choice_count == 0) {
-      scene::Get<GameScene>(Hash("game"))->RanOutOfChoices();
-      scene::RemoveActive(Hash("choices"));
+      game.scene.Get<GameScene>(Hash("game"))->RanOutOfChoices();
+      game.scene.RemoveActive(Hash("choices"));
     }
   } else {
     for (auto& c : choices) {
       c.SetInteractable(false);
       c.SetVisibility(false);
     }
-    scene::Get<GameScene>(Hash("game"))->Choosing(choice);
-    scene::RemoveActive(Hash("choices"));
+    game.scene.Get<GameScene>(Hash("game"))->Choosing(choice);
+    game.scene.RemoveActive(Hash("choices"));
   }
 }
+*/
 
+/*
 int main() {
-  ptgn::game::Start<PixelJam2024>();
+  game.Start<PixelJam2024>();
   return 0;
 }
+*/

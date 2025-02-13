@@ -1,0 +1,628 @@
+{
+  "volume": {
+    "car": 1.0,
+    "music": 0.4,
+    "tornadoes_max": 0.4,
+    "tornadoes_ambient": 0.08
+  },
+  "difficulty_layers": [
+    {
+      "music": "resources/audio/song_1.ogg"
+    },
+    {
+      "music": "resources/audio/song_1.ogg"
+    },
+    {
+      "music": "resources/audio/song_2.ogg"
+    },
+    {
+      "music": "resources/audio/song_3.ogg"
+    },
+    {
+      "music": "resources/audio/song_3.ogg"
+    },
+    {
+      "music": "resources/audio/song_win.ogg"
+    }
+  ],
+  "branches": [
+    [ 0, 1, 4, 6, 9 ],
+    [ 0, 2, 5, 7, 9 ],
+    [ 0, 0, 3, 8, 9 ]
+  ],
+  "completed_levels": [],
+  "levels": [
+    {
+      "id": 0,
+      "seed": 0,
+      "win_text": "Let's find another storm!",
+      "ui_icon": "resources/ui/tornado0.png",
+      "screen_size": [ 1, 2 ],
+      "details": "Information: \nA stagnant tornado. See how close you can get!\nDifficulty: Easy",
+      "tornadoes": [
+        {
+          "static": {
+            "pos": [ 800, 450 ]
+          },
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "seed": 1000,
+      "win_text": "You put the pedal to the metal!",
+      "ui_icon": "resources/ui/tornado1.png",
+      "screen_size": [ 1, 5 ],
+      "details": "Information: \nThis 'nado is moving! Can you keep up?\nDifficulty: Easy",
+      "tornadoes": [
+        {
+          "sequence": [
+            {
+              "pos": [ 720, 3200 ],
+              "time_to_next": 45000
+            },
+            {
+              "pos": [ 720, 800 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 7.0
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "seed": 2000,
+      "win_text": "More tornadoes, more fun!",
+      "ui_icon": "resources/ui/tornado2.png",
+      "screen_size": [ 1, 3 ],
+      "details": "Information: \nLook out! Two tornadoes have formed near each other. \nDifficulty: Easy",
+      "tornadoes": [
+        {
+          "static": {
+            "pos": [ 350, 1300 ]
+          },
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 6.0,
+          "gravity_radius": 8.0
+        },
+        {
+          "static": {
+            "pos": [ 950, 550 ]
+          },
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 6.0,
+          "gravity_radius": 8.0
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "seed": 3000,
+      "win_text": "Hey, you're pretty good at this!",
+      "ui_icon": "resources/ui/tornado3.png",
+      "screen_size": [ 1, 8 ],
+      "details": "Information: \nThis tornado is bigger than we've seen before.\nDifficulty: Medium",
+      "tornadoes": [
+        {
+          "sequence": [
+            {
+              "pos": [ 900, 5500 ],
+              "time_to_next": 60000
+            },
+            {
+              "pos": [ 900, 800 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.3,
+          "escape_radius": 4.0,
+          "warning_radius": 5.0,
+          "data_radius": 7.0,
+          "gravity_radius": 10.0
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "seed": 4000,
+      "win_text": "Are you pickin' up any new skills?",
+      "ui_icon": "resources/ui/tornado4.png",
+      "screen_size": [ 1, 8 ],
+      "details": "Information: \nYou'll need to use some real chasin' skills for this one. \nDifficulty: Medium",
+      "tornadoes": [
+        {
+          "sequence": [
+            {
+              "pos": [ 200, 5200 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1200, 4800 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 200, 4400 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1200, 4000 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 200, 3600 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1200, 3200 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 200, 2800 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1200, 2400 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 200, 2000 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1200, 1600 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 200, 1200 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "seed": 5000,
+      "win_text": "That wasn't so bad!",
+      "ui_icon": "resources/ui/tornado5.png",
+      "screen_size": [ 1, 5 ],
+      "details": "Information: \nHopefully you can navigate three fully developed tornadoes! \nDifficulty: Medium",
+      "tornadoes": [
+        {
+          "sequence": [
+            {
+              "pos": [ 720, 800 ],
+              "time_to_next": 60000
+            },
+            {
+              "pos": [ 720, 4000 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 300, 3300 ],
+              "time_to_next": 60000
+            },
+            {
+              "pos": [ 300, 800 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 1200, 3300 ],
+              "time_to_next": 60000
+            },
+            {
+              "pos": [ 1200, 800 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "seed": 6000,
+      "win_text": "These tornadoes are the yin to your yang!",
+      "ui_icon": "resources/ui/tornado6.png",
+      "screen_size": [ 1, 8 ],
+      "details": "Information: \nTwo tornadoes circling each other?! Oh the calamity! \nDifficulty: Hard",
+      "tornadoes": [
+        {
+          "static": {
+            "pos": [ 440, 5600 ]
+          },
+          "custom1": {
+            "rotation_pos": [720, 5600],
+            "end_pos": [440, 800],
+            "rotation_time": 6000,
+            "linear_time": 70000
+          },
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        },
+        {
+          "static": {
+            "pos": [ 1000, 5600 ]
+          },
+          "custom1": {
+            "rotation_pos": [720, 5600],
+            "end_pos": [1000, 800],
+            "rotation_time": 6000,
+            "linear_time": 70000
+          },
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "seed": 7000,
+      "win_text": "Now that was a thrill!",
+      "ui_icon": "resources/ui/tornado7.png",
+      "screen_size": [ 1, 10 ],
+      "details": "Information: \nNow that's a lot of 'nadoes! \nDifficulty: Hard",
+      "tornadoes": [
+        {
+          "sequence": [
+            {
+              "pos": [ 200, 7450 ],
+              "time_to_next": 90000
+            },
+            {
+              "pos": [ 200, 500 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 2.0,
+          "warning_radius": 3.0,
+          "data_radius": 5.0,
+          "gravity_radius": 6.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 550, 7450 ],
+              "time_to_next": 80000
+            },
+            {
+              "pos": [ 550, 500 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 5.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 950, 7450 ],
+              "time_to_next": 80000
+            },
+            {
+              "pos": [ 950, 500 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 5.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 1400, 7450 ],
+              "time_to_next": 90000
+            },
+            {
+              "pos": [ 1400, 500 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 2.0,
+          "warning_radius": 3.0,
+          "data_radius": 5.0,
+          "gravity_radius": 6.0
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "seed": 8000,
+      "win_text": "These 'nadoes can't slow you down!",
+      "ui_icon": "resources/ui/tornado8.png",
+      "screen_size": [ 1, 5 ],
+      "details": "Information: \nLooks like a little tornado has linked up with a much stronger one! \nDifficulty: Hard",
+      "tornadoes": [
+        {
+          "sequence": [
+            {
+              "pos": [ 1000, 3200 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 200, 2700 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 1000, 2200 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 200, 3200 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 1000, 2700 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 2000, 2200 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 2.5,
+          "warning_radius": 5.0,
+          "data_radius": 8.0,
+          "gravity_radius": 11.0
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "seed": 9000,
+      "win_text": "Yeehaw! That one was tough to tame!",
+      "ui_icon": "resources/ui/tornado9.png",
+      "screen_size": [ 1, 10 ],
+      "details": "Information: \nThis is the craziest system we've ever seen. Watch out!\nDifficulty: Very Hard",
+      "tornadoes": [
+        {
+          "sequence": [
+            {
+              "pos": [ 450, 7400 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1050, 6900 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 450, 6400 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1050, 5900 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 450, 5400 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1050, 4900 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 450, 4400 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 1050, 3900 ],
+              "time_to_next": 8000
+            },
+            {
+              "pos": [ 450, 3400 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 1050, 7400 ],
+              "time_to_next": 10000
+            },
+            {
+              "pos": [ 450, 6900 ],
+              "time_to_next": 10000
+            },
+            {
+              "pos": [ 1050, 6400 ],
+              "time_to_next": 10000
+            },
+            {
+              "pos": [ 450, 5900 ],
+              "time_to_next": 10000
+            },
+            {
+              "pos": [ 1050, 5400 ],
+              "time_to_next": 10000
+            },
+            {
+              "pos": [ 450, 4900 ],
+              "time_to_next": 10000
+            },
+            {
+              "pos": [ 1050, 4400 ],
+              "time_to_next": 10000
+            },
+            {
+              "pos": [ 450, 3900 ],
+              "time_to_next": 10000
+            },
+            {
+              "pos": [ 1050, 3400 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.5,
+          "escape_radius": 1.0,
+          "warning_radius": 3.0,
+          "data_radius": 4.0,
+          "gravity_radius": 8.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 300, 5500 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 1100, 5500 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 300, 5500 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 1100, 5500 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.8,
+          "escape_radius": 2.5,
+          "warning_radius": 3.0,
+          "data_radius": 5.0,
+          "gravity_radius": 8.0
+        },
+        {
+          "sequence": [
+            {
+              "pos": [ 1100, 5500 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 300, 5500 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 1100, 5500 ],
+              "time_to_next": 30000
+            },
+            {
+              "pos": [ 300, 5500 ],
+              "time_to_next": -1
+            }
+          ],
+          "texture": "resources/entity/tornado.png",
+          "turn_speed": 50.0,
+          "increment_speed": 0.8,
+          "escape_radius": 2.5,
+          "warning_radius": 3.0,
+          "data_radius": 5.0,
+          "gravity_radius": 8.0
+        }
+      ]
+    }
+  ]
+}

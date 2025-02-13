@@ -1,0 +1,361 @@
+{
+  "house_hitboxes": [
+    {
+      "size": [100, 32],
+      "position": [2, 40]
+    },
+    {
+      "size": [6, 16],
+      "position": [2, 72]
+    },
+    {
+      "size": [6, 32],
+      "position": [2, 104]
+    },
+    {
+      "size": [15, 25],
+      "position": [8, 111]
+    },
+    {
+      "size": [166, 40],
+      "position": [2, 136]
+    },
+    {
+      "size": [6, 40],
+      "position": [96, 0]
+    },
+    {
+      "size": [66, 42],
+      "position": [102, 0]
+    },
+    {
+      "size": [6, 94],
+      "position": [162, 42]
+    }
+  ],
+  "house_overlaps": [
+    {
+      "size": [166, 97],
+      "position": [2, 40]
+    },
+    {
+      "size": [72, 40],
+      "position": [96, 0]
+    }
+  ],
+  "items": {
+    "table": {
+      "sprite": "resources/tile/table.png",
+      "tile_position": [10, 13],
+      "hitbox_size": [35, 26],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [38, 29],
+      "interaction_offset": [-3, -3],
+      "waypoint_offset": [18, -3],
+      "visibility": 1
+    },
+    "tree": {
+      "sprite": "resources/tile/tree.png",
+      "tile_position": [2, 0],
+      "hitbox_size": [16, 32],
+      "hitbox_offset": [8, 0],
+      "interaction_size": [24, 32],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [12, 0],
+      "visibility": 1
+    },
+    "bed1": {
+      "sprite": "resources/tile/bed.png",
+      "tile_position": [15, 13],
+      "hitbox_size": [40, 28],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [40, 28],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [20, 0],
+      "visibility": 1
+    },
+    "bed2": {
+      "sprite": "resources/tile/bed_made.png",
+      "tile_position": [15, 13],
+      "hitbox_size": [40, 28],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [40, 42],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [20, 0],
+      "visibility": 0
+    },
+    "fireplace": {
+      "sprite": "resources/tile/fireplace.png",
+      "tile_position": [5, 5],
+      "hitbox_size": [26, 40],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [26, 44],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [12, 24],
+      "visibility": 1
+    },
+    "pot1": {
+      "sprite": "resources/tile/pot.png",
+      "tile_position": [17, 2],
+      "hitbox_size": [12, 20],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [12, 26],
+      "interaction_offset": [3, 5],
+      "waypoint_offset": [8, 3],
+      "visibility": 1
+    },
+    "pot2": {
+      "sprite": "resources/tile/pot_water.png",
+      "tile_position": [17, 2],
+      "hitbox_size": [12, 20],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [12, 26],
+      "interaction_offset": [3, 5],
+      "waypoint_offset": [8, 3],
+      "visibility": 0
+    },
+    "pot3": {
+      "sprite": "resources/tile/pot_soup.png",
+      "tile_position": [17, 2],
+      "hitbox_size": [12, 20],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [12, 26],
+      "interaction_offset": [3, 5],
+      "waypoint_offset": [8, 3],
+      "visibility": 0
+    },
+    "pot4": {
+      "sprite": "resources/tile/pot.png",
+      "tile_position": [17, 2],
+      "hitbox_size": [12, 20],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [12, 26],
+      "interaction_offset": [3, 5],
+      "waypoint_offset": [8, 3],
+      "visibility": 0
+    },
+    "bowl": {
+      "sprite": "resources/tile/bowl.png",
+      "tile_position": [12, 13],
+      "hitbox_size": [7, 5],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [8, 14],
+      "interaction_offset": [0, -8],
+      "waypoint_offset": [12, 8],
+      "visibility": 0
+    },
+    "chair": {
+      "sprite": "resources/tile/chair.png",
+      "tile_position": [8, 6],
+      "hitbox_size": [27, 27],
+      "hitbox_offset": [0, 0],
+      "visibility": 1
+    },
+    "record_player": {
+      "sprite": "resources/tile/record_player.png",
+      "tile_position": [2, 6],
+      "hitbox_size": [19, 31],
+      "hitbox_offset": [0, 0],
+      "interaction_size": [19, 34],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [9, 0],
+      "visibility": 1
+    },
+    "pantry1": {
+      "sprite": "resources/tile/pantry.png",
+      "tile_position": [11, 2],
+      "hitbox_size": [13, 23],
+      "hitbox_offset": [13, 19],
+      "interaction_size": [13, 23],
+      "interaction_offset": [13, 19],
+      "waypoint_offset": [19, 18],
+      "visibility": 1
+    },
+    "pantry2": {
+      "sprite": "resources/tile/pantry_open.png",
+      "tile_position": [11, 2],
+      "hitbox_size": [13, 23],
+      "hitbox_offset": [13, 19],
+      "interaction_size": [13, 23],
+      "interaction_offset": [13, 19],
+      "waypoint_offset": [19, 18],
+      "visibility": 0
+    },
+    "dirt1": {
+      "sprite": "resources/tile/dirt_1.png",
+      "tile_position": [3, 10],
+      "interaction_size": [56, 32],
+      "interaction_offset": [0, 5],
+      "waypoint_offset": [28, 0],
+      "visibility": 1
+    },
+    "dirt2": {
+      "sprite": "resources/tile/dirt_2.png",
+      "tile_position": [16, 6],
+      "interaction_size": [24, 40],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [12, 15],
+      "visibility": 1
+    },
+    "mushroom": {
+      "sprite": "resources/tile/mushroom.png",
+      "tile_position": [-15, 22],
+      "interaction_size": [16, 16],
+      "interaction_offset": [0, 0],
+      "waypoint_offset": [8, 0],
+      "visibility": 1
+    }
+  },
+  "sequence": [
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 2,
+      "text": "It's been a while"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "I wonder what needs to get done"
+    },
+    {
+      "name": "table",
+      "interaction_type": 0,
+      "tooltip_text": "'E' to read letter"
+    },
+    { "name": "keypress" },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Let's get some wood for that fire"
+    },
+    {
+      "name": "tree",
+      "interaction_type": 1,
+      "tooltip_text": "'E' to chop tree"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "fireplace",
+      "interaction_type": 2,
+      "tooltip_text": "'E' to light fire"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Ah that's better"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Some peaceful music would be nice"
+    },
+    {
+      "name": "record_player",
+      "interaction_type": 3,
+      "tooltip_text": "'E' to start music"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Oh my, it has gotten dusty"
+    },
+    {
+      "name": "dirt1",
+      "interaction_type": 4,
+      "tooltip_text": "'E' to clean up"
+    },
+    {
+      "name": "dirt2",
+      "interaction_type": 5,
+      "tooltip_text": "'E' to clean up"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Clean house, happy house"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "I'm starving..."
+    },
+    {
+      "name": "pot1",
+      "interaction_type": 6,
+      "tooltip_text": "'E' to fill pot"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "pantry1",
+      "interaction_type": 13,
+      "tooltip_text": "'E' to open pantry"
+    },
+    {
+      "name": "pantry2",
+      "interaction_type": 7,
+      "tooltip_text": "'E' to get potatoes"
+    },
+    {
+      "name": "pot2",
+      "interaction_type": 8,
+      "tooltip_text": "'E' to add potatoes"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "This soup could use some mushroom"
+    },
+    {
+      "name": "mushroom",
+      "interaction_type": 9,
+      "tooltip_text": "'E' to pick mushroom"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 3,
+      "text": "Brrr, it is cold out here"
+    },
+    {
+      "name": "pot3",
+      "interaction_type": 10,
+      "tooltip_text": "'E' to add mushrooms"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 2,
+      "text": "Bon appetit"
+    },
+    {
+      "name": "pot4",
+      "interaction_type": 14,
+      "tooltip_text": "'E' to eat"
+    },
+    {
+      "name": "timer",
+      "seconds_duration": 2,
+      "text": "That was delicious"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "timer",
+      "seconds_duration": 2,
+      "text": "Well, time to hit the hay"
+    },
+    {
+      "name": "bed1",
+      "interaction_type": 11,
+      "tooltip_text": "'E' to make bed"
+    },
+    { "name": "timer", "seconds_duration": 1 },
+    {
+      "name": "bed2",
+      "interaction_type": 12,
+      "tooltip_text": "'E' to go to sleep"
+    }
+  ]
+}
