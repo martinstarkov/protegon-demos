@@ -1,4 +1,5 @@
 {
-   "car": "resources/entity/car.png",
-   "blob": "resources/tile/blob.png"
+  "car": "resources/entity/car.png",
+  "blob": "resources/tile/blob.png",
+  "zombie": "resources/entity/zombie.png"
 }
