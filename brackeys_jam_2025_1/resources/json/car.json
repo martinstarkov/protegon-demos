@@ -1,0 +1,12 @@
+{
+  "Transform": {
+    "position": [300, 300]
+  },
+  "CarController": {
+    "move_speed": 500.0,
+    "max_speed": 150.0,
+    "drag": 6.0,
+    "steer_angle": 1,
+    "traction": 3.0
+  }
+}
