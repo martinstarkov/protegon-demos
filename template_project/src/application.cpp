@@ -8,14 +8,12 @@ constexpr const char* window_title{ "Sample Title" };
 
 class SampleScene : public Scene {
 public:
-	Texture texture{ "resources/sample.png" };
-
 	void Enter() override {
 		PTGN_LOG("Entered sample scene");
 	}
 
 	void Update() override {
-		texture.Draw({ game.window.GetCenter(), {}, Origin::Center });
+		PTGN_LOG("Updating sample scene");
 	}
 
 	void Exit() override {
