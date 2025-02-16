@@ -3,9 +3,10 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 1280, 720 };
+constexpr V2_float tile_size{ 128, 128 };
 constexpr Color window_color{ color::Transparent };
 constexpr const char* window_title{ "Organ Delivery" };
-constexpr float zoom{ 4.0f };
+constexpr float zoom{ 3.0f };
 
 struct CarController {
 	float move_speed{ 50.0f * 10.0f };
@@ -77,6 +78,27 @@ ecs::Entity CreateCar(
 	return entity;
 }
 
+void CreateRoad(ecs::Manager& manager, const V2_int& top_left) {
+	auto entity = CreateSprite(manager, "road");
+	entity.Add<Transform>(top_left);
+}
+
+void CreateBuilding(ecs::Manager& manager, const V2_int& top_left) {
+	auto entity = CreateSprite(manager, "building");
+	entity.Add<Transform>(top_left);
+}
+
+void CreateLevel(ecs::Manager& manager, const path& filepath) {
+	ForEachPixel(filepath, [&](const V2_int& pixel, auto color) {
+		auto pos{ pixel * tile_size };
+		if (color == color::White) {
+			CreateRoad(manager, pos);
+		} else if (color == color::Black) {
+			CreateBuilding(manager, pos);
+		}
+	});
+}
+
 class GameScene : public Scene {
 public:
 	ecs::Entity car;
@@ -86,10 +108,12 @@ public:
 
 		game.texture.Load("resources/json/textures.json");
 
+		CreateLevel(manager, "resources/level/map.png");
+
 		car = CreateCar(manager, "car", { 0, 0 });
 
-		auto blob = CreateSprite(manager, "blob");
-		blob.Add<Transform>(V2_float{ 50.0f, 50.0f });
+		auto zombie = CreateSprite(manager, "zombie");
+		zombie.Add<Transform>(V2_float{ 50.0f, 50.0f });
 
 		camera.primary.StartFollow(car);
 	}
