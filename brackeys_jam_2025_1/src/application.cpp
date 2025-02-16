@@ -6,7 +6,7 @@ constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_float tile_size{ 128, 128 };
 constexpr Color window_color{ color::Transparent };
 constexpr const char* window_title{ "Organ Delivery" };
-constexpr float zoom{ 3.0f };
+constexpr float zoom{ 0.5f };
 
 struct CarController {
 	float move_speed{ 50.0f * 10.0f };
@@ -110,10 +110,10 @@ public:
 
 		CreateLevel(manager, "resources/level/map.png");
 
-		car = CreateCar(manager, "car", { 0, 0 });
-
 		auto zombie = CreateSprite(manager, "zombie");
 		zombie.Add<Transform>(V2_float{ 50.0f, 50.0f });
+
+		car = CreateCar(manager, "car", { 0, 0 });
 
 		camera.primary.StartFollow(car);
 	}
