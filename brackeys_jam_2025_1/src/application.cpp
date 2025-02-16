@@ -8,11 +8,11 @@ constexpr const char* window_title{ "Organ Delivery" };
 constexpr float zoom{ 4.0f };
 
 struct CarController {
-	float move_speed{ 50.0f };
-	float max_speed{ 15.0f };
-	float drag{ 0.98f };
-	float steer_angle{ 20.0f };
-	float traction{ 1.0f };
+	float move_speed{ 50.0f * 10.0f };
+	float max_speed{ 15.0f * 10.0f };
+	float drag{ 6.0f };
+	float steer_angle{ DegToRad(1.0f) };
+	float traction{ 3.0f };
 
 	Key forward_key{ Key::W };
 	Key reverse_key{ Key::S };
@@ -28,25 +28,34 @@ struct CarController {
 		bool right{ game.input.KeyPressed(right_key) };
 
 		if (forward && !reverse) {
-			dir.y = -1.0f;
+			dir.x = 1.0f;
 		} else if (reverse && !forward) {
-			dir.y = 1.0f;
+			dir.x = -1.0f;
 		}
 		if (left && !right) {
-			dir.x = -1.0f;
+			dir.y = -1.0f;
 		} else if (right && !left) {
-			dir.x = 1.0f;
+			dir.y = 1.0f;
 		}
+
+		float steer_input{ dir.y };
+		float forard_input{ dir.x };
 
 		auto forward_vector = [](const Transform& t) {
 			return V2_float{ 1.0f, 0.0f }.Rotated(t.rotation);
 		};
 
-		move_force		   += forward_vector(transform) * move_speed * dir.y * game.dt();
+		move_force		   += forward_vector(transform) * move_speed * forard_input * game.dt();
 		transform.position += move_force * game.dt();
 
-		float steer_input{ dir.x };
 		transform.rotation += steer_input * move_force.Magnitude() * steer_angle * game.dt();
+
+		transform.rotation = ClampAngle2Pi(transform.rotation);
+
+		PTGN_LOG(
+			"transform.rotation: ", transform.rotation,
+			", forward vector: ", forward_vector(transform)
+		);
 
 		move_force *= 1.0f / (1.0f + drag * game.dt());
 		move_force	= Clamp(move_force, -max_speed, max_speed);
