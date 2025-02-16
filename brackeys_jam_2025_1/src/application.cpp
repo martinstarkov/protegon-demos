@@ -161,6 +161,7 @@ void CreateRoad(ecs::Manager& manager, const V2_int& top_left) {
 	auto entity = CreateSprite(manager, "road");
 	entity.Add<Transform>(top_left);
 	entity.Add<Origin>(Origin::TopLeft);
+	entity.Add<Depth>(-2);
 }
 
 void CreateBuilding(ecs::Manager& manager, const V2_int& top_left) {
@@ -172,6 +173,18 @@ void CreateBuilding(ecs::Manager& manager, const V2_int& top_left) {
 void CreateSkidmark(ecs::Manager& manager, const Transform& car_transform) {
 	auto entity = CreateSprite(manager, "skidmark");
 	entity.Add<Transform>(car_transform);
+	entity.Add<Depth>(-1);
+	entity.Add<Tint>();
+	// entity.Add<Lifetime>(seconds{ 7 }, true);
+	entity.Add<Tween>()
+		.During(seconds{ 1 })
+		.Reverse()
+		.OnUpdate([=](float f) mutable {
+			auto& c{ entity.Get<Tint>() };
+			c = c.WithAlpha(f);
+		})
+		.OnComplete([=]() mutable { entity.Destroy(); })
+		.Start();
 }
 
 void CreateLevel(ecs::Manager& manager, const path& filepath) {
