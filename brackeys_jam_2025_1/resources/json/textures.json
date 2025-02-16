@@ -1,5 +1,6 @@
 {
   "car": "resources/entity/car.png",
+  "car_drift": "resources/entity/car_drift.png",
   "blob": "resources/tile/blob.png",
   "zombie": "resources/entity/zombie.png",
   "building": "resources/tile/building.png",
