@@ -9,11 +9,11 @@ constexpr const char* window_title{ "Organ Delivery" };
 constexpr float zoom{ 3.0f };
 
 struct CarController {
-	float move_speed{ 50.0f * 10.0f };
-	float max_speed{ 15.0f * 10.0f };
-	float drag{ 6.0f };
-	float steer_angle{ DegToRad(1.0f) };
-	float traction{ 3.0f };
+	float move_speed{ 0.0f };
+	float max_speed{ 0.0f };
+	float drag{ 0.0f };
+	float steer_angle{ 0.0f };
+	float traction{ 0.0f };
 
 	Key forward_key{ Key::W };
 	Key reverse_key{ Key::S };
@@ -69,12 +69,49 @@ private:
 	V2_float move_force;
 };
 
+void to_json(json& j, const CarController& c) {
+	j = json{ { "move_speed", c.move_speed },
+			  { "max_speed", c.max_speed },
+			  { "drag", c.drag },
+			  { "steer_angle", c.steer_angle },
+			  { "traction", c.traction } };
+}
+
+void from_json(const json& j, CarController& c) {
+	if (j.contains("move_speed")) {
+		j.at("move_speed").get_to(c.move_speed);
+	} else {
+		c.move_speed = 0.0f;
+	}
+	if (j.contains("max_speed")) {
+		j.at("max_speed").get_to(c.max_speed);
+	} else {
+		c.max_speed = 0.0f;
+	}
+	if (j.contains("drag")) {
+		j.at("drag").get_to(c.drag);
+	} else {
+		c.drag = 0.0f;
+	}
+	if (j.contains("steer_angle")) {
+		c.steer_angle = DegToRad(j.at("steer_angle").template get<float>());
+	} else {
+		c.steer_angle = 0.0f;
+	}
+	if (j.contains("traction")) {
+		j.at("traction").get_to(c.traction);
+	} else {
+		c.traction = 0.0f;
+	}
+}
+
 ecs::Entity CreateCar(
-	ecs::Manager& manager, std::string_view texture_key, const V2_float& position
+	ecs::Manager& manager, std::string_view texture_key, const path& car_json_filepath
 ) {
 	auto entity{ CreateSprite(manager, texture_key) };
-	auto& transform{ entity.Add<Transform>(position) };
-	auto& controller{ entity.Add<CarController>() };
+	auto j{ LoadJson(car_json_filepath) };
+	auto& transform{ entity.Add<Transform>(j.at("Transform")) };
+	auto& controller{ entity.Add<CarController>(j.at("CarController")) };
 	return entity;
 }
 
@@ -112,10 +149,12 @@ public:
 
 		CreateLevel(manager, "resources/level/map.png");
 
+		manager.Refresh();
+
 		auto zombie = CreateSprite(manager, "zombie");
 		zombie.Add<Transform>(V2_float{ 50.0f, 50.0f });
 
-		car = CreateCar(manager, "car", { 0, 0 });
+		car = CreateCar(manager, "car", "resources/json/car.json");
 
 		camera.primary.StartFollow(car);
 	}
