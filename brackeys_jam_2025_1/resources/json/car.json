@@ -3,10 +3,13 @@
     "position": [300, 300]
   },
   "CarController": {
-    "move_speed": 500.0,
-    "max_speed": 150.0,
-    "drag": 6.0,
-    "steer_angle": 1,
-    "traction": 3.0
+    "acceleration": 500.0,
+    "max_speed": 350.0,
+    "drag": 3.0,
+    "steer_angle": 0.5,
+    "traction": 5.0,
+    "drifting_drag": 4.0,
+    "drifting_steer_angle": 0.9,
+    "drifting_traction": 0.001
   }
 }

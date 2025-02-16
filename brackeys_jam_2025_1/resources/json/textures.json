@@ -4,5 +4,6 @@
   "blob": "resources/tile/blob.png",
   "zombie": "resources/entity/zombie.png",
   "building": "resources/tile/building.png",
-  "road": "resources/tile/road.png"
+  "road": "resources/tile/road.png",
+  "skidmark": "resources/entity/skidmark.png"
 }

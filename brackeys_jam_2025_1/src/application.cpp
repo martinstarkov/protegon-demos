@@ -9,16 +9,27 @@ constexpr const char* window_title{ "Organ Delivery" };
 constexpr float zoom{ 3.0f };
 
 struct CarController {
-	float move_speed{ 0.0f };
+	float acceleration{ 0.0f };
 	float max_speed{ 0.0f };
 	float drag{ 0.0f };
 	float steer_angle{ 0.0f };
 	float traction{ 0.0f };
+	float drifting_drag{ 0.0f };
+	float drifting_steer_angle{ 0.0f };
+	float drifting_traction{ 0.0f };
 
 	Key forward_key{ Key::W };
 	Key reverse_key{ Key::S };
 	Key left_key{ Key::A };
 	Key right_key{ Key::D };
+
+	void SetDrifting(bool drifting) {
+		drifting_ = drifting;
+	}
+
+	[[nodiscard]] bool IsDrifting() const {
+		return drifting_;
+	}
 
 	void Update(Transform& transform) {
 		V2_float dir;
@@ -40,48 +51,66 @@ struct CarController {
 		}
 
 		float steer_input{ dir.y };
-		float forard_input{ dir.x };
+		float forward_input{ dir.x };
 
-		auto forward_vector = [](const Transform& t) {
-			return V2_float{ 1.0f, 0.0f }.Rotated(t.rotation);
+		auto forward_vector = [&](const Transform& t) {
+			return V2_float{ forward_input, 0.0f }.Rotated(t.rotation);
 		};
 
-		move_force		   += forward_vector(transform) * move_speed * forard_input * game.dt();
-		transform.position += move_force * game.dt();
+		velocity_		   += forward_vector(transform) * acceleration * game.dt();
+		transform.position += velocity_ * game.dt();
 
-		transform.rotation += steer_input * move_force.Magnitude() * steer_angle * game.dt();
+		float steer{ drifting_ ? drifting_steer_angle : steer_angle };
+
+		transform.rotation += steer_input * velocity_.Magnitude() * steer * game.dt();
 
 		transform.rotation = ClampAngle2Pi(transform.rotation);
 
-		PTGN_LOG(
-			"transform.rotation: ", transform.rotation,
-			", forward vector: ", forward_vector(transform)
-		);
+		/*	PTGN_LOG(
+				"transform.rotation: ", transform.rotation,
+				", forward vector: ", forward_vector(transform)
+			);*/
 
-		move_force *= 1.0f / (1.0f + drag * game.dt());
-		move_force	= Clamp(move_force, -max_speed, max_speed);
+		float d{ drifting_ ? drifting_drag : drag };
 
-		move_force = move_force.Magnitude() *
-					 Lerp(move_force.Normalized(), forward_vector(transform), traction * game.dt());
+		velocity_ *= 1.0f / (1.0f + d * game.dt());
+		velocity_  = Clamp(velocity_, -max_speed, max_speed);
+
+		float trac{ drifting_ ? drifting_traction : traction };
+
+		auto norm_vel{ velocity_.Normalized() };
+		auto forward_vec{ forward_vector(transform) };
+
+		auto current_drift_angle{ forward_vec.Angle(norm_vel) };
+
+		drifting_ = current_drift_angle >= DegToRad(10.0f);
+
+		velocity_ = velocity_.Magnitude() * Lerp(norm_vel, forward_vec, trac * game.dt());
+
+		// PTGN_LOG("velocity: ", velocity_);
 	}
 
 private:
-	V2_float move_force;
+	bool drifting_{ false };
+	V2_float velocity_;
 };
 
 void to_json(json& j, const CarController& c) {
-	j = json{ { "move_speed", c.move_speed },
+	j = json{ { "acceleration", c.acceleration },
 			  { "max_speed", c.max_speed },
 			  { "drag", c.drag },
 			  { "steer_angle", c.steer_angle },
-			  { "traction", c.traction } };
+			  { "traction", c.traction },
+			  { "drifting_drag", c.drifting_drag },
+			  { "drifting_steer_angle", c.drifting_steer_angle },
+			  { "drifting_traction", c.drifting_traction } };
 }
 
 void from_json(const json& j, CarController& c) {
-	if (j.contains("move_speed")) {
-		j.at("move_speed").get_to(c.move_speed);
+	if (j.contains("acceleration")) {
+		j.at("acceleration").get_to(c.acceleration);
 	} else {
-		c.move_speed = 0.0f;
+		c.acceleration = 0.0f;
 	}
 	if (j.contains("max_speed")) {
 		j.at("max_speed").get_to(c.max_speed);
@@ -103,12 +132,25 @@ void from_json(const json& j, CarController& c) {
 	} else {
 		c.traction = 0.0f;
 	}
+	if (j.contains("drifting_drag")) {
+		j.at("drifting_drag").get_to(c.drifting_drag);
+	} else {
+		c.drifting_drag = c.drag;
+	}
+	if (j.contains("drifting_steer_angle")) {
+		c.drifting_steer_angle = DegToRad(j.at("drifting_steer_angle").template get<float>());
+	} else {
+		c.drifting_steer_angle = c.steer_angle;
+	}
+	if (j.contains("drifting_traction")) {
+		j.at("drifting_traction").get_to(c.drifting_traction);
+	} else {
+		c.drifting_traction = c.traction;
+	}
 }
 
-ecs::Entity CreateCar(
-	ecs::Manager& manager, std::string_view texture_key, const path& car_json_filepath
-) {
-	auto entity{ CreateSprite(manager, texture_key) };
+ecs::Entity CreateCar(ecs::Manager& manager, const path& car_json_filepath) {
+	auto entity{ CreateSprite(manager, "car") };
 	auto j{ LoadJson(car_json_filepath) };
 	auto& transform{ entity.Add<Transform>(j.at("Transform")) };
 	auto& controller{ entity.Add<CarController>(j.at("CarController")) };
@@ -125,6 +167,11 @@ void CreateBuilding(ecs::Manager& manager, const V2_int& top_left) {
 	auto entity = CreateSprite(manager, "building");
 	entity.Add<Transform>(top_left);
 	entity.Add<Origin>(Origin::TopLeft);
+}
+
+void CreateSkidmark(ecs::Manager& manager, const Transform& car_transform) {
+	auto entity = CreateSprite(manager, "skidmark");
+	entity.Add<Transform>(car_transform);
 }
 
 void CreateLevel(ecs::Manager& manager, const path& filepath) {
@@ -154,14 +201,24 @@ public:
 		auto zombie = CreateSprite(manager, "zombie");
 		zombie.Add<Transform>(V2_float{ 50.0f, 50.0f });
 
-		car = CreateCar(manager, "car", "resources/json/car.json");
+		car = CreateCar(manager, "resources/json/car.json");
 
 		camera.primary.StartFollow(car);
 	}
 
 	void Update() override {
-		for (auto [e, transform, controller] : manager.EntitiesWith<Transform, CarController>()) {
-			controller.Update(transform);
+		auto [texture_key, transform, controller] = car.Get<TextureKey, Transform, CarController>();
+		/*if (game.input.KeyPressed(Key::SPACE)) {
+			controller.SetDrifting(true);
+		} else {
+			controller.SetDrifting(false);
+		}*/
+		controller.Update(transform);
+		if (controller.IsDrifting()) {
+			CreateSkidmark(manager, transform);
+			texture_key = "car_drift";
+		} else {
+			texture_key = "car";
 		}
 	}
 };
