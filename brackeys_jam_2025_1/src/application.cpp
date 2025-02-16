@@ -6,7 +6,7 @@ constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_float tile_size{ 128, 128 };
 constexpr Color window_color{ color::Transparent };
 constexpr const char* window_title{ "Organ Delivery" };
-constexpr float zoom{ 0.5f };
+constexpr float zoom{ 3.0f };
 
 struct CarController {
 	float move_speed{ 50.0f * 10.0f };
@@ -81,11 +81,13 @@ ecs::Entity CreateCar(
 void CreateRoad(ecs::Manager& manager, const V2_int& top_left) {
 	auto entity = CreateSprite(manager, "road");
 	entity.Add<Transform>(top_left);
+	entity.Add<Origin>(Origin::TopLeft);
 }
 
 void CreateBuilding(ecs::Manager& manager, const V2_int& top_left) {
 	auto entity = CreateSprite(manager, "building");
 	entity.Add<Transform>(top_left);
+	entity.Add<Origin>(Origin::TopLeft);
 }
 
 void CreateLevel(ecs::Manager& manager, const path& filepath) {
