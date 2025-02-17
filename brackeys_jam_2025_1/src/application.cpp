@@ -79,9 +79,9 @@ struct CarController {
 
 		auto current_drift_angle{ forward_vec.Angle(norm_vel) };
 
-		drifting_ = current_drift_angle >= DegToRad(10.0f);
-
 		rb.velocity = rb.velocity.Magnitude() * Lerp(norm_vel, forward_vec, trac * dt);
+
+		drifting_ = current_drift_angle >= DegToRad(10.0f);
 	}
 
 private:
@@ -220,21 +220,18 @@ public:
 
 		PointLight light1;
 
-		float light_radius{ 150.0f };
+		float light_radius{ 250.0f };
 
-		light1.SetRadius(light_radius)
-			.SetIntensity(1.0f)
-			.SetFalloff(1.0f)
-			.SetColor(color::Red)
-			.SetAmbientColor(color::LightRed);
+		light1.SetRadius(light_radius).SetIntensity(1.0f).SetFalloff(3.0f).SetColor(color::Red);
+		//.SetAmbientColor(color::LightRed);
 		PointLight light2{ light1 };
-		light2.SetColor(color::Blue).SetAmbientColor(color::LightBlue);
+		light2.SetColor(color::Blue); //.SetAmbientColor(color::LightBlue);
 
 		red_light = CreateLight(manager, light1);
 		red_light.Add<Transform>();
 
 		milliseconds fade_time{ 250 };
-		float max_ambient_intensity{ 0.3f };
+		// float max_ambient_intensity{ 0.3f };
 
 		red_light.Add<Tween>()
 			.During(fade_time)
@@ -242,7 +239,7 @@ public:
 			.Repeat(-1)
 			.OnUpdate([=](float f) mutable {
 				red_light.Get<PointLight>().SetRadius(light_radius * f);
-				red_light.Get<PointLight>().SetAmbientIntensity(max_ambient_intensity * f);
+				// red_light.Get<PointLight>().SetAmbientIntensity(max_ambient_intensity * f);
 			})
 			.Start();
 		blue_light = CreateLight(manager, light2);
@@ -254,7 +251,7 @@ public:
 			.Yoyo()
 			.OnUpdate([=](float f) mutable {
 				blue_light.Get<PointLight>().SetRadius(light_radius * f);
-				blue_light.Get<PointLight>().SetAmbientIntensity(max_ambient_intensity * f);
+				// blue_light.Get<PointLight>().SetAmbientIntensity(max_ambient_intensity * f);
 			})
 			.Start();
 
@@ -270,11 +267,11 @@ public:
 			camera.primary.TransformToScreen(transform.position + light_offset);
 		red_light.Get<Transform>().position =
 			camera.primary.TransformToScreen(transform.position + light_offset);
-		/*if (game.input.KeyPressed(Key::SPACE)) {
+		if (game.input.KeyPressed(Key::SPACE)) {
 			controller.SetDrifting(true);
-		} else {
-			controller.SetDrifting(false);
-		}*/
+		} /* else {
+			 controller.SetDrifting(false);
+		 }*/
 		controller.Update(transform, rb, physics.dt());
 		// box.rotation = transform.rotation;
 		if (controller.IsDrifting()) {
