@@ -8,6 +8,11 @@ constexpr Color window_color{ color::Transparent };
 constexpr const char* window_title{ "Organ Delivery" };
 constexpr float zoom{ 3.0f };
 
+constexpr CollisionCategory buildings{ 1 };
+constexpr CollisionCategory roads{ 2 };
+constexpr CollisionCategory zombies{ 3 };
+constexpr CollisionCategory player_category{ 4 };
+
 struct CarController {
 	float acceleration{ 0.0f };
 	float drag{ 0.0f };
@@ -143,22 +148,90 @@ ecs::Entity CreateLight(ecs::Manager& manager, const PointLight& light) {
 	return entity;
 }
 
+void CreateZombies(
+	ecs::Manager& manager, ecs::Entity player, const Circle& spawn_range,
+	const V2_float& spawn_frac, float dt
+) {
+	auto create_zombie = [&](V2_float spawn_point) {
+		V2_float dir{ player.Get<Transform>().position - spawn_point };
+		std::string_view key{ "zombie" };
+		auto entity{ CreateSprite(manager, key) };
+		entity.Add<Transform>(spawn_point, dir.Angle());
+		entity.Add<Depth>(-1);
+		entity.Add<Origin>(Origin::Center);
+		auto& box = entity.Add<CircleCollider>(entity, game.texture.GetSize(key).x / 2.0f);
+		box.SetCollisionCategory(zombies);
+		/*box.AddCollidesWith(player_category);
+		box.AddCollidesWith(buildings);*/
+		auto& rigid_body = entity.Add<RigidBody>();
+		rigid_body.drag	 = 4.0f;
+		// TODO: Make this a follow target component.
+		float zombie_accel{ 50.0f };
+		entity.Add<Tween>()
+			.During(milliseconds{ 0 })
+			.Repeat(-1)
+			.OnUpdate([=]() mutable {
+				auto [t, rb]  = entity.Get<Transform, RigidBody>();
+				auto& playert = player.Get<Transform>();
+				V2_float dir{ playert.position - t.position };
+				t.rotation	   = dir.Angle();
+				V2_float accel = dir.Normalized() * zombie_accel;
+				rb.AddAcceleration(accel, dt);
+			})
+			.Start();
+	};
+	// Search for a road in range of the player to spawn the zombie.
+	for (auto [e, transform, texture_key, box] :
+		 manager.EntitiesWith<Transform, TextureKey, BoxCollider>()) {
+		if (box.GetCollisionCategory() != roads) {
+			continue;
+		}
+		Rect r{ box.GetAbsoluteRect() };
+		if (!r.Overlaps(spawn_range)) {
+			continue;
+		}
+		V2_float texture_size{ game.texture.GetSize(texture_key) };
+		V2_float local_spawn{ texture_size * spawn_frac };
+		V2_float spawn_point{ r.Min() + local_spawn };
+		std::invoke(create_zombie, spawn_point);
+	}
+}
+
 ecs::Entity CreateCar(ecs::Manager& manager, const path& car_json_filepath) {
 	std::string_view key{ "car" };
 	auto entity{ CreateSprite(manager, key) };
 	auto j{ LoadJson(car_json_filepath) };
 	auto& transform{ entity.Add<Transform>(j.at("Transform")) };
 	auto rb_json{ j.at("RigidBody") };
-	auto& rb{ entity.Add<RigidBody>(rb_json) };
+	entity.Add<RigidBody>(rb_json);
 	auto& controller{ entity.Add<CarController>(j.at("CarController")) };
 	auto& box{ entity.Add<BoxCollider>(entity, game.texture.GetSize(key) * 0.75f, Origin::Center) };
+	float kill_speed_threshold{ 40.0f };
+	float kill_speed_threshold2{ kill_speed_threshold * kill_speed_threshold };
+	box.before_collision = [=](ecs::Entity e1, ecs::Entity e2) {
+		if (e2.Has<CircleCollider>() &&
+			e2.Get<CircleCollider>().GetCollisionCategory() == zombies) {
+			auto& rb = e1.Get<RigidBody>();
+			if (rb.velocity.MagnitudeSquared() > kill_speed_threshold2) {
+				// TODO: Add tween to destroy the zombie.
+				e2.Destroy();
+				return false;
+			}
+		}
+		return true;
+	};
 	return entity;
 }
 
 void CreateRoad(ecs::Manager& manager, const V2_int& top_left) {
-	auto entity = CreateSprite(manager, "road");
+	std::string_view key{ "road" };
+	auto entity = CreateSprite(manager, key);
 	entity.Add<Transform>(top_left);
 	entity.Add<Origin>(Origin::TopLeft);
+	auto& box		 = entity.Add<BoxCollider>(entity, game.texture.GetSize(key), Origin::TopLeft);
+	box.enabled		 = false;
+	box.overlap_only = true;
+	box.SetCollisionCategory(roads);
 	entity.Add<Depth>(-2);
 }
 
@@ -168,6 +241,7 @@ void CreateBuilding(ecs::Manager& manager, const V2_int& top_left) {
 	entity.Add<Transform>(top_left);
 	entity.Add<Origin>(Origin::TopLeft);
 	auto& box = entity.Add<BoxCollider>(entity, game.texture.GetSize(key), Origin::TopLeft);
+	box.SetCollisionCategory(buildings);
 }
 
 void CreateSkidmark(ecs::Manager& manager, const Transform& car_transform) {
@@ -204,6 +278,9 @@ public:
 	ecs::Entity red_light;
 	ecs::Entity blue_light;
 
+	RNG<float> spawn_rng;
+	Timer spawn_timer;
+
 	void Enter() override {
 		camera.primary.SetZoom(zoom);
 
@@ -213,10 +290,11 @@ public:
 
 		manager.Refresh();
 
-		auto zombie = CreateSprite(manager, "zombie");
-		zombie.Add<Transform>(V2_float{ 50.0f, 50.0f });
-
 		car = CreateCar(manager, "resources/json/car.json");
+
+		float building_padding{ 0.1f };
+		PTGN_ASSERT(building_padding >= 0.0f && building_padding < 0.5f);
+		spawn_rng = { building_padding, 1.0f - building_padding };
 
 		PointLight light1;
 
@@ -255,12 +333,38 @@ public:
 			})
 			.Start();
 
+		camera.primary.SetPosition(car.Get<Transform>().position);
 		camera.primary.StartFollow(car);
+		camera.primary.SetLerp(V2_float{ 0.2f });
 	}
 
 	void Update() override {
 		auto [texture_key, transform, rb, controller, box] =
 			car.Get<TextureKey, Transform, RigidBody, CarController, BoxCollider>();
+
+		float collision_check_dist{ 40.0f };
+		float collision_check_dist2{ collision_check_dist * collision_check_dist };
+		float zombie_stop_distance{ box.size.x / 2.0f };
+		float zombie_stop_distance2{ zombie_stop_distance * zombie_stop_distance };
+
+		for (auto [e, t, zrb, c] : manager.EntitiesWith<Transform, RigidBody, CircleCollider>()) {
+			if (c.GetCollisionCategory() != zombies) {
+				continue;
+			}
+			V2_float dir{ transform.position - t.position };
+			float dist2{ dir.MagnitudeSquared() };
+			if (dist2 < collision_check_dist2) {
+				c.enabled = true;
+				e.Add<Tint>(color::Green);
+				if (dist2 < zombie_stop_distance2) {
+					zrb.velocity = {};
+				}
+			} else {
+				c.enabled = false;
+				e.Add<Tint>(color::Red);
+			}
+		}
+
 		V2_float light_offset{ V2_float{ 1.0f, 0.0f }.Rotated(transform.rotation) *
 							   game.texture.GetSize(texture_key).y / 2.0f };
 		blue_light.Get<Transform>().position =
@@ -279,6 +383,17 @@ public:
 			texture_key = "car_drift";
 		} else {
 			texture_key = "car";
+		}
+
+		float spawn_radius{ 128 };
+
+		if (spawn_timer.Completed(milliseconds{ 500 }) || !spawn_timer.IsRunning()) {
+			spawn_timer.Start();
+			Circle spawn_range{ transform.position, spawn_radius };
+			CreateZombies(
+				manager, car, spawn_range, { std::invoke(spawn_rng), std::invoke(spawn_rng) },
+				physics.dt()
+			);
 		}
 	}
 };
