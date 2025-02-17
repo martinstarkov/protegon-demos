@@ -70,21 +70,19 @@ struct CarController {
 
 		transform.rotation = ClampAngle2Pi(transform.rotation);
 
-		/*	PTGN_LOG(
-				"transform.rotation: ", transform.rotation,
-				", forward vector: ", forward_vector(transform)
-			);*/
-
 		rb.drag = drifting_ ? drifting_drag : drag;
 
 		float trac{ drifting_ ? drifting_traction : traction };
+
+		PTGN_ASSERT(trac >= 0.0f && trac <= 1.0f, "Traction must be normalized to [0, 1] range");
 
 		auto norm_vel{ rb.velocity.Normalized() };
 		auto forward_vec{ forward_vector(transform.rotation) };
 
 		auto current_drift_angle{ forward_vec.Angle(norm_vel) };
 
-		rb.velocity = rb.velocity.Magnitude() * Lerp(norm_vel, forward_vec, trac * dt);
+		rb.velocity =
+			rb.velocity.Magnitude() * Lerp(norm_vel, forward_vec, 1.0f - std::pow(1.0f - trac, dt));
 
 		drifting_ = current_drift_angle >= DegToRad(10.0f);
 	}
@@ -335,13 +333,17 @@ public:
 
 		camera.primary.SetPosition(car.Get<Transform>().position);
 		camera.primary.StartFollow(car);
-		camera.primary.SetLerp(V2_float{ 0.2f });
+		camera.primary.SetLerp(V2_float{ 0.95f });
 	}
 
 	void Update() override {
 		auto [texture_key, transform, rb, controller, box] =
 			car.Get<TextureKey, Transform, RigidBody, CarController, BoxCollider>();
 
+		float farahead{ 50.0f };
+		/*camera.primary.SetOffset(
+			transform.position + V2_float{ 1.0f, 0.0f }.Rotated(transform.rotation) * farahead
+		);*/
 		/*camera.primary.SetRotation(Lerp(
 			ClampAngle2Pi(camera.primary.GetRotation()),
 			ClampAngle2Pi(-half_pi<float> - transform.rotation), 0.1f
@@ -359,13 +361,12 @@ public:
 			V2_float dir{ transform.position - t.position };
 			float dist2{ dir.MagnitudeSquared() };
 			if (dist2 < collision_check_dist2) {
-				c.enabled = true;
 				e.Add<Tint>(color::Green);
+				// TODO: Alter zombie collision group
 				if (dist2 < zombie_stop_distance2) {
 					zrb.velocity = {};
 				}
 			} else {
-				c.enabled = false;
 				e.Add<Tint>(color::Red);
 			}
 		}
