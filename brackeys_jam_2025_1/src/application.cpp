@@ -6,7 +6,7 @@ constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_float tile_size{ 128, 128 };
 constexpr Color window_color{ color::Transparent };
 constexpr const char* window_title{ "Organ Delivery" };
-constexpr float zoom{ 3.0f };
+constexpr float zoom{ 4.0f };
 
 constexpr CollisionCategory buildings{ 1 };
 constexpr CollisionCategory roads{ 2 };
@@ -341,6 +341,11 @@ public:
 	void Update() override {
 		auto [texture_key, transform, rb, controller, box] =
 			car.Get<TextureKey, Transform, RigidBody, CarController, BoxCollider>();
+
+		/*camera.primary.SetRotation(Lerp(
+			ClampAngle2Pi(camera.primary.GetRotation()),
+			ClampAngle2Pi(-half_pi<float> - transform.rotation), 0.1f
+		));*/
 
 		float collision_check_dist{ 40.0f };
 		float collision_check_dist2{ collision_check_dist * collision_check_dist };
