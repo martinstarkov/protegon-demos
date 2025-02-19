@@ -6,5 +6,7 @@
   "building": "resources/tile/building.png",
   "building2": "resources/tile/building2.png",
   "road": "resources/tile/road.png",
+  "road2": "resources/tile/road2.png",
+  "intersection": "resources/tile/intersection.png",
   "skidmark": "resources/entity/skidmark.png"
 }
