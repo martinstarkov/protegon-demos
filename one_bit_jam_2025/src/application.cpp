@@ -10,7 +10,7 @@ constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
 constexpr int tooltip_text_size{ 28 };
 constexpr int reading_text_size{ 40 };
-constexpr Color shading_color{ color::White.SetAlpha(0.5f) };
+constexpr Color color{ 206, 79, 25, 255 };
 
 constexpr std::size_t sound_frequency{ 2 };
 
@@ -508,9 +508,7 @@ class GameScene : public Scene {
 				.SetSize(tooltip_text_size)
 				.SetShadingColor(shading_color),
 			duration, seconds{ 1 }, 10.0f / camera_zoom,
-			[=]() {
-				return player.Get<Transform>().position + V2_float{ 0, -13 };
-			},
+			[=]() { return player.Get<Transform>().position + V2_float{ 0, -13 }; },
 			[&]() { StartSequence(++sequence_index); }
 		);
 	}
