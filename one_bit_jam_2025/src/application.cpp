@@ -27,219 +27,6 @@ constexpr int music_volume{ 50 };
 constexpr int wind_outside_volume{ 20 };
 constexpr int wind_inside_volume{ 5 };
 
-const path json_path{ "resources/data/data.json" };
-const path wind_sound_path{ "resources/audio/breeze.ogg" };
-const path music_path{ "resources/audio/music.ogg" };
-const path snow_sound_path{ "resources/audio/snow.ogg" };
-const path wood_sound_path{ "resources/audio/wood.ogg" };
-const path text_font_path{ "resources/font/BubbleGum_Regular.ttf" };
-
-struct Tree {};
-
-struct ItemName {
-	std::string name;
-};
-
-Tween CreateFadingTween(
-	const std::function<void(float)>& fade_function,
-	const std::function<void(float)>& update_function,
-	const std::function<void()>& start_function	   = nullptr,
-	const std::function<void()>& complete_function = nullptr
-) {
-	Tween tween{ game.tween.Load()
-					 .During(milliseconds{ 150 })
-					 .OnStart(start_function)
-					 .OnUpdate(fade_function)
-					 .During(seconds{ 1 })
-					 .Yoyo()
-					 .Repeat(-1)
-					 .Ease(TweenEase::InOutSine)
-					 .OnUpdate(update_function)
-					 .During(milliseconds{ 150 })
-					 .Reverse()
-					 .OnUpdate(fade_function)
-					 .OnComplete(complete_function) };
-	return tween;
-}
-
-struct Tooltip {
-	Tooltip() = default;
-
-	Tooltip(const Text& t, const V2_float& static_offset) : text{ t } {
-		float up_distance{ 15.0f / camera_zoom };
-
-		auto draw_text = [this,
-						  static_offset](float alpha /* [0.0f, 1.0f] */, float v_offset) mutable {
-			PTGN_ASSERT(alpha >= 0.0f && alpha <= 1.0f);
-			vertical_offset = v_offset;
-			auto old_cam{ game.camera.GetPrimary() };
-			Rect r{ old_cam.TransformToScreen(
-						GetPosition() + static_offset + V2_float{ 0.0f, vertical_offset }
-					),
-					{},
-					Origin::Center };
-			text.SetColor(text.GetColor().SetAlpha(alpha));
-			game.renderer.Flush();
-			game.camera.SetPrimary({});
-			text.Draw(r);
-			game.renderer.Flush();
-			game.camera.SetPrimary(old_cam);
-		};
-
-		tween = CreateFadingTween(
-			[=](float f) mutable { std::invoke(draw_text, f / 2.0f, vertical_offset); },
-			[=](float f) mutable {
-				float vertical_distance{ up_distance };
-				// How much distance above the og_position the tween text moves up.
-				std::invoke(draw_text, 1.0f, -f * vertical_distance);
-			},
-			[&]() { vertical_offset = 0.0f; },
-			[&]() {
-				vertical_offset = 0.0f;
-				Invoke(on_complete);
-			}
-		);
-	}
-
-	// @return True if the tooltip is currently visible.
-	bool IsShowing() const {
-		return tween.IsRunning();
-	}
-
-	void FadeIn() {
-		tween.StartIfNotRunning();
-	}
-
-	void FadeOut() {
-		tween.IncrementTweenPoint();
-	}
-
-	void SetPosition(const V2_float& position) {
-		anchor_position = position;
-	}
-
-	V2_float GetPosition() const {
-		return anchor_position;
-	}
-
-	Text text;
-	std::function<void()> on_complete;
-
-private:
-	V2_float anchor_position;
-	float vertical_offset{ 0.0f };
-	// Static offset of tooltip compared to anchor position.
-	Tween tween;
-};
-
-struct Waypoint {
-	Waypoint() = default;
-
-	Waypoint(const Texture& texture) {
-		auto draw_waypoint = [&](float alpha, float vertical_offset) {
-			PTGN_ASSERT(texture.IsValid());
-			PTGN_ASSERT(alpha >= 0.0f && alpha <= 1.0f);
-			Rect r{ anchor_position + offset + V2_float{ 0.0f, vertical_offset },
-					{},
-					Origin::Center };
-			texture.Draw(r, { color::White.SetAlpha(alpha) }, 500);
-		};
-
-		tween = CreateFadingTween(
-			[=](float f) mutable { std::invoke(draw_waypoint, f / 2.0f, -f * up_distance); },
-			[=](float f) mutable { std::invoke(draw_waypoint, 1.0f, -f * up_distance); }
-		);
-	}
-
-	// @return True if the waypoint is currently visible.
-	bool IsShowing() const {
-		return tween.IsRunning();
-	}
-
-	void FadeIn() {
-		tween.StartIfNotRunning();
-	}
-
-	void FadeOut() {
-		tween.IncrementTweenPoint();
-	}
-
-	V2_float GetAnchorPosition() const {
-		return anchor_position;
-	}
-
-	void SetAnchorPosition(const V2_float& position) {
-		anchor_position = position;
-	}
-
-	// Offset of the texture from the anchor position.
-	void SetStaticOffset(const V2_float& static_offset) {
-		offset = static_offset;
-	}
-
-private:
-	V2_float anchor_position;
-
-	// How much distance above the og_position the tween text moves up.
-	float up_distance{ 15.0f / camera_zoom };
-	// Static offset of tooltip compared to anchor position.
-	V2_float offset;
-	Tween tween;
-};
-
-void CreateFloatingText(
-	Text text, seconds duration, seconds yoyo_duration, float vertical_distance,
-	const std::function<V2_float()>& get_position, const std::function<void()>& on_complete
-) {
-	auto vertical_offset = std::make_shared<float>(0.0f);
-
-	auto draw_text = [vertical_offset, text,
-					  get_position](float alpha /* [0.0f, 1.0f] */, float v_offset) mutable {
-		PTGN_ASSERT(alpha >= 0.0f && alpha <= 1.0f);
-		*vertical_offset = v_offset;
-		auto old_cam{ game.camera.GetPrimary() };
-		Rect r{ old_cam.TransformToScreen(
-					std::invoke(get_position) + V2_float{ 0.0f, *vertical_offset }
-				),
-				{},
-				Origin::Center };
-		text.SetColor(text.GetColor().SetAlpha(alpha));
-		game.renderer.Flush();
-		game.camera.SetPrimary({});
-		text.Draw(r);
-		game.renderer.Flush();
-		game.camera.SetPrimary(old_cam);
-	};
-
-	auto fade_function = [=](float f) mutable {
-		std::invoke(draw_text, f / 2.0f, *vertical_offset);
-	};
-
-	auto update_function = [=](float f) mutable {
-		float v_distance{ vertical_distance };
-		// How much distance above the og_position the tween text moves up.
-		std::invoke(draw_text, 1.0f, -f * v_distance);
-	};
-
-	milliseconds fade_duration{ 150 };
-
-	Tween text_tween{ game.tween.Load()
-						  .During(fade_duration)
-						  .OnUpdate(fade_function)
-						  .During(yoyo_duration)
-						  .Yoyo()
-						  .Repeat(-1)
-						  .Ease(TweenEase::InOutSine)
-						  .OnUpdate(update_function)
-						  .During(milliseconds{ 150 })
-						  .Reverse()
-						  .OnUpdate(fade_function)
-						  .OnComplete([=]() { Invoke(on_complete); }) };
-	Tween tween{ game.tween.Load().During(duration).OnStart([=]() mutable { text_tween.Start(); }
-	).OnComplete([=]() mutable { text_tween.IncrementTweenPoint(); }) };
-	tween.Start();
-}
-
 class GameScene : public Scene {
 	FractalNoise fractal_noise;
 
@@ -430,7 +217,7 @@ class GameScene : public Scene {
 	void PlayIntro() {
 		player.Get<TopDownMovement>().keys_enabled = false;
 
-		game.tween.Load()
+		Tween{}
 			.During(seconds{ 6 })
 			.Reverse()
 			.OnUpdate([&](float f) {
@@ -478,12 +265,11 @@ class GameScene : public Scene {
 	Rect house_perimeter;
 
 	void SequenceSpawnDelay(seconds duration) {
-		game.tween.Load().During(duration).OnComplete([&]() { StartSequence(++sequence_index); }
-		).Start();
+		Tween{}.During(duration).OnComplete([&]() { StartSequence(++sequence_index); }).Start();
 	}
 
 	void SequenceKeyDelay() {
-		auto tween = game.tween.Load().During(milliseconds{ 30 }).Repeat(-1);
+		auto tween = Tween{}.During(milliseconds{ 30 }).Repeat(-1);
 		tween
 			.OnUpdate([=]() mutable {
 				if (game.input.KeyDown(Key::E)) {
@@ -874,7 +660,7 @@ class GameScene : public Scene {
 		);
 
 		/*seconds day_duration{ 10 };
-		game.tween.Load()
+		Tween{}
 			.During(day_duration)
 			.Yoyo()
 			.Repeat(-1)
@@ -1081,7 +867,7 @@ public:
 		text.SetWrapAfter(450);
 		text.SetSize(reading_text_size);
 
-		game.tween.Load()
+		Tween{}
 			.During(reading_duration)
 			.OnComplete([&]() {
 				game.event.key.Subscribe(
@@ -1096,7 +882,7 @@ public:
 						}
 					})
 				);
-				game.tween.Load()
+				Tween{}
 					.During(seconds{ 1 })
 					.OnUpdate([&](float f) {
 						continue_text.SetColor(continue_text.GetColor().SetAlpha(f));
