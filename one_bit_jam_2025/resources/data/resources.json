@@ -1,3 +1,7 @@
 {
-  "car": "resources/entity/car.png",
+  "player_anim": "resources/entity/player.png",
+  "wind": "resources/audio/wind.ogg",
+  "walk": "resources/audio/walk.ogg",
+  "repair": "resources/audio/repair.ogg",
+  "music": "resources/audio/music.ogg"
 }
