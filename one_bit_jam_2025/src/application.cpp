@@ -2,80 +2,23 @@
 
 using namespace ptgn;
 
-#define MENU_SCENES
-#define START_SEQUENCE
-
 constexpr V2_int window_size{ 1280, 720 };
-constexpr V2_int tile_size{ 8, 8 };
 constexpr float camera_zoom{ 4.0f };
-constexpr int tooltip_text_size{ 28 };
-constexpr int reading_text_size{ 40 };
 constexpr Color color{ 206, 79, 25, 255 };
 
-constexpr std::size_t sound_frequency{ 2 };
-
-constexpr CollisionCategory wall_category{ 1 };
-constexpr CollisionCategory item_category{ 2 };
-constexpr CollisionCategory tree_category{ 3 };
-constexpr CollisionCategory player_category{ 4 };
-constexpr CollisionCategory interaction_category{ 5 };
-
-constexpr int wind_channel{ 0 };
-constexpr int snow_volume{ 30 };
-constexpr int wood_volume{ 30 };
+constexpr int sand_volume{ 30 };
+constexpr int repair_volume{ 30 };
 constexpr int music_volume{ 50 };
-constexpr int wind_outside_volume{ 20 };
-constexpr int wind_inside_volume{ 5 };
+constexpr int wind_volume{ 20 };
 
 class GameScene : public Scene {
 	FractalNoise fractal_noise;
 
-	Texture player_animation{ "resources/entity/player.png" };
-	Texture letter_texture{ "resources/ui/letter.png" };
-	Texture letter_text_texture{ "resources/ui/letter_text.png" };
-	Texture snow_texture{ "resources/tile/snow.png" };
-	Texture tree_texture{ "resources/tile/tree.png" };
-	Texture house_texture{ "resources/tile/house.png" };
-	Texture waypoint_texture{ "resources/ui/waypoint.png" };
-	Texture arrow_texture{ "resources/ui/arrow.png" };
-
-	json data;
-
-	Waypoint waypoint{ waypoint_texture };
-
-	std::size_t sequence_index{ 0 };
-
-	ecs::Entity CreateWall(const Rect& r) {
-		ecs::Entity entity = manager.CreateEntity();
-		entity.Add<Transform>(r.position, r.rotation);
-		auto& box = entity.Add<BoxCollider>(entity, r.size, r.origin);
-		box.SetCollisionCategory(wall_category);
-		entity.Add<DrawColor>(color::Purple);
-		return entity;
-	}
-
-	std::vector<Rect> house_area;
-
-	V2_float player_size;
-
-	bool PlayerInHouse() {
-		const auto& sprite_size{ player_size };
-		const auto& pos{ player.Get<Transform>().position };
-		Rect player_rec{ pos, sprite_size, Origin::Center };
-		for (const auto& r : house_area) {
-			if (player_rec.Overlaps(r)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	std::size_t anim_repeats{ 0 };
-
 	ecs::Entity CreatePlayer() {
 		ecs::Entity entity = manager.CreateEntity();
 
-		V2_float player_starting_position{ -400.0f, 0.0f };
+		V2_float player_starting_position{ 0.0f, 0.0f };
+
 		entity.Add<Transform>(player_starting_position);
 		auto& rb = entity.Add<RigidBody>();
 		entity.Add<RenderLayer>(2);
@@ -948,9 +891,11 @@ public:
 		/*Text text{ "Play", color::Black };
 		play.Set<ButtonProperty::Text>(text);
 		play.Set<ButtonProperty::TextSize>(V2_float{ 0.0f, 0.0f });*/
-		play.SetRect({ { game.window.GetCenter().x, game.window.GetSize().y * 0.75f },
-					   texture.GetSize() * 2.0f,
-					   Origin::Center });
+		play.SetRect(
+			{ { game.window.GetCenter().x, game.window.GetSize().y * 0.75f },
+			  texture.GetSize() * 2.0f,
+			  Origin::Center }
+		);
 	}
 
 	void Update() override {
