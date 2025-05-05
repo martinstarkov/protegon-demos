@@ -4,7 +4,7 @@
   "ship_bottom": "resources/entity/ship_feet.png",
   "ship_middle": "resources/entity/ship_middle.png",
   "ship_top_icon": "resources/entity/top_icon.png",
-  "ship_mid_icon": "resources/entity/middle_complete.png",
+  "ship_mid_icon": "resources/entity/middle_icon.png",
   "ship_bottom_icon": "resources/entity/feet_icon.png",
   "rock_1": "resources/entity/rock1.png",
   "rock_2": "resources/entity/rock2.png",

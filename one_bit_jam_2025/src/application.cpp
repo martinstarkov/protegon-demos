@@ -1,4 +1,6 @@
 #include "audio/audio.h"
+#include "components/draw.h"
+#include "components/generic.h"
 #include "components/movement.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -23,15 +25,21 @@ constexpr V2_int window_size{ 1280, 720 };
 constexpr float camera_zoom{ 4.0f };
 constexpr Color color1{ 206, 79, 25, 255 };
 
-constexpr int sand_volume{ 30 };
+constexpr int walk_volume{ 30 };
 constexpr int repair_volume{ 30 };
 constexpr int music_volume{ 50 };
 constexpr int wind_volume{ 20 };
+constexpr std::size_t walk_sound_frequency{ 2 }; // every second repeat of the walk animation
 
 constexpr CollisionCategory player_category{ 0 };
 constexpr CollisionCategory interaction_category{ 1 };
 
+struct WalkRepeats : public ArithmeticComponent<int> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
 class GameScene : public Scene {
+public:
 	FractalNoise fractal_noise;
 
 	GameScene() {
@@ -45,6 +53,7 @@ class GameScene : public Scene {
 
 		entity.Add<Transform>(player_starting_position);
 		auto& rb = entity.Add<RigidBody>();
+		entity.Add<Enabled>();
 
 		V2_float hitbox_size{ 10, 6 };
 		V2_float hitbox_offset{ 0, 8 };
@@ -74,51 +83,59 @@ class GameScene : public Scene {
 		movement.friction = 1.0f;
 
 		V2_uint animation_count{ 4, 3 };
-		V2_int player_size		= { 16, 17 };
+		V2_int player_size		= { 12, 24 };
 		V2_float animation_size = player_size;
 		milliseconds animation_duration{ 1000 };
 
-		/*
+		entity.Add<WalkRepeats>();
+
 		auto& anim_map = entity.Add<AnimationMap>(
-			"down", player_animation, animation_count.x, animation_size, animation_duration
+			"down",
+			CreateAnimation(
+				manager, "player_anim", animation_count.x, animation_size, animation_duration
+			)
 		);
 		auto& a0 = anim_map.GetActive();
 		auto& a1 = anim_map.Load(
-			"right", player_animation, animation_count.x, animation_size, animation_duration,
-			V2_float{ 0, animation_size.y }
+			"right", CreateAnimation(
+						 manager, "player_anim", animation_count.x, animation_size,
+						 animation_duration, V2_float{ 0, animation_size.y }
+					 )
 		);
 		auto& a2 = anim_map.Load(
-			"up", player_animation, animation_count.x, animation_size, animation_duration,
-			V2_float{ 0, 2.0f * animation_size.y }
+			"up", CreateAnimation(
+					  manager, "player_anim", animation_count.x, animation_size, animation_duration,
+					  V2_float{ 0, 2.0f * animation_size.y }
+				  )
 		);
 
-		auto on_repeat = [&]() {
-			++anim_repeats;
-			bool repeat{ anim_repeats % sound_frequency == 0 };
+		auto on_repeat = [=]() {
+			auto& repeats{ entity.Get<WalkRepeats>() };
+			++repeats.GetValue();
+			bool repeat{ repeats % walk_sound_frequency == 0 };
 			if (!repeat) {
 				return;
 			}
-			if (!PlayerInHouse()) {
-				game.sound.Get("snow").SetVolume(snow_volume);
-				game.sound.Get("snow").Play();
-			} else {
-				game.sound.Get("wood").SetVolume(wood_volume);
-				game.sound.Get("wood").Play();
-			}
+			game.sound.Play("walk");
 		};
 
-		a0.on_repeat = on_repeat;
-		a1.on_repeat = on_repeat;
-		a2.on_repeat = on_repeat;
+		a0.SetParent(entity);
+		a1.SetParent(entity);
+		a2.SetParent(entity);
+
+		a0.Add<callback::AnimationRepeat>(on_repeat);
+		a1.Add<callback::AnimationRepeat>(on_repeat);
+		a2.Add<callback::AnimationRepeat>(on_repeat);
 
 		movement.on_move_start = [=]() {
-			player.Get<AnimationMap>().GetActive().StartIfNotRunning();
+			entity.Get<AnimationMap>().GetActive().Get<Tween>().Start(false);
 		};
 		movement.on_direction_change = [=](MoveDirection) {
-			auto& a{ player.Get<AnimationMap>() };
-			auto dir{ player.Get<TopDownMovement>().GetDirection() };
+			auto& a{ entity.Get<AnimationMap>() };
+			auto dir{ entity.Get<TopDownMovement>().GetDirection() };
 			auto& prev_active{ a.GetActive() };
 			bool active_changed{ false };
+
 			switch (dir) {
 				case MoveDirection::Down:	   active_changed = a.SetActive("down"); break;
 				case MoveDirection::Up:		   active_changed = a.SetActive("up"); break;
@@ -131,15 +148,15 @@ class GameScene : public Scene {
 				default:					   break;
 			}
 			if (active_changed) {
-				prev_active.Reset();
+				prev_active.Get<Tween>().Reset();
 			}
-			a.GetActive().StartIfNotRunning();
+			auto& current_active{ a.GetActive() };
+			current_active.Get<Tween>().Start(false);
 		};
 		movement.on_move_stop = [=]() {
-			player.Get<AnimationMap>().GetActive().Reset();
+			entity.Get<AnimationMap>().GetActive().Get<Tween>().Reset();
 		};
 
-		*/
 		return entity;
 	}
 
@@ -152,13 +169,15 @@ class GameScene : public Scene {
 		fractal_noise.SetPersistence(3);
 
 		player = CreatePlayer();
-		manager.Refresh();
 
 		camera.primary.SetZoom(camera_zoom);
 
+		auto ship1 = CreateSprite(manager, "ship");
+		ship1.Add<Transform>();
+
 		game.sound.SetVolume("wind", wind_volume);
 		game.sound.Play("wind", 0);
-		game.sound.SetVolume("sand", sand_volume);
+		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
 	}
 
@@ -183,7 +202,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Cozy Winter Jam", window_size, color1);
+	game.Init("One Bit Jam", window_size, color1);
 	game.scene.Enter<GameScene>("game");
 	return 0;
 }
