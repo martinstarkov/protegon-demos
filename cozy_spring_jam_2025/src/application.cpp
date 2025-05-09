@@ -44,6 +44,32 @@ struct WalkRepeats : public ArithmeticComponent<int> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
+struct Inventory : public GameObject {
+	Inventory() = default;
+
+	Sprite inventory;
+	Sprite selector;
+
+	std::size_t slots{ 0 };
+	std::size_t selected_slot{ 0 };
+
+	Inventory(
+		Manager& manager, const V2_float& position, Origin origin, std::size_t slots,
+		std::size_t selected_slot = 0
+	) :
+		GameObject{ manager } {
+		inventory = Sprite{ manager, "inventory" };
+		inventory.SetParent(*this);
+		// selector  = Sprite{ manager, "selector" };
+
+		this->slots			= slots;
+		this->selected_slot = selected_slot;
+
+		SetPosition(position);
+		SetOrigin(origin);
+	}
+};
+
 struct Player : public GameObject {
 	Player() = default;
 
@@ -165,6 +191,19 @@ struct Flower : public Sprite {
 	}
 };
 
+class InventoryScene : public Scene {
+public:
+	Inventory inventory;
+
+	void Enter() final {
+		camera.primary.SetZoom(camera_zoom);
+		camera.primary.SetPosition(V2_float{});
+		auto inventory_origin{ Origin::CenterBottom };
+		auto inventory_position{ camera.primary.GetPosition(inventory_origin) };
+		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
+	}
+};
+
 class GameScene : public Scene {
 public:
 	FractalNoise fractal_noise;
@@ -185,7 +224,7 @@ public:
 	Flower f9;
 	Flower f10;
 
-	void Enter() override {
+	void Enter() final {
 		fractal_noise.SetOctaves(2);
 		fractal_noise.SetFrequency(0.055f);
 		fractal_noise.SetLacunarity(5);
@@ -211,6 +250,8 @@ public:
 		game.sound.Play("wind", 0);
 		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
+
+		game.scene.Enter<InventoryScene>("inventory");
 	}
 
 	void Update() override {
