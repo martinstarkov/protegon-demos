@@ -10,7 +10,7 @@
   "flower_7": "resources/entity/flower7.png",
   "flower_8": "resources/entity/flower8.png",
   "flower_9": "resources/entity/flower9.png",
-  "inventory": "recources/ui/inventory.png",
+  "inventory": "resources/ui/inventory.png",
   "timer_font": "resources/font/Technology.ttf",
   "wind": "resources/audio/wind.ogg",
   "walk": "resources/audio/walk.ogg",

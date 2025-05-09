@@ -178,6 +178,12 @@ public:
 	Flower f2;
 	Flower f3;
 	Flower f4;
+	Flower f5;
+	Flower f6;
+	Flower f7;
+	Flower f8;
+	Flower f9;
+	Flower f10;
 
 	void Enter() override {
 		fractal_noise.SetOctaves(2);
@@ -187,10 +193,16 @@ public:
 
 		player = Player{ manager };
 
-		f1 = Flower{ manager, { 30, 30 }, "flower_0" };
-		f2 = Flower{ manager, { 37, 30 }, "flower_0" };
-		f3 = Flower{ manager, { 30, 35 }, "flower_0" };
-		f4 = Flower{ manager, { 37, 35 }, "flower_0" };
+		f1	= Flower{ manager, { 30, 30 }, "flower_0" };
+		f2	= Flower{ manager, { 40, 30 }, "flower_1" };
+		f3	= Flower{ manager, { 50, 30 }, "flower_2" };
+		f4	= Flower{ manager, { 60, 30 }, "flower_3" };
+		f5	= Flower{ manager, { 70, 30 }, "flower_4" };
+		f6	= Flower{ manager, { 80, 30 }, "flower_5" };
+		f7	= Flower{ manager, { 90, 30 }, "flower_6" };
+		f8	= Flower{ manager, { 100, 30 }, "flower_7" };
+		f9	= Flower{ manager, { 110, 30 }, "flower_8" };
+		f10 = Flower{ manager, { 120, 30 }, "flower_9" };
 
 		camera.primary.SetZoom(camera_zoom);
 		camera.primary.StartFollow(player);
