@@ -4,6 +4,7 @@
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/generic.h"
+#include "components/input.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -50,23 +51,65 @@ struct Inventory : public GameObject {
 	Sprite inventory;
 	Sprite selector;
 
-	std::size_t slots{ 0 };
 	std::size_t selected_slot{ 0 };
 
+	V2_float selector_position{ -59.5f, -10.5f }; // Relative to inventory position.
+
+	V2_float selector_offset{ 17, 0 };			  // Relative to previous selector.
+
+	std::vector<Entity> slots;
+
 	Inventory(
-		Manager& manager, const V2_float& position, Origin origin, std::size_t slots,
+		Manager& manager, const V2_float& position, Origin origin, std::size_t slot_count,
 		std::size_t selected_slot = 0
 	) :
 		GameObject{ manager } {
 		inventory = Sprite{ manager, "inventory" };
 		inventory.SetParent(*this);
-		// selector  = Sprite{ manager, "selector" };
+		selector = Sprite{ manager, "selector" };
+		selector.SetParent(*this);
+		selector.SetDepth(1);
+		selector.SetOrigin(Origin::Center);
 
-		this->slots			= slots;
+		slots.resize(slot_count, Entity{});
 		this->selected_slot = selected_slot;
 
 		SetPosition(position);
 		SetOrigin(origin);
+
+		UpdateSelectorPosition();
+	}
+
+	void UpdateSelectorPosition() {
+		selector.SetPosition(GetSlotPosition(selected_slot));
+	}
+
+	[[nodiscard]] V2_float GetSlotPosition(std::size_t slot) const {
+		PTGN_ASSERT(slot < slots.size());
+		return selector_position + slot * selector_offset;
+	}
+
+	void IncrementSlot(int amount) {
+		PTGN_ASSERT(amount != 0);
+		selected_slot -= amount;
+		selected_slot  = selected_slot % slots.size();
+		UpdateSelectorPosition();
+	}
+
+	[[nodiscard]] bool IsSlotTaken(std::size_t slot) const {
+		PTGN_ASSERT(slot < slots.size());
+		return slots[slot] != Entity{};
+	}
+
+	void SetSlot(std::size_t slot, Entity entity) {
+		PTGN_ASSERT(slot < slots.size());
+		PTGN_ASSERT(!IsSlotTaken(slot));
+		slots[slot] = entity;
+	}
+
+	void UnsetSlot(std::size_t slot) {
+		PTGN_ASSERT(slot < slots.size());
+		slots[slot] = Entity{};
 	}
 };
 
@@ -188,6 +231,7 @@ struct Flower : public Sprite {
 	Flower(Manager& manager, const V2_float& position, std::string_view texture_key) :
 		Sprite{ manager, texture_key } {
 		SetPosition(position);
+		// Add<CircleCollider>(GetSize());
 	}
 };
 
@@ -201,6 +245,13 @@ public:
 		auto inventory_origin{ Origin::CenterBottom };
 		auto inventory_position{ camera.primary.GetPosition(inventory_origin) };
 		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
+	}
+
+	void Update() final {
+		auto scroll{ game.input.GetMouseScroll() };
+		if (scroll != 0) {
+			inventory.IncrementSlot(Sign(scroll));
+		}
 	}
 };
 
