@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(one_bit_jam_2025)
+project(cozy_spring_jam_2025)
 
 set(PROTEGON_DEMOS OFF CACHE BOOL "")
 set(PROTEGON_TESTS OFF CACHE BOOL "")
