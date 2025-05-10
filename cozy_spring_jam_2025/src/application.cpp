@@ -39,13 +39,14 @@ constexpr V2_int world_size{ grid_size * tile_size };
 
 constexpr int walk_volume{ 30 };
 constexpr int repair_volume{ 30 };
-constexpr int music_volume{ 50 };
-constexpr int wind_volume{ 5 };
+constexpr int music_volume{ 10 };
+constexpr int wind_volume{ 2 };
 constexpr int walk_sound_frequency{ 2 }; // every second repeat of the walk animation
 
 constexpr CollisionCategory player_category{ 0 };
 constexpr CollisionCategory interaction_category{ 1 };
 constexpr CollisionCategory flower_category{ 2 };
+constexpr CollisionCategory wall_category{ 3 };
 
 struct WalkRepeats : public ArithmeticComponent<int> {
 	using ArithmeticComponent::ArithmeticComponent;
@@ -198,7 +199,8 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 enum class ActionType {
 	None,
 	GroundPick,
-	GroundPlace
+	GroundPlace,
+	OpenAnalyzer
 };
 
 struct ActionComponent {
@@ -272,6 +274,7 @@ struct Player : public GameObject {
 		Add<Transform>(player_starting_position);
 		auto& rb = Add<RigidBody>();
 		Add<Enabled>();
+		Add<Depth>(1);
 
 		V2_float hitbox_size{ 10, 6 };
 		V2_float hitbox_offset{ 0, 8 };
@@ -279,6 +282,8 @@ struct Player : public GameObject {
 		auto body_hitbox = manager.CreateEntity();
 		body_hitbox.Add<BoxCollider>(hitbox_size, Origin::CenterBottom);
 		body_hitbox.Add<Transform>(hitbox_offset);
+		body_hitbox.Add<Enabled>();
+		body_hitbox.Add<RigidBody>();
 
 		auto interaction_hitbox = manager.CreateEntity();
 		auto& interaction_collider =
@@ -384,6 +389,49 @@ struct Tile : public Vector2Component<int> {
 	using Vector2Component::Vector2Component;
 };
 
+struct AnalyzerComponent {
+	Sprite analyzer;
+
+	AnalyzerComponent(Manager& manager) : analyzer{ manager, "analyzer" } {
+		analyzer.Hide();
+		analyzer.SetScale({ 1.5f, 1.5f });
+	}
+
+	void Open(Inventory& inv) {
+		open = true;
+		// for () {}
+		/*r3.Add<Interactive>();
+		r3.Add<Draggable>();
+		r3.Add<callback::Drag>([=](auto mouse) mutable {
+			PTGN_LOG("r3 Drag: ", mouse);
+			r3.Get<Transform>().position = mouse + r3.Get<Draggable>().offset;
+		});
+		r3.Add<callback::DragEnter>([](auto mouse) { PTGN_LOG("r3 Drag enter: ", mouse); });
+		r3.Add<callback::DragLeave>([](auto mouse) { PTGN_LOG("r3 Drag leave: ", mouse); });
+		r3.Add<callback::DragOut>([](auto mouse) { PTGN_LOG("r3 Drag out: ", mouse); });
+		r3.Add<callback::DragOver>([](auto mouse) { PTGN_LOG("r3 Drag over: ", mouse); });
+		r3.Add<callback::DragStart>([](auto mouse) { PTGN_LOG("r3 Drag start: ", mouse); });
+		r3.Add<callback::DragStop>([](auto mouse) { PTGN_LOG("r3 Drag stop: ", mouse); });*/
+	}
+
+	void Close() {
+		open = false;
+	}
+
+	bool IsOpen() const {
+		return open;
+	}
+
+	void Update() {
+		if (game.input.KeyDown(Key::ESCAPE) /* || TODO: hit button to exit analyzer */) {
+			Close();
+		}
+	}
+
+private:
+	bool open{ false };
+};
+
 struct FlowerComponent {
 	FlowerComponent() = default;
 };
@@ -401,14 +449,68 @@ public:
 	Player player;
 	Inventory inventory;
 	RenderTarget ui;
+	GameObject shed;
 
-	GameObject CreateShed(const V2_int& position) {}
+	Entity CreateWall(const V2_float& pos, const V2_float& size, Origin origin) {
+		auto entity = CreateEntity();
+		entity.Add<Transform>(pos);
+		entity.Add<Enabled>();
+		auto& box = entity.Add<BoxCollider>(size, origin);
+		box.SetCollisionCategory(wall_category);
+		return entity;
+	}
+
+	GameObject CreateShed() {
+		auto house_size{ game.texture.GetSize("shed") };
+		auto house_pos = world_size / 2.0f + V2_float{ house_size.x, -house_size.y / 2.0f };
+		Sprite s{ manager, "shed" };
+		s.SetPosition(house_pos);
+		s.SetOrigin(Origin::TopLeft);
+		const auto& house_hitboxes{ game.json.Get("shed_data").at("hitboxes") };
+		for (const auto& obj : house_hitboxes) {
+			PTGN_ASSERT(obj.contains("size"));
+			PTGN_ASSERT(obj.contains("position"));
+			CreateWall(
+				house_pos + V2_float{ obj.at("position") }, V2_float{ obj.at("size") },
+				Origin::TopLeft
+			);
+		}
+		return s;
+	}
 
 	GameObject CreateFlower(const V2_int& tile, const V2_int& position, const TextureKey& key) {
 		Sprite s{ manager, key };
 		s.SetPosition(position);
 		s.Add<Tile>(tile);
+		s.Add<FlowerComponent>();
 		return s;
+	}
+
+	GameObject CreateAnalyzer(const V2_int& tile, const V2_int& position) {
+		GameObject s{ manager };
+		s.SetPosition(position);
+		s.Add<Tile>(tile);
+		s.Add<AnalyzerComponent>(manager);
+		return s;
+	}
+
+	void ClearFlowersUnderShed() {
+		auto shed_position{ shed.GetPosition() };
+		V2_int shed_tile_min{ shed_position / tile_size };
+		shed_tile_min -= V2_int{ 1, 1 };
+		V2_int shed_tile_max{ (shed_position + shed.GetSize()) / tile_size };
+		shed_tile_max += V2_int{ 1, 1 };
+		for (auto i = shed_tile_min.x; i < shed_tile_max.x; i++) {
+			for (auto j = shed_tile_min.y; j < shed_tile_max.y; j++) {
+				flowers.Get({ i, j }).Destroy();
+				flowers.Set({ i, j }, GameObject{ manager });
+			}
+		}
+		V2_int analyzer_tile{ shed_tile_min + V2_int{ 3, 3 } };
+		flowers.Set(
+			analyzer_tile,
+			CreateAnalyzer(analyzer_tile, analyzer_tile * tile_size + tile_size / 2.0f)
+		);
 	}
 
 	void Enter() final {
@@ -434,6 +536,9 @@ public:
 		});
 
 		player = Player{ manager };
+		shed   = CreateShed();
+
+		ClearFlowersUnderShed();
 
 		camera.primary.SetZoom(camera_zoom);
 		camera.primary.StartFollow(player);
@@ -442,6 +547,8 @@ public:
 
 		game.sound.SetVolume("wind", wind_volume);
 		game.sound.Play("wind", 0);
+		game.sound.SetVolume("music", music_volume);
+		game.sound.Play("music", 1);
 		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
 
@@ -452,6 +559,7 @@ public:
 		auto inventory_origin{ Origin::CenterBottom };
 		auto inventory_position{ ui_camera.GetPosition(inventory_origin) };
 		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
+		ui.SetDepth(2);
 
 		player.Add<ActionComponent>(&inventory, &flowers, player);
 	}
@@ -462,9 +570,20 @@ public:
 														   V2_int{ 0, 1 },	 V2_int{ 1, 1 } };
 
 	void Update() override {
+		ui.Clear();
+
 		auto scroll{ game.input.GetMouseScroll() };
 		if (scroll != 0) {
 			inventory.IncrementSlot(Sign(scroll));
+		}
+
+		for (auto [e, a] : manager.EntitiesWith<AnalyzerComponent>()) {
+			a.Update();
+			player.Get<TopDownMovement>().keys_enabled = !a.IsOpen();
+			if (a.IsOpen()) {
+				a.analyzer.SetPosition(ui.Get<Camera>().GetPosition());
+				ui.Draw(a.analyzer);
+			}
 		}
 
 		auto player_pos{ player.GetAbsoluteTransform().position };
@@ -550,9 +669,17 @@ ActionComponent::ActionComponent(Inventory* inventory, Grid<GameObject>* grid, E
 				grid_entity.SetPosition(position);
 				grid_entity.RemoveParent();
 				grid_entity.Show();
+				game.sound.Play("plant");
 			} else if (action.type == ActionType::GroundPick) {
 				auto ground_entity = action.grid->Pop(action.tile);
 				action.inventory->AddEntity(std::move(ground_entity));
+				game.sound.Play("pull");
+			} else if (action.type == ActionType::OpenAnalyzer) {
+				auto& grid_entity = action.grid->Get(action.tile);
+				auto& analyzer	  = grid_entity.Get<AnalyzerComponent>();
+				if (!analyzer.IsOpen()) {
+					analyzer.Open(*action.inventory);
+				}
 			}
 		}
 	});
@@ -576,13 +703,15 @@ void ActionComponent::UpdateAction() {
 			return;
 		}
 		TryStartAction(ActionType::GroundPlace);
-	} else {
+	} else if (grid_entity.Has<FlowerComponent>()) {
 		auto has_slot = inventory->HasEmptySlot();
 		if (!has_slot) {
 			CancelPreviousAction();
 			return;
 		}
 		TryStartAction(ActionType::GroundPick);
+	} else if (grid_entity.Has<AnalyzerComponent>()) {
+		TryStartAction(ActionType::OpenAnalyzer);
 	}
 }
 
