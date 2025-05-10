@@ -11,6 +11,8 @@
   "flower_8": "resources/entity/flower8.png",
   "flower_9": "resources/entity/flower9.png",
   "trashcan": "resources/entity/trashcan.png",
+  "fence_front": "resources/entity/fence_front.png",
+  "fence_side": "resources/entity/fence_side.png",
   "inventory": "resources/ui/inventory.png",
   "selector": "resources/ui/selector.png",
   "ground_selector": "resources/ui/ground_selector.png",
