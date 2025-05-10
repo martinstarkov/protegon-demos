@@ -23,6 +23,7 @@
   "ui_font": "resources/font/Pixellari.ttf",
   "wind": "resources/audio/wind.ogg",
   "walk": "resources/audio/step.ogg",
+  "inside_walk": "resources/audio/wood.ogg",
   "repair": "resources/audio/repair.ogg",
   "music": "resources/audio/background.ogg",
   "shed": "resources/entity/shed.png",
