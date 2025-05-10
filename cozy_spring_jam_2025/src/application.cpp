@@ -36,10 +36,11 @@ constexpr int walk_volume{ 30 };
 constexpr int repair_volume{ 30 };
 constexpr int music_volume{ 50 };
 constexpr int wind_volume{ 5 };
-constexpr std::size_t walk_sound_frequency{ 2 }; // every second repeat of the walk animation
+constexpr int walk_sound_frequency{ 2 }; // every second repeat of the walk animation
 
 constexpr CollisionCategory player_category{ 0 };
 constexpr CollisionCategory interaction_category{ 1 };
+constexpr CollisionCategory flower_category{ 2 };
 
 struct WalkRepeats : public ArithmeticComponent<int> {
 	using ArithmeticComponent::ArithmeticComponent;
@@ -51,7 +52,7 @@ struct Inventory : public GameObject {
 	Sprite inventory;
 	Sprite selector;
 
-	std::size_t selected_slot{ 0 };
+	int selected_slot{ 0 };
 
 	V2_float selector_position{ -59.5f, -10.5f }; // Relative to inventory position.
 
@@ -61,7 +62,7 @@ struct Inventory : public GameObject {
 
 	Inventory(
 		Manager& manager, const V2_float& position, Origin origin, std::size_t slot_count,
-		std::size_t selected_slot = 0
+		int selected_slot = 0
 	) :
 		GameObject{ manager } {
 		inventory = Sprite{ manager, "inventory" };
@@ -72,6 +73,7 @@ struct Inventory : public GameObject {
 		selector.SetOrigin(Origin::Center);
 
 		slots.resize(slot_count, Entity{});
+		PTGN_ASSERT(selected_slot >= 0);
 		this->selected_slot = selected_slot;
 
 		SetPosition(position);
@@ -84,32 +86,33 @@ struct Inventory : public GameObject {
 		selector.SetPosition(GetSlotPosition(selected_slot));
 	}
 
-	[[nodiscard]] V2_float GetSlotPosition(std::size_t slot) const {
-		PTGN_ASSERT(slot < slots.size());
+	[[nodiscard]] V2_float GetSlotPosition(int slot) const {
+		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < slots.size());
 		return selector_position + slot * selector_offset;
 	}
 
 	void IncrementSlot(int amount) {
 		PTGN_ASSERT(amount != 0);
 		selected_slot -= amount;
-		selected_slot  = selected_slot % slots.size();
+		selected_slot  = Mod(selected_slot, static_cast<int>(slots.size()));
+		PTGN_ASSERT(selected_slot >= 0);
 		UpdateSelectorPosition();
 	}
 
-	[[nodiscard]] bool IsSlotTaken(std::size_t slot) const {
-		PTGN_ASSERT(slot < slots.size());
-		return slots[slot] != Entity{};
+	[[nodiscard]] bool IsSlotTaken(int slot) const {
+		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < slots.size());
+		return slots[static_cast<std::size_t>(slot)] != Entity{};
 	}
 
-	void SetSlot(std::size_t slot, Entity entity) {
-		PTGN_ASSERT(slot < slots.size());
+	void SetSlot(int slot, Entity entity) {
+		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < slots.size());
 		PTGN_ASSERT(!IsSlotTaken(slot));
-		slots[slot] = entity;
+		slots[static_cast<std::size_t>(slot)] = entity;
 	}
 
-	void UnsetSlot(std::size_t slot) {
-		PTGN_ASSERT(slot < slots.size());
-		slots[slot] = Entity{};
+	void UnsetSlot(int slot) {
+		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < slots.size());
+		slots[static_cast<std::size_t>(slot)] = Entity{};
 	}
 };
 
@@ -131,8 +134,11 @@ struct Player : public GameObject {
 		body_hitbox.Add<Transform>(hitbox_offset);
 
 		auto interaction_hitbox = manager.CreateEntity();
-		interaction_hitbox.Add<BoxCollider>(V2_float{ 28, 28 }, Origin::Center);
+		auto& interaction_collider =
+			interaction_hitbox.Add<BoxCollider>(V2_float{ 28, 28 }, Origin::Center);
+		interaction_collider.overlap_only = true;
 		interaction_hitbox.Add<Transform>(V2_float{});
+		interaction_hitbox.Enable();
 
 		AddChild("body", body_hitbox);
 		AddChild("interaction", interaction_hitbox);
@@ -231,7 +237,10 @@ struct Flower : public Sprite {
 	Flower(Manager& manager, const V2_float& position, std::string_view texture_key) :
 		Sprite{ manager, texture_key } {
 		SetPosition(position);
-		// Add<CircleCollider>(GetSize());
+		auto& collider = Add<CircleCollider>(Max(GetSize() / 2.0f));
+		Enable();
+		collider.SetCollisionCategory(flower_category);
+		collider.overlap_only = true;
 	}
 };
 
@@ -276,6 +285,8 @@ public:
 	Flower f10;
 
 	void Enter() final {
+		SetColliderVisibility(true);
+
 		fractal_noise.SetOctaves(2);
 		fractal_noise.SetFrequency(0.055f);
 		fractal_noise.SetLacunarity(5);
@@ -306,6 +317,27 @@ public:
 	}
 
 	void Update() override {
+		auto posA{ player.GetAbsoluteTransform().position };
+		const auto& interaction_collider{ player.GetChild("interaction").Get<BoxCollider>() };
+		auto shortest_distance2{ std::numeric_limits<float>::max() };
+		Entity candidate_flower;
+		for (const auto& c : interaction_collider.collisions) {
+			if (c.entity2.Has<CircleCollider>() &&
+				c.entity2.Get<CircleCollider>().GetCollisionCategory() == flower_category) {
+				auto posB{ c.entity2.GetAbsoluteTransform().position };
+				float dist2{ (posA - posB).MagnitudeSquared() };
+				if (dist2 <= shortest_distance2) {
+					shortest_distance2 = dist2;
+					candidate_flower   = c.entity2;
+				}
+			}
+		}
+
+		if (candidate_flower != Entity{}) {
+			DrawDebugCircle(
+				candidate_flower.GetAbsoluteTransform().position, 3.0f, color::Orange, -1.0f
+			);
+		}
 		// DrawDebugCircle({ f1.GetPosition().x, f1.GetLowestY() }, 1.0f, color::Orange, -1.0f);
 		// DrawDebugCircle({ player.GetPosition().x, player.GetLowestY() }, 1.0f, color::Blue,
 		// -1.0f);
