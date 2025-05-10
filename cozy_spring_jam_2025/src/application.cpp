@@ -153,7 +153,7 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		UpdateSelectorPosition();
 	}
 
-	[[nodiscard]] bool GetSelectedSlot() const {
+	[[nodiscard]] int GetSelectedSlot() const {
 		const auto& inv = Get<InventoryComponent>();
 		return inv.selected_slot;
 	}
@@ -172,6 +172,19 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		const auto& inv = Get<InventoryComponent>();
 		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < inv.slots.size());
 		return inv.slots[slot].GetEntity();
+	}
+
+	void MoveEntity(int from, int to) {
+		if (from == to) {
+			return;
+		}
+		auto& inv		  = Get<InventoryComponent>();
+		auto& from_entity = inv.slots[from];
+		auto& to_entity	  = inv.slots[to];
+		PTGN_ASSERT(from_entity != Entity{});
+		// PTGN_ASSERT(to_entity == Entity{});
+		from_entity.SetPosition(GetSlotPosition(to));
+		std::swap(from_entity, to_entity);
 	}
 
 	[[nodiscard]] Entity GetSelectedEntity() const {
@@ -345,8 +358,8 @@ struct Player : public GameObject {
 
 		auto on_repeat = [](auto entity) {
 			auto parent{ entity.GetParent() };
-			PTGN_ASSERT(parent.Has<WalkRepeats>());
-			auto& repeats{ parent.Get<WalkRepeats>() };
+			PTGN_ASSERT(parent.template Has<WalkRepeats>());
+			auto& repeats{ parent.template Get<WalkRepeats>() };
 			++repeats.GetValue();
 			bool repeat{ repeats % walk_sound_frequency == 0 };
 			if (!repeat) {
@@ -403,9 +416,26 @@ struct EntrySlot : public ArithmeticComponent<int> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
+struct FlowerComponent {
+	RNG<int> stat_rng{ 0, 10 };
+
+	FlowerComponent() {
+		invasiveness = stat_rng();
+		spread_rate	 = stat_rng();
+		longevity	 = stat_rng();
+	}
+
+	int longevity{ 0 };
+	int spread_rate{ 0 };
+	int invasiveness{ 0 };
+};
+
 struct AnalyzerComponent {
 	Sprite analyzer;
 	Sprite entry;
+	Text stat1;
+	Text stat2;
+	Text stat3;
 
 	V2_float analyzer_scale{ 1.5f, 1.5f };
 
@@ -415,8 +445,7 @@ struct AnalyzerComponent {
 	}
 
 	void Open(Inventory& inv) {
-		open		 = true;
-		interactable = false;
+		open = true;
 	}
 
 	void Close(Inventory& inv) {
@@ -425,7 +454,7 @@ struct AnalyzerComponent {
 		for (auto& e : i.slots) {
 			e.Remove<Hidden>();
 		}
-		HideInfo();
+		HideInfo(inv, entry.Get<EntrySlot>());
 	}
 
 	bool IsOpen() const {
@@ -433,6 +462,31 @@ struct AnalyzerComponent {
 	}
 
 	void ShowInfo(Entity& entity, int selected_slot) {
+		const auto& flower{ entity.Get<FlowerComponent>() };
+		stat1 = Text{ entity.GetManager(), "Longevity: " + std::to_string(flower.longevity),
+					  color::Black, "ui_font" };
+		stat2 = Text{ entity.GetManager(), "Invasiveness: " + std::to_string(flower.invasiveness),
+					  color::Black, "ui_font" };
+		stat3 = Text{ entity.GetManager(), "Spread Rate: " + std::to_string(flower.spread_rate),
+					  color::Black, "ui_font" };
+		stat1.Hide();
+		stat2.Hide();
+		stat3.Hide();
+		stat1.SetFontSize(30);
+		stat2.SetFontSize(30);
+		stat3.SetFontSize(30);
+		stat1.SetOrigin(Origin::CenterLeft);
+		stat2.SetOrigin(Origin::CenterLeft);
+		stat3.SetOrigin(Origin::CenterLeft);
+		stat1.SetTextJustify(TextJustify::Left);
+		stat2.SetTextJustify(TextJustify::Left);
+		stat3.SetTextJustify(TextJustify::Left);
+		stat1.SetDepth(2);
+		stat2.SetDepth(2);
+		stat3.SetDepth(2);
+		stat1.SetPosition({ -15, -50 });
+		stat2.SetPosition({ -15, 0 });
+		stat3.SetPosition({ -15, 50 });
 		entry = Sprite{ entity.GetManager(), entity.Get<TextureKey>() };
 		entry.SetScale(analyzer_scale);
 		entry.Hide();
@@ -441,9 +495,18 @@ struct AnalyzerComponent {
 		entry.SetPosition({ -43, -12 });
 	}
 
-	void HideInfo() {
+	void HideInfo(Inventory& inventory, int selected_slot) {
+		inventory.MoveEntity(entry.Get<EntrySlot>(), selected_slot);
+		auto selected = inventory.GetSelectedEntity();
+		selected.Remove<Hidden>();
 		entry.Destroy();
 		entry = {};
+		stat1.Destroy();
+		stat1 = {};
+		stat2.Destroy();
+		stat2 = {};
+		stat3.Destroy();
+		stat3 = {};
 	}
 
 	void Update(Inventory& inventory) {
@@ -452,26 +515,19 @@ struct AnalyzerComponent {
 			Close(inventory);
 		}
 
-		if (open && !interactable) {
-			if (game.input.KeyReleased(Key::E)) {
-				interactable = true;
-			}
-			return;
-		}
-
 		if (open && game.input.KeyDown(Key::E)) {
 			auto selected = inventory.GetSelectedEntity();
-			if (selected == Entity{}) {	 // Empty slot selected
-				if (entry != Entity{}) { // Analyzer has entry
-					HideInfo();
+			if (selected == Entity{} || selected.Has<Hidden>()) { // Empty slot selected
+				if (entry != Entity{}) {						  // Analyzer has entry
+					auto selected_slot = inventory.GetSelectedSlot();
+					HideInfo(inventory, selected_slot);
 				}
 			} else {					 // Flower selected
 				auto selected_slot = inventory.GetSelectedSlot();
-				if (entry != Entity{}) { // Analyzer has entry
+				if (entry != Entity{}) { // Analyzer has entry.
 					// Restore previous entry back to inventory.
 					auto slot_entity = inventory.GetSlotEntity(entry.Get<EntrySlot>());
 					slot_entity.Remove<Hidden>();
-
 					selected.Add<Hidden>();
 					ShowInfo(selected, selected_slot);
 				} else {
@@ -484,11 +540,6 @@ struct AnalyzerComponent {
 
 private:
 	bool open{ false };
-	bool interactable{ false };
-};
-
-struct FlowerComponent {
-	FlowerComponent() = default;
 };
 
 class GameScene : public Scene {
@@ -504,6 +555,7 @@ public:
 	Player player;
 	Inventory inventory;
 	RenderTarget ui;
+	RenderTarget screen;
 	GameObject shed;
 
 	Entity CreateWall(const V2_float& pos, const V2_float& size, Origin origin) {
@@ -537,7 +589,10 @@ public:
 		Sprite s{ manager, key };
 		s.SetPosition(position);
 		s.Add<Tile>(tile);
-		s.Add<FlowerComponent>();
+		auto& flower = s.Add<FlowerComponent>();
+		// TODO: Add lifetimes.
+		// milliseconds lifetime{ milliseconds{ 1000 } + flower.longevity * milliseconds{ 1000 } };
+		// s.Add<Lifetime>(lifetime);
 		return s;
 	}
 
@@ -607,14 +662,17 @@ public:
 		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
 
-		ui = RenderTarget{ manager, window_size };
+		ui	   = RenderTarget{ manager, window_size };
+		screen = RenderTarget{ manager, window_size };
 		auto& ui_camera{ ui.Get<Camera>() };
 		ui_camera.SetZoom(camera_zoom);
 		ui_camera.SetPosition(V2_float{});
+		screen.Get<Camera>().SetPosition(V2_float{});
 		auto inventory_origin{ Origin::CenterBottom };
 		auto inventory_position{ ui_camera.GetPosition(inventory_origin) };
 		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
 		ui.SetDepth(2);
+		screen.SetDepth(3);
 
 		player.Add<ActionComponent>(&inventory, &flowers, player);
 	}
@@ -626,10 +684,17 @@ public:
 
 	void Update() override {
 		ui.Clear();
+		screen.Clear();
 
 		auto scroll{ game.input.GetMouseScroll() };
 		if (scroll != 0) {
 			inventory.IncrementSlot(Sign(scroll));
+		}
+		if (game.input.KeyDown(Key::LEFT)) {
+			inventory.IncrementSlot(1);
+		}
+		if (game.input.KeyDown(Key::RIGHT)) {
+			inventory.IncrementSlot(-1);
 		}
 
 		for (auto [e, a] : manager.EntitiesWith<AnalyzerComponent>()) {
@@ -640,6 +705,15 @@ public:
 				ui.Draw(a.analyzer);
 				if (a.entry != Entity{}) {
 					ui.Draw(a.entry);
+				}
+				if (a.stat1 != Entity{}) {
+					screen.Draw(a.stat1);
+				}
+				if (a.stat2 != Entity{}) {
+					screen.Draw(a.stat2);
+				}
+				if (a.stat3 != Entity{}) {
+					screen.Draw(a.stat3);
 				}
 			}
 		}
@@ -748,8 +822,12 @@ ActionComponent::ActionComponent(Inventory* inventory, Grid<GameObject>* grid, E
 }
 
 void ActionComponent::UpdateAction() {
-	if (!grid->Has(tile) || game.input.KeyReleased(action_key)) {
+	if (!grid->Has(tile)) {
 		CancelPreviousAction();
+		return;
+	}
+
+	if (!game.input.KeyDown(action_key)) {
 		return;
 	}
 
