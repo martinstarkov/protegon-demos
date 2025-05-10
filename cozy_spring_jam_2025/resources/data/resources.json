@@ -21,5 +21,5 @@
   "wind": "resources/audio/wind.ogg",
   "walk": "resources/audio/walk.ogg",
   "repair": "resources/audio/repair.ogg",
-  "music": "resources/audio/music.ogg"
+  "music": "resources/audio/background.ogg"
 }
