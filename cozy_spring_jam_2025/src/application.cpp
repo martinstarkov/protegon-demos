@@ -37,9 +37,11 @@ constexpr V2_int grid_size{ 30, 30 };
 constexpr V2_int tile_size{ 15, 15 };
 constexpr V2_int world_size{ grid_size * tile_size };
 
-constexpr int walk_volume{ 30 };
+constexpr int walk_volume{ 90 };
 constexpr int repair_volume{ 30 };
-constexpr int music_volume{ 10 };
+constexpr int pick_volume{ 60 };
+constexpr int plant_volume{ 15 };
+constexpr int music_volume{ 8 };
 constexpr int wind_volume{ 2 };
 constexpr int walk_sound_frequency{ 2 }; // every second repeat of the walk animation
 
@@ -53,6 +55,8 @@ struct WalkRepeats : public ArithmeticComponent<int> {
 };
 
 struct Item {};
+
+struct Hidden {};
 
 struct InventoryComponent {
 	Sprite inventory;
@@ -101,7 +105,7 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		Sprite::Draw(ctx, i.inventory);
 		Sprite::Draw(ctx, i.selector);
 		for (const auto& item : i.slots) {
-			if (item != Entity{}) {
+			if (item != Entity{} && !item.Has<Hidden>()) {
 				Sprite::Draw(ctx, item);
 			}
 		}
@@ -162,6 +166,12 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		GameObject obj{ std::move(inv.slots[inv.selected_slot]) };
 		inv.slots[inv.selected_slot] = GameObject{};
 		return obj;
+	}
+
+	[[nodiscard]] Entity GetSlotEntity(int slot) const {
+		const auto& inv = Get<InventoryComponent>();
+		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < inv.slots.size());
+		return inv.slots[slot].GetEntity();
 	}
 
 	[[nodiscard]] Entity GetSelectedEntity() const {
@@ -389,47 +399,92 @@ struct Tile : public Vector2Component<int> {
 	using Vector2Component::Vector2Component;
 };
 
+struct EntrySlot : public ArithmeticComponent<int> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
 struct AnalyzerComponent {
 	Sprite analyzer;
+	Sprite entry;
+
+	V2_float analyzer_scale{ 1.5f, 1.5f };
 
 	AnalyzerComponent(Manager& manager) : analyzer{ manager, "analyzer" } {
 		analyzer.Hide();
-		analyzer.SetScale({ 1.5f, 1.5f });
+		analyzer.SetScale(analyzer_scale);
 	}
 
 	void Open(Inventory& inv) {
-		open = true;
-		// for () {}
-		/*r3.Add<Interactive>();
-		r3.Add<Draggable>();
-		r3.Add<callback::Drag>([=](auto mouse) mutable {
-			PTGN_LOG("r3 Drag: ", mouse);
-			r3.Get<Transform>().position = mouse + r3.Get<Draggable>().offset;
-		});
-		r3.Add<callback::DragEnter>([](auto mouse) { PTGN_LOG("r3 Drag enter: ", mouse); });
-		r3.Add<callback::DragLeave>([](auto mouse) { PTGN_LOG("r3 Drag leave: ", mouse); });
-		r3.Add<callback::DragOut>([](auto mouse) { PTGN_LOG("r3 Drag out: ", mouse); });
-		r3.Add<callback::DragOver>([](auto mouse) { PTGN_LOG("r3 Drag over: ", mouse); });
-		r3.Add<callback::DragStart>([](auto mouse) { PTGN_LOG("r3 Drag start: ", mouse); });
-		r3.Add<callback::DragStop>([](auto mouse) { PTGN_LOG("r3 Drag stop: ", mouse); });*/
+		open		 = true;
+		interactable = false;
 	}
 
-	void Close() {
-		open = false;
+	void Close(Inventory& inv) {
+		open	= false;
+		auto& i = inv.Get<InventoryComponent>();
+		for (auto& e : i.slots) {
+			e.Remove<Hidden>();
+		}
+		HideInfo();
 	}
 
 	bool IsOpen() const {
 		return open;
 	}
 
-	void Update() {
-		if (game.input.KeyDown(Key::ESCAPE) /* || TODO: hit button to exit analyzer */) {
-			Close();
+	void ShowInfo(Entity& entity, int selected_slot) {
+		entry = Sprite{ entity.GetManager(), entity.Get<TextureKey>() };
+		entry.SetScale(analyzer_scale);
+		entry.Hide();
+		entry.SetDepth(2);
+		entry.Add<EntrySlot>(selected_slot);
+		entry.SetPosition({ -43, -12 });
+	}
+
+	void HideInfo() {
+		entry.Destroy();
+		entry = {};
+	}
+
+	void Update(Inventory& inventory) {
+		if (game.input.KeyDown(Key::ESCAPE)
+			/*game.input.KeyDown(Key::E)*/ /* || TODO: hit button to exit analyzer */) {
+			Close(inventory);
+		}
+
+		if (open && !interactable) {
+			if (game.input.KeyReleased(Key::E)) {
+				interactable = true;
+			}
+			return;
+		}
+
+		if (open && game.input.KeyDown(Key::E)) {
+			auto selected = inventory.GetSelectedEntity();
+			if (selected == Entity{}) {	 // Empty slot selected
+				if (entry != Entity{}) { // Analyzer has entry
+					HideInfo();
+				}
+			} else {					 // Flower selected
+				auto selected_slot = inventory.GetSelectedSlot();
+				if (entry != Entity{}) { // Analyzer has entry
+					// Restore previous entry back to inventory.
+					auto slot_entity = inventory.GetSlotEntity(entry.Get<EntrySlot>());
+					slot_entity.Remove<Hidden>();
+
+					selected.Add<Hidden>();
+					ShowInfo(selected, selected_slot);
+				} else {
+					selected.Add<Hidden>();
+					ShowInfo(selected, selected_slot);
+				}
+			}
 		}
 	}
 
 private:
 	bool open{ false };
+	bool interactable{ false };
 };
 
 struct FlowerComponent {
@@ -578,11 +633,14 @@ public:
 		}
 
 		for (auto [e, a] : manager.EntitiesWith<AnalyzerComponent>()) {
-			a.Update();
+			a.Update(inventory);
 			player.Get<TopDownMovement>().keys_enabled = !a.IsOpen();
 			if (a.IsOpen()) {
 				a.analyzer.SetPosition(ui.Get<Camera>().GetPosition());
 				ui.Draw(a.analyzer);
+				if (a.entry != Entity{}) {
+					ui.Draw(a.entry);
+				}
 			}
 		}
 
@@ -597,7 +655,8 @@ public:
 			DrawDebugRect(tile * tile_size, tile_size, color::Black, Origin::TopLeft, 1.0f);
 		});*/
 
-		// DrawDebugRect(player_tile * tile_size, tile_size, color::Gold, Origin::TopLeft, 1.0f);
+		// DrawDebugRect(player_tile * tile_size, tile_size, color::Gold,
+		// Origin::TopLeft, 1.0f);
 
 		/*auto shortest_distance2{ std::numeric_limits<float>::max() };
 		Entity candidate_flower;
@@ -669,11 +728,13 @@ ActionComponent::ActionComponent(Inventory* inventory, Grid<GameObject>* grid, E
 				grid_entity.SetPosition(position);
 				grid_entity.RemoveParent();
 				grid_entity.Show();
+				game.sound.SetVolume("plant", plant_volume);
 				game.sound.Play("plant");
 			} else if (action.type == ActionType::GroundPick) {
 				auto ground_entity = action.grid->Pop(action.tile);
 				action.inventory->AddEntity(std::move(ground_entity));
-				game.sound.Play("pull");
+				game.sound.SetVolume("pick", pick_volume);
+				game.sound.Play("pick");
 			} else if (action.type == ActionType::OpenAnalyzer) {
 				auto& grid_entity = action.grid->Get(action.tile);
 				auto& analyzer	  = grid_entity.Get<AnalyzerComponent>();

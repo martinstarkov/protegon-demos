@@ -24,7 +24,7 @@
   "wind": "resources/audio/wind.ogg",
   "walk": "resources/audio/step.ogg",
   "inside_walk": "resources/audio/wood.ogg",
-  "pull": "resources/audio/pull.ogg",
+  "pick": "resources/audio/pull.ogg",
   "plant": "resources/audio/plant.ogg",
   "repair": "resources/audio/repair.ogg",
   "music": "resources/audio/background.ogg",
