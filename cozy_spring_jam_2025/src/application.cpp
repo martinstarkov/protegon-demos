@@ -24,6 +24,7 @@
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
+#include "tile/grid.h"
 #include "ui/button.h"
 
 using namespace ptgn;
@@ -237,10 +238,10 @@ struct Flower : public Sprite {
 	Flower(Manager& manager, const V2_float& position, std::string_view texture_key) :
 		Sprite{ manager, texture_key } {
 		SetPosition(position);
-		auto& collider = Add<CircleCollider>(Max(GetSize() / 2.0f));
+		/*auto& collider = Add<CircleCollider>(Max(GetSize() / 2.0f));
 		Enable();
 		collider.SetCollisionCategory(flower_category);
-		collider.overlap_only = true;
+		collider.overlap_only = true;*/
 	}
 };
 
@@ -272,17 +273,11 @@ public:
 		LoadResources("resources/data/resources.json");
 	}
 
+	V2_int grid_size{ 30, 30 };
+	V2_int tile_size{ 15, 15 };
+	Grid<Flower> flowers{ grid_size };
+
 	Player player;
-	Flower f1;
-	Flower f2;
-	Flower f3;
-	Flower f4;
-	Flower f5;
-	Flower f6;
-	Flower f7;
-	Flower f8;
-	Flower f9;
-	Flower f10;
 
 	void Enter() final {
 		SetColliderVisibility(true);
@@ -292,18 +287,16 @@ public:
 		fractal_noise.SetLacunarity(5);
 		fractal_noise.SetPersistence(3);
 
-		player = Player{ manager };
+		RNG<int> flower_rng{ 0, 9 };
 
-		f1	= Flower{ manager, { 30, 30 }, "flower_0" };
-		f2	= Flower{ manager, { 40, 30 }, "flower_1" };
-		f3	= Flower{ manager, { 50, 30 }, "flower_2" };
-		f4	= Flower{ manager, { 60, 30 }, "flower_3" };
-		f5	= Flower{ manager, { 70, 30 }, "flower_4" };
-		f6	= Flower{ manager, { 80, 30 }, "flower_5" };
-		f7	= Flower{ manager, { 90, 30 }, "flower_6" };
-		f8	= Flower{ manager, { 100, 30 }, "flower_7" };
-		f9	= Flower{ manager, { 110, 30 }, "flower_8" };
-		f10 = Flower{ manager, { 120, 30 }, "flower_9" };
+		flowers.ForEachCoordinate([&](auto coordinate) {
+			flowers.Set(
+				coordinate, Flower{ manager, coordinate * tile_size + tile_size / 2,
+									"flower_" + std::to_string(flower_rng()) }
+			);
+		});
+
+		player = Player{ manager };
 
 		camera.primary.SetZoom(camera_zoom);
 		camera.primary.StartFollow(player);
@@ -316,20 +309,64 @@ public:
 		game.scene.Enter<InventoryScene>("inventory");
 	}
 
+	static constexpr std::array<V2_int, 8> neighbor_tiles{ V2_int{ -1, -1 }, V2_int{ 0, -1 },
+														   V2_int{ 1, -1 },	 V2_int{ -1, 0 },
+														   V2_int{ 1, 0 },	 V2_int{ -1, 1 },
+														   V2_int{ 0, 1 },	 V2_int{ 1, 1 } };
+
 	void Update() override {
-		auto posA{ player.GetAbsoluteTransform().position };
+		auto player_pos{ player.GetAbsoluteTransform().position };
+		V2_int player_tile{ player_pos / tile_size };
+
+		flowers.ForEachCoordinate([=](auto tile) {
+			DrawDebugRect(tile * tile_size, tile_size, color::Black, Origin::TopLeft, 1.0f);
+		});
+
+		DrawDebugRect(player_tile * tile_size, tile_size, color::Gold, Origin::TopLeft, 1.0f);
+
+		auto player_dir{ player.Get<TopDownMovement>().facing_direction };
+		Entity candidate_flower;
+		auto neighbor{ player_dir + player_tile };
+		if (flowers.Has(neighbor)) {
+			candidate_flower = flowers.Get(neighbor).GetEntity();
+		}
+		if (candidate_flower != Entity{}) {
+			DrawDebugCircle(
+				candidate_flower.GetAbsoluteTransform().position, 3.0f, color::Orange, -1.0f
+			);
+		}
+
+		/*auto shortest_distance2{ std::numeric_limits<float>::max() };
+		Entity candidate_flower;
+		for (const auto& rel_neighbor : neighbor_tiles) {
+			auto neighbor{ rel_neighbor + player_tile };
+			if (!flowers.Has(neighbor)) {
+				continue;
+			}
+			auto flower = flowers.Get(neighbor).GetEntity();
+			if (flower != Entity{}) {
+				auto flower_pos{ flower.GetAbsoluteTransform().position };
+				float dist2{ (player_pos - flower_pos).MagnitudeSquared() };
+				if (dist2 <= shortest_distance2) {
+					shortest_distance2 = dist2;
+					candidate_flower   = flower;
+				}
+			}
+		}
+		if (candidate_flower != Entity{}) {
+			DrawDebugCircle(
+				candidate_flower.GetAbsoluteTransform().position, 3.0f, color::Orange, -1.0f
+			);
+		}*/
+
+		/*
 		const auto& interaction_collider{ player.GetChild("interaction").Get<BoxCollider>() };
 		auto shortest_distance2{ std::numeric_limits<float>::max() };
 		Entity candidate_flower;
 		for (const auto& c : interaction_collider.collisions) {
 			if (c.entity2.Has<CircleCollider>() &&
 				c.entity2.Get<CircleCollider>().GetCollisionCategory() == flower_category) {
-				auto posB{ c.entity2.GetAbsoluteTransform().position };
-				float dist2{ (posA - posB).MagnitudeSquared() };
-				if (dist2 <= shortest_distance2) {
-					shortest_distance2 = dist2;
-					candidate_flower   = c.entity2;
-				}
+
 			}
 		}
 
@@ -337,7 +374,7 @@ public:
 			DrawDebugCircle(
 				candidate_flower.GetAbsoluteTransform().position, 3.0f, color::Orange, -1.0f
 			);
-		}
+		}*/
 		// DrawDebugCircle({ f1.GetPosition().x, f1.GetLowestY() }, 1.0f, color::Orange, -1.0f);
 		// DrawDebugCircle({ player.GetPosition().x, player.GetLowestY() }, 1.0f, color::Blue,
 		// -1.0f);
