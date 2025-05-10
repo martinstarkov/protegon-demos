@@ -12,13 +12,17 @@
   "flower_8": "resources/entity/flower8.png",
   "flower_9": "resources/entity/flower9.png",
   "trashcan": "resources/entity/trashcan.png",
+  "fence_front": "resources/entity/fence_front.png",
+  "fence_side": "resources/entity/fence_side.png",
   "inventory": "resources/ui/inventory.png",
   "selector": "resources/ui/selector.png",
   "ground_selector": "resources/ui/ground_selector.png",
   "breeder": "resources/ui/breeder.png",
+  "analyzer": "resources/ui/analyzer.png",
   "timer_font": "resources/font/Technology.ttf",
+  "ui_font": "resources/font/Pixellari.ttf",
   "wind": "resources/audio/wind.ogg",
   "walk": "resources/audio/walk.ogg",
   "repair": "resources/audio/repair.ogg",
-  "music": "resources/audio/music.ogg"
+  "music": "resources/audio/background.ogg"
 }
