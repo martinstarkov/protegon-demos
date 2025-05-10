@@ -24,5 +24,7 @@
   "wind": "resources/audio/wind.ogg",
   "walk": "resources/audio/walk.ogg",
   "repair": "resources/audio/repair.ogg",
-  "music": "resources/audio/background.ogg"
+  "music": "resources/audio/background.ogg",
+  "shed": "resources/entity/shed.png",
+  "shed_data": "resources/data/shed.json"
 }

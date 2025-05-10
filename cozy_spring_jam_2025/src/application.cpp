@@ -267,7 +267,7 @@ struct Player : public GameObject {
 	Player() = default;
 
 	Player(Manager& manager) : GameObject{ manager } {
-		V2_float player_starting_position{ 0.0f, 0.0f };
+		V2_float player_starting_position{ world_size / 2.0f };
 
 		Add<Transform>(player_starting_position);
 		auto& rb = Add<RigidBody>();
@@ -401,6 +401,8 @@ public:
 	Player player;
 	Inventory inventory;
 	RenderTarget ui;
+
+	GameObject CreateShed(const V2_int& position) {}
 
 	GameObject CreateFlower(const V2_int& tile, const V2_int& position, const TextureKey& key) {
 		Sprite s{ manager, key };
