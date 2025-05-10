@@ -1,5 +1,6 @@
 {
   "player_anim": "resources/entity/player.png",
+  "pickup_anim": "resources/ui/pickup_anim.png",
   "flower_0": "resources/entity/flower0.png",
   "flower_1": "resources/entity/flower1.png",
   "flower_2": "resources/entity/flower2.png",
