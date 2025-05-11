@@ -126,7 +126,7 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 	[[nodiscard]] int GetEmptySlot() const {
 		auto& inv = Get<InventoryComponent>();
 		for (std::size_t i{ 0 }; i < inv.slots.size(); i++) {
-			if (inv.slots[i] == Entity{}) {
+			if (!inv.slots[i]) {
 				return static_cast<int>(i);
 			}
 		}
@@ -181,8 +181,8 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		auto& inv		  = Get<InventoryComponent>();
 		auto& from_entity = inv.slots[from];
 		auto& to_entity	  = inv.slots[to];
-		PTGN_ASSERT(from_entity != Entity{});
-		// PTGN_ASSERT(to_entity == Entity{});
+		PTGN_ASSERT(from_entity);
+		// PTGN_ASSERT(!to_entity);
 		from_entity.SetPosition(GetSlotPosition(to));
 		std::swap(from_entity, to_entity);
 	}
@@ -532,7 +532,7 @@ struct AnalyzerComponent {
 	}
 
 	void HideInfo(Inventory& inventory, int selected_slot) {
-		if (entry != Entity{}) {
+		if (entry) {
 			inventory.MoveEntity(entry.Get<EntrySlot>(), selected_slot);
 		}
 		auto selected = inventory.GetSelectedEntity();
@@ -557,14 +557,14 @@ struct AnalyzerComponent {
 
 		if (open && game.input.KeyDown(Key::E)) {
 			auto selected = inventory.GetSelectedEntity();
-			if (selected == Entity{} || selected.Has<Hidden>()) { // Empty slot selected
-				if (entry != Entity{}) {						  // Analyzer has entry
+			if (!selected || selected.Has<Hidden>()) { // Empty slot selected
+				if (entry) {						   // Analyzer has entry
 					auto selected_slot = inventory.GetSelectedSlot();
 					HideInfo(inventory, selected_slot);
 				}
-			} else {					 // Flower selected
+			} else {		 // Flower selected
 				auto selected_slot = inventory.GetSelectedSlot();
-				if (entry != Entity{}) { // Analyzer has entry.
+				if (entry) { // Analyzer has entry.
 					// Restore previous entry back to inventory.
 					auto slot_entity = inventory.GetSlotEntity(entry.Get<EntrySlot>());
 					slot_entity.Remove<Hidden>();
@@ -749,16 +749,16 @@ public:
 			if (a.IsOpen()) {
 				a.analyzer.SetPosition(ui.Get<Camera>().GetPosition());
 				ui.Draw(a.analyzer);
-				if (a.entry != Entity{}) {
+				if (a.entry) {
 					ui.Draw(a.entry);
 				}
-				if (a.stat1 != Entity{}) {
+				if (a.stat1) {
 					screen.Draw(a.stat1);
 				}
-				if (a.stat2 != Entity{}) {
+				if (a.stat2) {
 					screen.Draw(a.stat2);
 				}
-				if (a.stat3 != Entity{}) {
+				if (a.stat3) {
 					screen.Draw(a.stat3);
 				}
 			}
@@ -769,7 +769,7 @@ public:
 
 		action.Update(player);
 
-		if (action.tooltip != Entity{}) {
+		if (action.tooltip) {
 			screen.Draw(action.tooltip);
 		}
 
@@ -790,7 +790,7 @@ public:
 				continue;
 			}
 			auto flower = flowers.Get(neighbor).GetEntity();
-			if (flower != Entity{}) {
+			if (flower) {
 				auto flower_pos{ flower.GetAbsoluteTransform().position };
 				float dist2{ (player_pos - flower_pos).MagnitudeSquared() };
 				if (dist2 <= shortest_distance2) {
@@ -886,9 +886,9 @@ void ActionComponent::UpdateAction() {
 
 	auto& grid_entity = grid->Get(tile);
 
-	if (grid_entity == Entity{}) {
+	if (!grid_entity) {
 		auto selected_entity = inventory->GetSelectedEntity();
-		if (selected_entity == Entity{}) {
+		if (!selected_entity) {
 			CancelPreviousAction();
 			return;
 		}
