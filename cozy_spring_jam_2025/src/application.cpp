@@ -219,6 +219,30 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 	}
 };
 
+struct Tooltip : public GameObject, public Drawable<Tooltip> {
+	Tooltip() = default;
+
+	Tooltip(
+		Manager& manager, std::string_view content, const Color& text_color = color::Black,
+		std::string_view font_key = ""
+	) :
+		GameObject{ manager } {
+		auto& text = Add<Text>(manager, content, text_color, font_key);
+		text.SetParent(*this);
+		SetDraw<Tooltip>();
+	}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
+		auto& text = entity.Get<Text>();
+		auto size  = text.GetSize(text);
+		ctx.AddQuad(
+			text.GetAbsoluteTransform().position, size, Origin::Center, -1, text.GetDepth(),
+			text.GetBlendMode(), color::White.Normalized(), 0.0f, false
+		);
+		Text::Draw(ctx, text);
+	}
+};
+
 enum class ActionType {
 	None,
 	GroundPick,
@@ -229,6 +253,22 @@ enum class ActionType {
 struct ActionComponent {
 	ActionComponent() = default;
 
+	Tooltip tooltip;
+
+	void ShowTooltip(Entity analyzer) {
+		tooltip =
+			Tooltip{ analyzer.GetManager(), "Hold 'E' to open analyzer", color::Black, "ui_font" };
+		// auto pos{ V2_int{ entity.Get<Tile>() } * tile_size };
+		tooltip.SetPosition({ -window_size.x / 2.0f + 190, window_size.y / 2.0f - 35 });
+		tooltip.SetOrigin(Origin::Center);
+		tooltip.Get<Text>().SetFontSize(30);
+		// auto& scene = game.scene.Get<GameScene>("game");
+		// pos			= scene.camera.primary.TransformToScreen(pos);
+		// pos			= scene.screen_follow.Get<Camera>().TransformToCamera(pos);
+		// tooltip.SetPosition(pos);
+		tooltip.Hide();
+	}
+
 	ActionComponent(Inventory* inventory, Grid<GameObject>* grid, Entity parent);
 
 	Animation action_indicator;
@@ -237,12 +277,7 @@ struct ActionComponent {
 	Inventory* inventory{ nullptr };
 	Grid<GameObject>* grid{ nullptr };
 
-	void UpdateTile(const V2_int& new_tile) {
-		tile = new_tile;
-		auto tile_center{ new_tile * tile_size + tile_size / 2.0f };
-		ground_selector.SetPosition(tile_center);
-		action_indicator.SetPosition(tile_center);
-	}
+	void UpdateTile(const V2_int& new_tile);
 
 	void Update(const Entity& player) {
 		auto player_pos{ player.GetAbsoluteTransform().position };
@@ -454,7 +489,8 @@ struct AnalyzerComponent {
 		for (auto& e : i.slots) {
 			e.Remove<Hidden>();
 		}
-		HideInfo(inv, entry.Get<EntrySlot>());
+		auto slot = entry.Has<EntrySlot>() ? entry.Get<EntrySlot>() : EntrySlot{ 0 };
+		HideInfo(inv, slot);
 	}
 
 	bool IsOpen() const {
@@ -496,7 +532,9 @@ struct AnalyzerComponent {
 	}
 
 	void HideInfo(Inventory& inventory, int selected_slot) {
-		inventory.MoveEntity(entry.Get<EntrySlot>(), selected_slot);
+		if (entry != Entity{}) {
+			inventory.MoveEntity(entry.Get<EntrySlot>(), selected_slot);
+		}
 		auto selected = inventory.GetSelectedEntity();
 		selected.Remove<Hidden>();
 		entry.Destroy();
@@ -509,10 +547,12 @@ struct AnalyzerComponent {
 		stat3 = {};
 	}
 
-	void Update(Inventory& inventory) {
+	void Update(ActionComponent& action, Entity analyzer, Inventory& inventory) {
 		if (game.input.KeyDown(Key::ESCAPE)
 			/*game.input.KeyDown(Key::E)*/ /* || TODO: hit button to exit analyzer */) {
 			Close(inventory);
+			action.CancelPreviousAction();
+			action.ShowTooltip(analyzer);
 		}
 
 		if (open && game.input.KeyDown(Key::E)) {
@@ -556,6 +596,7 @@ public:
 	Inventory inventory;
 	RenderTarget ui;
 	RenderTarget screen;
+	RenderTarget screen_follow;
 	GameObject shed;
 
 	Entity CreateWall(const V2_float& pos, const V2_float& size, Origin origin) {
@@ -656,14 +697,16 @@ public:
 		physics.SetBounds({ 0, 0 }, world_size);
 
 		game.sound.SetVolume("wind", wind_volume);
-		game.sound.Play("wind", 0);
+		game.sound.Play("wind", 0, -1);
 		game.sound.SetVolume("music", music_volume);
-		game.sound.Play("music", 1);
+		game.sound.Play("music", 1, -1);
 		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
 
-		ui	   = RenderTarget{ manager, window_size };
-		screen = RenderTarget{ manager, window_size };
+		ui			  = RenderTarget{ manager, window_size };
+		screen		  = RenderTarget{ manager, window_size };
+		screen_follow = RenderTarget{ manager, window_size };
+		screen_follow.Get<Camera>().StartFollow(player);
 		auto& ui_camera{ ui.Get<Camera>() };
 		ui_camera.SetZoom(camera_zoom);
 		ui_camera.SetPosition(V2_float{});
@@ -672,6 +715,7 @@ public:
 		auto inventory_position{ ui_camera.GetPosition(inventory_origin) };
 		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
 		ui.SetDepth(2);
+		screen_follow.SetDepth(1);
 		screen.SetDepth(3);
 
 		player.Add<ActionComponent>(&inventory, &flowers, player);
@@ -685,6 +729,7 @@ public:
 	void Update() override {
 		ui.Clear();
 		screen.Clear();
+		screen_follow.Clear();
 
 		auto scroll{ game.input.GetMouseScroll() };
 		if (scroll != 0) {
@@ -697,8 +742,9 @@ public:
 			inventory.IncrementSlot(-1);
 		}
 
+		auto& action{ player.Get<ActionComponent>() };
 		for (auto [e, a] : manager.EntitiesWith<AnalyzerComponent>()) {
-			a.Update(inventory);
+			a.Update(action, e, inventory);
 			player.Get<TopDownMovement>().keys_enabled = !a.IsOpen();
 			if (a.IsOpen()) {
 				a.analyzer.SetPosition(ui.Get<Camera>().GetPosition());
@@ -721,7 +767,11 @@ public:
 		auto player_pos{ player.GetAbsoluteTransform().position };
 		V2_int player_tile{ player_pos / tile_size };
 
-		player.Get<ActionComponent>().Update(player);
+		action.Update(player);
+
+		if (action.tooltip != Entity{}) {
+			screen.Draw(action.tooltip);
+		}
 
 		ui.Draw(inventory);
 
@@ -810,6 +860,7 @@ ActionComponent::ActionComponent(Inventory* inventory, Grid<GameObject>* grid, E
 				game.sound.SetVolume("pick", pick_volume);
 				game.sound.Play("pick");
 			} else if (action.type == ActionType::OpenAnalyzer) {
+				action.tooltip.Get<Text>().SetContent("Press 'ESC' to exit analyzer");
 				auto& grid_entity = action.grid->Get(action.tile);
 				auto& analyzer	  = grid_entity.Get<AnalyzerComponent>();
 				if (!analyzer.IsOpen()) {
@@ -852,6 +903,25 @@ void ActionComponent::UpdateAction() {
 	} else if (grid_entity.Has<AnalyzerComponent>()) {
 		TryStartAction(ActionType::OpenAnalyzer);
 	}
+}
+
+void ActionComponent::UpdateTile(const V2_int& new_tile) {
+	tile = new_tile;
+	if (grid->Has(tile)) {
+		auto& entity = grid->Get(tile);
+		if (entity.Has<AnalyzerComponent>()) {
+			ShowTooltip(entity);
+		} else {
+			tooltip.Destroy();
+			tooltip = {};
+		}
+	} else {
+		tooltip.Destroy();
+		tooltip = {};
+	}
+	auto tile_center{ new_tile * tile_size + tile_size / 2.0f };
+	ground_selector.SetPosition(tile_center);
+	action_indicator.SetPosition(tile_center);
 }
 
 /*
