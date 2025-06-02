@@ -9,11 +9,9 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "core/time.h"
-#include "core/tween.h"
 #include "math/noise.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
@@ -25,6 +23,7 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "tile/grid.h"
+#include "tweening/tween.h"
 #include "ui/button.h"
 
 using namespace ptgn;
@@ -68,22 +67,22 @@ struct InventoryComponent {
 
 	V2_float selector_offset{ 17, 0 };			  // Relative to previous selector.
 
-	std::vector<GameObject> slots;
+	std::vector<Entity> slots;
 };
 
-struct Inventory : public GameObject, public Drawable<Inventory> {
+struct Inventory : public Entity, public Drawable<Inventory> {
 	Inventory() = default;
 
 	Inventory(
 		Manager& manager, const V2_float& position, Origin origin, std::size_t slot_count,
 		int selected_slot = 0
 	) :
-		GameObject{ manager } {
+		Entity{ manager } {
 		SetDraw<Inventory>();
 		auto& i		= Add<InventoryComponent>();
-		i.inventory = Sprite{ manager, "inventory" };
+		i.inventory = CreateSprite(manager, "inventory");
 		i.inventory.SetParent(*this);
-		i.selector = Sprite{ manager, "selector" };
+		i.selector = CreateSprite(manager, "selector");
 		i.inventory.Hide();
 		i.selector.Hide();
 		i.selector.SetParent(*this);
@@ -138,7 +137,7 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		return GetEmptySlot() != -1;
 	}
 
-	void AddEntity(GameObject&& entity) {
+	void AddEntity(Entity&& entity) {
 		PTGN_ASSERT(HasEmptySlot());
 		auto slot = GetEmptySlot();
 		SetSlot(slot, std::move(entity));
@@ -158,20 +157,20 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		return inv.selected_slot;
 	}
 
-	[[nodiscard]] GameObject PopSelectedEntity() {
+	[[nodiscard]] Entity PopSelectedEntity() {
 		auto& inv = Get<InventoryComponent>();
 		PTGN_ASSERT(
 			inv.selected_slot >= 0 && static_cast<std::size_t>(inv.selected_slot) < inv.slots.size()
 		);
-		GameObject obj{ std::move(inv.slots[inv.selected_slot]) };
-		inv.slots[inv.selected_slot] = GameObject{};
+		Entity obj{ std::move(inv.slots[inv.selected_slot]) };
+		inv.slots[inv.selected_slot] = Entity{};
 		return obj;
 	}
 
 	[[nodiscard]] Entity GetSlotEntity(int slot) const {
 		const auto& inv = Get<InventoryComponent>();
 		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < inv.slots.size());
-		return inv.slots[slot].GetEntity();
+		return inv.slots[slot];
 	}
 
 	void MoveEntity(int from, int to) {
@@ -192,7 +191,7 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		PTGN_ASSERT(
 			inv.selected_slot >= 0 && static_cast<std::size_t>(inv.selected_slot) < inv.slots.size()
 		);
-		return inv.slots[inv.selected_slot].GetEntity();
+		return inv.slots[inv.selected_slot];
 	}
 
 	[[nodiscard]] bool IsSlotTaken(int slot) const {
@@ -201,7 +200,7 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 		return inv.slots[static_cast<std::size_t>(slot)] != Entity{};
 	}
 
-	void SetSlot(int slot, GameObject&& entity) {
+	void SetSlot(int slot, Entity&& entity) {
 		auto& inv = Get<InventoryComponent>();
 		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < inv.slots.size());
 		PTGN_ASSERT(!IsSlotTaken(slot));
@@ -215,19 +214,19 @@ struct Inventory : public GameObject, public Drawable<Inventory> {
 	void UnsetSlot(int slot) {
 		auto& inv = Get<InventoryComponent>();
 		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < inv.slots.size());
-		inv.slots[static_cast<std::size_t>(slot)] = GameObject{};
+		inv.slots[static_cast<std::size_t>(slot)] = Entity{};
 	}
 };
 
-struct Tooltip : public GameObject, public Drawable<Tooltip> {
+struct Tooltip : public Entity, public Drawable<Tooltip> {
 	Tooltip() = default;
 
 	Tooltip(
 		Manager& manager, std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = ""
 	) :
-		GameObject{ manager } {
-		auto& text = Add<Text>(manager, content, text_color, font_key);
+		Entity{ manager } {
+		auto& text = Add<Text>(CreateText(manager, content, text_color, font_key));
 		text.SetParent(*this);
 		SetDraw<Tooltip>();
 	}
@@ -269,13 +268,13 @@ struct ActionComponent {
 		tooltip.Hide();
 	}
 
-	ActionComponent(Inventory* inventory, Grid<GameObject>* grid, Entity parent);
+	ActionComponent(Inventory* inventory, Grid<Entity>* grid, Entity parent);
 
 	Animation action_indicator;
 	Animation ground_selector;
 
 	Inventory* inventory{ nullptr };
-	Grid<GameObject>* grid{ nullptr };
+	Grid<Entity>* grid{ nullptr };
 
 	void UpdateTile(const V2_int& new_tile);
 
@@ -305,14 +304,14 @@ struct ActionComponent {
 		action_indicator.Show();
 		ground_selector.Hide();
 		type = action;
-		action_indicator.Get<Tween>().Start(true);
+		action_indicator.Start(true);
 	}
 
 	void CancelPreviousAction() {
 		type = ActionType::None;
 		action_indicator.Hide();
 		ground_selector.Show();
-		ground_selector.Get<Tween>().Start(false);
+		ground_selector.Start(false);
 	}
 
 	ActionType type{ ActionType::None };
@@ -323,10 +322,10 @@ private:
 	V2_int tile;
 };
 
-struct Player : public GameObject {
+struct Player : public Entity {
 	Player() = default;
 
-	Player(Manager& manager) : GameObject{ manager } {
+	Player(Manager& manager) : Entity{ manager } {
 		V2_float player_starting_position{ world_size / 2.0f };
 
 		Add<Transform>(player_starting_position);
@@ -350,8 +349,8 @@ struct Player : public GameObject {
 		interaction_hitbox.Add<Transform>(V2_float{});
 		interaction_hitbox.Enable();
 
-		AddChild("body", body_hitbox);
-		AddChild("interaction", interaction_hitbox);
+		AddChild(body_hitbox, "body");
+		AddChild(interaction_hitbox, "interaction");
 
 		auto& movement = Add<TopDownMovement>();
 
@@ -375,18 +374,20 @@ struct Player : public GameObject {
 
 		auto& anim_map = Add<AnimationMap>(
 			"down",
-			Animation(manager, "player_anim", animation_count.x, animation_size, animation_duration)
+			CreateAnimation(
+				manager, "player_anim", animation_duration, animation_count.x, animation_size
+			)
 		);
 		auto& a0 = anim_map.GetActive();
 		auto& a1 = anim_map.Load(
-			"right", Animation(
-						 manager, "player_anim", animation_count.x, animation_size,
-						 animation_duration, -1, V2_float{ 0, animation_size.y }
+			"right", CreateAnimation(
+						 manager, "player_anim", animation_duration, animation_count.x,
+						 animation_size, -1, V2_float{ 0, animation_size.y }
 					 )
 		);
 		auto& a2 = anim_map.Load(
-			"up", Animation(
-					  manager, "player_anim", animation_count.x, animation_size, animation_duration,
+			"up", CreateAnimation(
+					  manager, "player_anim", animation_duration, animation_count.x, animation_size,
 					  -1, V2_float{ 0, 2.0f * animation_size.y }
 				  )
 		);
@@ -407,16 +408,17 @@ struct Player : public GameObject {
 		a1.SetParent(*this);
 		a2.SetParent(*this);
 
-		a0.Add<callback::AnimationRepeat>(on_repeat);
+		// TODO: Fix.
+		/*a0.Add<callback::AnimationRepeat>(on_repeat);
 		a1.Add<callback::AnimationRepeat>(on_repeat);
-		a2.Add<callback::AnimationRepeat>(on_repeat);
+		a2.Add<callback::AnimationRepeat>(on_repeat);*/
 
-		movement.on_move_start = [entity = GetEntity()]() {
-			entity.Get<AnimationMap>().GetActive().Get<Tween>().Start(false);
+		movement.on_move_start = [*this]() {
+			Get<AnimationMap>().GetActive().Start(false);
 		};
-		movement.on_direction_change = [entity = GetEntity()](MoveDirection) {
-			auto& a{ entity.Get<AnimationMap>() };
-			auto dir{ entity.Get<TopDownMovement>().GetDirection() };
+		movement.on_direction_change = [*this](MoveDirection) {
+			auto& a{ Get<AnimationMap>() };
+			auto dir{ Get<TopDownMovement>().GetDirection() };
 			auto& prev_active{ a.GetActive() };
 			bool active_changed{ false };
 
@@ -432,13 +434,13 @@ struct Player : public GameObject {
 				default:					   break;
 			}
 			if (active_changed) {
-				prev_active.Get<Tween>().Reset();
+				prev_active.Reset();
 			}
 			auto& current_active{ a.GetActive() };
-			current_active.Get<Tween>().Start(false);
+			current_active.Start(false);
 		};
-		movement.on_move_stop = [entity = GetEntity()]() {
-			entity.Get<AnimationMap>().GetActive().Get<Tween>().Reset();
+		movement.on_move_stop = [*this]() {
+			Get<AnimationMap>().GetActive().Reset();
 		};
 	}
 };
@@ -474,7 +476,7 @@ struct AnalyzerComponent {
 
 	V2_float analyzer_scale{ 1.5f, 1.5f };
 
-	AnalyzerComponent(Manager& manager) : analyzer{ manager, "analyzer" } {
+	AnalyzerComponent(Manager& manager) : analyzer{ CreateSprite(manager, "analyzer") } {
 		analyzer.Hide();
 		analyzer.SetScale(analyzer_scale);
 	}
@@ -499,12 +501,18 @@ struct AnalyzerComponent {
 
 	void ShowInfo(Entity& entity, int selected_slot) {
 		const auto& flower{ entity.Get<FlowerComponent>() };
-		stat1 = Text{ entity.GetManager(), "Longevity: " + std::to_string(flower.longevity),
-					  color::Black, "ui_font" };
-		stat2 = Text{ entity.GetManager(), "Invasiveness: " + std::to_string(flower.invasiveness),
-					  color::Black, "ui_font" };
-		stat3 = Text{ entity.GetManager(), "Spread Rate: " + std::to_string(flower.spread_rate),
-					  color::Black, "ui_font" };
+		stat1 = CreateText(
+			entity.GetManager(), "Longevity: " + std::to_string(flower.longevity), color::Black,
+			"ui_font"
+		);
+		stat2 = CreateText(
+			entity.GetManager(), "Invasiveness: " + std::to_string(flower.invasiveness),
+			color::Black, "ui_font"
+		);
+		stat3 = CreateText(
+			entity.GetManager(), "Spread Rate: " + std::to_string(flower.spread_rate), color::Black,
+			"ui_font"
+		);
 		stat1.Hide();
 		stat2.Hide();
 		stat3.Hide();
@@ -523,7 +531,7 @@ struct AnalyzerComponent {
 		stat1.SetPosition({ -15, -50 });
 		stat2.SetPosition({ -15, 0 });
 		stat3.SetPosition({ -15, 50 });
-		entry = Sprite{ entity.GetManager(), entity.Get<TextureKey>() };
+		entry = CreateSprite(entity.GetManager(), entity.Get<TextureHandle>());
 		entry.SetScale(analyzer_scale);
 		entry.Hide();
 		entry.SetDepth(2);
@@ -547,12 +555,12 @@ struct AnalyzerComponent {
 		stat3 = {};
 	}
 
-	void Update(ActionComponent& action, Entity analyzer, Inventory& inventory) {
+	void Update(ActionComponent& action, Entity analyzer_entity, Inventory& inventory) {
 		if (game.input.KeyDown(Key::ESCAPE)
 			/*game.input.KeyDown(Key::E)*/ /* || TODO: hit button to exit analyzer */) {
 			Close(inventory);
 			action.CancelPreviousAction();
-			action.ShowTooltip(analyzer);
+			action.ShowTooltip(analyzer_entity);
 		}
 
 		if (open && game.input.KeyDown(Key::E)) {
@@ -590,14 +598,14 @@ public:
 		LoadResources("resources/data/resources.json");
 	}
 
-	Grid<GameObject> flowers{ grid_size };
+	Grid<Entity> flowers{ grid_size };
 
 	Player player;
 	Inventory inventory;
 	RenderTarget ui;
 	RenderTarget screen;
 	RenderTarget screen_follow;
-	GameObject shed;
+	Entity shed;
 
 	Entity CreateWall(const V2_float& pos, const V2_float& size, Origin origin) {
 		auto entity = CreateEntity();
@@ -608,10 +616,10 @@ public:
 		return entity;
 	}
 
-	GameObject CreateShed() {
+	Entity CreateShed() {
 		auto house_size{ game.texture.GetSize("shed") };
 		auto house_pos = world_size / 2.0f + V2_float{ house_size.x, -house_size.y / 2.0f };
-		Sprite s{ manager, "shed" };
+		Sprite s{ CreateSprite(manager, "shed") };
 		s.SetPosition(house_pos);
 		s.SetOrigin(Origin::TopLeft);
 		const auto& house_hitboxes{ game.json.Get("shed_data").at("hitboxes") };
@@ -626,8 +634,8 @@ public:
 		return s;
 	}
 
-	GameObject CreateFlower(const V2_int& tile, const V2_int& position, const TextureKey& key) {
-		Sprite s{ manager, key };
+	Entity CreateFlower(const V2_int& tile, const V2_int& position, const TextureHandle& key) {
+		Sprite s{ CreateSprite(manager, key) };
 		s.SetPosition(position);
 		s.Add<Tile>(tile);
 		auto& flower = s.Add<FlowerComponent>();
@@ -637,8 +645,8 @@ public:
 		return s;
 	}
 
-	GameObject CreateAnalyzer(const V2_int& tile, const V2_int& position) {
-		GameObject s{ manager };
+	Entity CreateAnalyzer(const V2_int& tile, const V2_int& position) {
+		Entity s{ manager };
 		s.SetPosition(position);
 		s.Add<Tile>(tile);
 		s.Add<AnalyzerComponent>(manager);
@@ -649,12 +657,12 @@ public:
 		auto shed_position{ shed.GetPosition() };
 		V2_int shed_tile_min{ shed_position / tile_size };
 		shed_tile_min -= V2_int{ 1, 1 };
-		V2_int shed_tile_max{ (shed_position + shed.GetSize()) / tile_size };
+		V2_int shed_tile_max{ (shed_position + Sprite{ shed }.GetTextureSize()) / tile_size };
 		shed_tile_max += V2_int{ 1, 1 };
 		for (auto i = shed_tile_min.x; i < shed_tile_max.x; i++) {
 			for (auto j = shed_tile_min.y; j < shed_tile_max.y; j++) {
 				flowers.Get({ i, j }).Destroy();
-				flowers.Set({ i, j }, GameObject{ manager });
+				flowers.Set({ i, j }, Entity{ manager });
 			}
 		}
 		V2_int analyzer_tile{ shed_tile_min + V2_int{ 3, 3 } };
@@ -703,9 +711,9 @@ public:
 		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
 
-		ui			  = RenderTarget{ manager, window_size };
-		screen		  = RenderTarget{ manager, window_size };
-		screen_follow = RenderTarget{ manager, window_size };
+		ui			  = CreateRenderTarget(manager, window_size);
+		screen		  = CreateRenderTarget(manager, window_size);
+		screen_follow = CreateRenderTarget(manager, window_size);
 		screen_follow.Get<Camera>().StartFollow(player);
 		auto& ui_camera{ ui.Get<Camera>() };
 		ui_camera.SetZoom(camera_zoom);
@@ -827,13 +835,16 @@ public:
 	}
 };
 
-ActionComponent::ActionComponent(Inventory* inventory, Grid<GameObject>* grid, Entity parent) :
+ActionComponent::ActionComponent(Inventory* inventory, Grid<Entity>* grid, Entity parent) :
 	inventory{ inventory }, grid{ grid } {
-	ground_selector = Animation{ parent.GetManager(), "ground_selector",	2,
-								 { 15, 15 },		  milliseconds{ 1000 }, -1 };
+	ground_selector = CreateAnimation(
+		parent.GetManager(), "ground_selector", milliseconds{ 1000 }, 2, { 15, 15 }, -1
+	);
 	ground_selector.Hide();
 	action_indicator =
-		Animation{ parent.GetManager(), "pickup_anim", 6, { 15, 15 }, milliseconds{ 500 }, 1 };
+		CreateAnimation(parent.GetManager(), "pickup_anim", milliseconds{ 500 }, 6, { 15, 15 }, 1);
+	// TODO: Fix.
+	/*
 	action_indicator.Add<callback::AnimationComplete>([=](auto entity) {
 		auto& action = parent.Get<ActionComponent>();
 		if (game.input.KeyReleased(action.action_key)) {
@@ -869,6 +880,7 @@ ActionComponent::ActionComponent(Inventory* inventory, Grid<GameObject>* grid, E
 			}
 		}
 	});
+	*/
 	action_indicator.Hide();
 }
 
