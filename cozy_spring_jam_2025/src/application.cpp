@@ -94,7 +94,6 @@ struct Inventory : public Entity, public Drawable<Inventory> {
 		i.selected_slot = selected_slot;
 
 		SetPosition(position);
-		SetOrigin(origin);
 
 		UpdateSelectorPosition();
 	}
