@@ -82,12 +82,12 @@ struct Inventory : public Entity, public Drawable<Inventory> {
 		auto& i		= Add<InventoryComponent>();
 		i.inventory = CreateSprite(manager, "inventory");
 		i.inventory.SetParent(*this);
-		i.selector = CreateSprite(manager, "selector");
 		i.inventory.Hide();
+		i.inventory.SetOrigin(origin);
+		i.selector = CreateSprite(manager, "selector");
 		i.selector.Hide();
 		i.selector.SetParent(*this);
 		i.selector.SetDepth(1);
-		i.selector.SetOrigin(Origin::Center);
 
 		i.slots.resize(slot_count);
 		PTGN_ASSERT(selected_slot >= 0);
@@ -263,7 +263,7 @@ struct ActionComponent {
 		tooltip.Get<Text>().SetFontSize(30);
 		// auto& scene = game.scene.Get<GameScene>("game");
 		// pos			= scene.camera.primary.TransformToScreen(pos);
-		// pos			= scene.screen_follow.Get<Camera>().TransformToCamera(pos);
+		// pos			= scene.screen_follow.GetCamera().TransformToCamera(pos);
 		// tooltip.SetPosition(pos);
 		tooltip.Hide();
 	}
@@ -714,11 +714,11 @@ public:
 		ui			  = CreateRenderTarget(manager, window_size);
 		screen		  = CreateRenderTarget(manager, window_size);
 		screen_follow = CreateRenderTarget(manager, window_size);
-		screen_follow.Get<Camera>().StartFollow(player);
-		auto& ui_camera{ ui.Get<Camera>() };
+		screen_follow.GetCamera().StartFollow(player);
+		auto& ui_camera{ ui.GetCamera() };
 		ui_camera.SetZoom(camera_zoom);
 		ui_camera.SetPosition(V2_float{});
-		screen.Get<Camera>().SetPosition(V2_float{});
+		screen.GetCamera().SetPosition(V2_float{});
 		auto inventory_origin{ Origin::CenterBottom };
 		auto inventory_position{ ui_camera.GetPosition(inventory_origin) };
 		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
@@ -755,7 +755,7 @@ public:
 			a.Update(action, e, inventory);
 			player.Get<TopDownMovement>().keys_enabled = !a.IsOpen();
 			if (a.IsOpen()) {
-				a.analyzer.SetPosition(ui.Get<Camera>().GetPosition());
+				a.analyzer.SetPosition(ui.GetCamera().GetPosition());
 				ui.Draw(a.analyzer);
 				if (a.entry) {
 					ui.Draw(a.entry);
