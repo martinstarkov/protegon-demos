@@ -603,8 +603,6 @@ public:
 	Player player;
 	Inventory inventory;
 	RenderTarget ui;
-	RenderTarget screen;
-	RenderTarget screen_follow;
 	Entity shed;
 
 	Entity CreateWall(const V2_float& pos, const V2_float& size, Origin origin) {
@@ -712,19 +710,21 @@ public:
 		game.sound.SetVolume("repair", repair_volume);
 
 		ui			  = CreateRenderTarget(manager, window_size);
-		screen		  = CreateRenderTarget(manager, window_size);
-		screen_follow = CreateRenderTarget(manager, window_size);
-		screen_follow.GetCamera().StartFollow(player);
 		auto& ui_camera{ ui.GetCamera() };
 		ui_camera.SetZoom(camera_zoom);
 		ui_camera.SetPosition(V2_float{});
-		screen.GetCamera().SetPosition(V2_float{});
 		auto inventory_origin{ Origin::CenterBottom };
 		auto inventory_position{ ui_camera.GetPosition(inventory_origin) };
 		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
 		ui.SetDepth(2);
-		screen_follow.SetDepth(1);
-		screen.SetDepth(3);
+		ui.Add<Interactive>();
+		ui.Add<callback::MouseEnter>([this](auto m) { PTGN_LOG("Mouse entered");
+			inventory.SetTint(color::Red);
+		});
+		ui.Add<callback::MouseEnter>([this](auto m) {
+			PTGN_LOG("Mouse left");
+			inventory.SetTint();
+		});
 
 		player.Add<ActionComponent>(&inventory, &flowers, player);
 	}
@@ -735,10 +735,6 @@ public:
 														   V2_int{ 0, 1 },	 V2_int{ 1, 1 } };
 
 	void Update() override {
-		ui.Clear();
-		screen.Clear();
-		screen_follow.Clear();
-
 		auto scroll{ game.input.GetMouseScroll() };
 		if (scroll != 0) {
 			inventory.IncrementSlot(Sign(scroll));
@@ -750,24 +746,28 @@ public:
 			inventory.IncrementSlot(-1);
 		}
 
+		ui.ClearEntities();
+
+		ui.AddEntity(inventory);
+
 		auto& action{ player.Get<ActionComponent>() };
 		for (auto [e, a] : manager.EntitiesWith<AnalyzerComponent>()) {
 			a.Update(action, e, inventory);
 			player.Get<TopDownMovement>().keys_enabled = !a.IsOpen();
 			if (a.IsOpen()) {
 				a.analyzer.SetPosition(ui.GetCamera().GetPosition());
-				ui.Draw(a.analyzer);
+				ui.AddEntity(a.analyzer);
 				if (a.entry) {
-					ui.Draw(a.entry);
+					ui.AddEntity(a.entry);
 				}
 				if (a.stat1) {
-					screen.Draw(a.stat1);
+					ui.AddEntity(a.stat1);
 				}
 				if (a.stat2) {
-					screen.Draw(a.stat2);
+					ui.AddEntity(a.stat2);
 				}
 				if (a.stat3) {
-					screen.Draw(a.stat3);
+					ui.AddEntity(a.stat3);
 				}
 			}
 		}
@@ -778,10 +778,8 @@ public:
 		action.Update(player);
 
 		if (action.tooltip) {
-			screen.Draw(action.tooltip);
+			ui.AddEntity(action.tooltip);
 		}
-
-		ui.Draw(inventory);
 
 		/*flowers.ForEachCoordinate([=](auto tile) {
 			DrawDebugRect(tile * tile_size, tile_size, color::Black, Origin::TopLeft, 1.0f);
