@@ -84,6 +84,18 @@ struct Inventory : public Entity, public Drawable<Inventory> {
 		i.inventory.SetParent(*this);
 		i.inventory.Hide();
 		i.inventory.SetOrigin(origin);
+
+		i.inventory.Add<Interactive>();
+		i.inventory.Add<Enabled>();
+		i.inventory.Add<callback::MouseEnter>([inv = i.inventory](auto m) mutable {
+			PTGN_LOG("Mouse entered");
+			inv.SetTint(color::Red);
+		});
+		i.inventory.Add<callback::MouseLeave>([inv = i.inventory](auto m) mutable {
+			PTGN_LOG("Mouse left");
+			inv.SetTint();
+		});
+
 		i.selector = CreateSprite(manager, "selector");
 		i.selector.Hide();
 		i.selector.SetParent(*this);
@@ -717,14 +729,6 @@ public:
 		auto inventory_position{ ui_camera.GetPosition(inventory_origin) };
 		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
 		ui.SetDepth(2);
-		ui.Add<Interactive>();
-		ui.Add<callback::MouseEnter>([this](auto m) { PTGN_LOG("Mouse entered");
-			inventory.SetTint(color::Red);
-		});
-		ui.Add<callback::MouseEnter>([this](auto m) {
-			PTGN_LOG("Mouse left");
-			inventory.SetTint();
-		});
 
 		player.Add<ActionComponent>(&inventory, &flowers, player);
 	}
