@@ -235,6 +235,7 @@ struct Tooltip : public Entity, public Drawable<Tooltip> {
 		auto size  = text.GetSize(text);
 		ctx.AddQuad(
 			text.GetAbsoluteTransform().position, size, Origin::Center, -1, text.GetDepth(),
+			text.GetOrDefault<Camera>(),
 			text.GetBlendMode(), color::White.Normalized(), 0.0f, false
 		);
 		Text::Draw(ctx, text);
