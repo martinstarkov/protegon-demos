@@ -247,8 +247,7 @@ struct Tooltip : public Entity, public Drawable<Tooltip> {
 		auto size  = text.GetSize(text);
 		ctx.AddQuad(
 			text.GetAbsoluteTransform().position, size, Origin::Center, -1, text.GetDepth(),
-			text.GetOrDefault<Camera>(),
-			text.GetBlendMode(), color::White.Normalized(), 0.0f, false
+			text.GetOrDefault<Camera>(), text.GetBlendMode(), color::White.Normalized(), 0.0f, false
 		);
 		Text::Draw(ctx, text);
 	}
@@ -706,6 +705,16 @@ public:
 
 		player = Player{ manager };
 		shed   = CreateShed();
+		shed.Add<Interactive>();
+		shed.Add<Enabled>();
+		shed.Add<callback::MouseEnter>([inv = shed](auto m) mutable {
+			PTGN_LOG("Mouse entered");
+			inv.SetTint(color::Red);
+		});
+		shed.Add<callback::MouseLeave>([inv = shed](auto m) mutable {
+			PTGN_LOG("Mouse left");
+			inv.SetTint();
+		});
 
 		ClearFlowersUnderShed();
 
@@ -721,7 +730,7 @@ public:
 		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
 
-		ui			  = CreateRenderTarget(manager, window_size);
+		ui = CreateRenderTarget(manager, window_size);
 		auto& ui_camera{ ui.GetCamera() };
 		ui_camera.SetZoom(camera_zoom);
 		ui_camera.SetPosition(V2_float{});
