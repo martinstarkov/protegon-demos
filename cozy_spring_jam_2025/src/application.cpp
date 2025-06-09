@@ -25,6 +25,7 @@
 #include "tile/grid.h"
 #include "tweening/tween.h"
 #include "ui/button.h"
+#include "player/player_controller.h"
 
 using namespace ptgn;
 
@@ -318,128 +319,6 @@ private:
 	V2_int tile;
 };
 
-struct Player : public Entity {
-	Player() = default;
-
-	Player(Manager& manager) : Entity{ manager } {
-		V2_float player_starting_position{ world_size / 2.0f };
-
-		Add<Transform>(player_starting_position);
-		auto& rb = Add<RigidBody>();
-		Add<Enabled>();
-		Add<Depth>(1);
-
-		V2_float hitbox_size{ 10, 6 };
-		V2_float hitbox_offset{ 0, 8 };
-
-		auto body_hitbox = manager.CreateEntity();
-		body_hitbox.Add<BoxCollider>(hitbox_size, Origin::CenterBottom);
-		body_hitbox.Add<Transform>(hitbox_offset);
-		body_hitbox.Add<Enabled>();
-		body_hitbox.Add<RigidBody>();
-
-		auto interaction_hitbox = manager.CreateEntity();
-		auto& interaction_collider =
-			interaction_hitbox.Add<BoxCollider>(V2_float{ 28, 28 }, Origin::Center);
-		interaction_collider.overlap_only = true;
-		interaction_hitbox.Add<Transform>(V2_float{});
-		interaction_hitbox.Enable();
-
-		AddChild(body_hitbox, "body");
-		AddChild(interaction_hitbox, "interaction");
-
-		auto& movement = Add<TopDownMovement>();
-
-		// Maximum movement speed.
-		movement.max_speed = 0.7f * 60.0f;
-		// How fast to reach max speed.
-		movement.max_acceleration = 20.0f * 60.0f;
-		// How fast to stop after letting go.
-		movement.max_deceleration = 20.0f * 60.0f;
-		// How fast to stop when changing direction.
-		movement.max_turn_speed = 60.0f * 60.0f;
-
-		movement.friction = 1.0f;
-
-		V2_uint animation_count{ 4, 3 };
-		V2_int player_size		= { 16, 17 };
-		V2_float animation_size = player_size;
-		milliseconds animation_duration{ 1000 };
-
-		auto& anim_map = Add<AnimationMap>(
-			"down",
-			CreateAnimation(
-				manager, "player_anim", animation_duration, animation_count.x, animation_size
-			)
-		);
-		auto& a0 = anim_map.GetActive();
-		auto& a1 = anim_map.Load(
-			"right", CreateAnimation(
-						 manager, "player_anim", animation_duration, animation_count.x,
-						 animation_size, -1, V2_float{ 0, animation_size.y }
-					 )
-		);
-		auto& a2 = anim_map.Load(
-			"up", CreateAnimation(
-					  manager, "player_anim", animation_duration, animation_count.x, animation_size,
-					  -1, V2_float{ 0, 2.0f * animation_size.y }
-				  )
-		);
-
-		a0.SetParent(*this);
-		a1.SetParent(*this);
-		a2.SetParent(*this);
-
-		struct AnimationRepeat : public Script<AnimationRepeat> {
-			void OnAnimationFrameChange(std::size_t frame) override {
-				if (frame % walk_sound_frequency == 0) {
-					game.sound.Play("walk");
-				}
-			}
-		};
-
-		a0.AddScript<AnimationRepeat>();
-		a1.AddScript<AnimationRepeat>();
-		a2.AddScript<AnimationRepeat>();
-
-		struct MovementScript : public Script<MovementScript> {
-			void OnMoveStart() override {
-				entity.Get<AnimationMap>().GetActive().Start(false);
-			}
-
-			void OnMoveStop() override {
-				entity.Get<AnimationMap>().GetActive().Reset();
-			}
-
-			void OnMoveDirectionChange(MoveDirection) override {
-				auto& a{ entity.Get<AnimationMap>() };
-				auto dir{ entity.Get<TopDownMovement>().GetDirection() };
-				auto& prev_active{ a.GetActive() };
-				bool active_changed{ false };
-
-				switch (dir) {
-					case MoveDirection::Down:	   active_changed = a.SetActive("down"); break;
-					case MoveDirection::Up:		   active_changed = a.SetActive("up"); break;
-					case MoveDirection::Left:	   [[fallthrough]];
-					case MoveDirection::DownLeft:  [[fallthrough]];
-					case MoveDirection::UpLeft:	   [[fallthrough]];
-					case MoveDirection::UpRight:   [[fallthrough]];
-					case MoveDirection::DownRight: [[fallthrough]];
-					case MoveDirection::Right:	   active_changed = a.SetActive("right"); break;
-					default:					   break;
-				}
-				if (active_changed) {
-					prev_active.Reset();
-				}
-				auto& current_active{ a.GetActive() };
-				current_active.Start(false);
-			}
-		};
-
-		AddScript<MovementScript>();
-	}
-};
-
 struct Tile : public Vector2Component<int> {
 	using Vector2Component::Vector2Component;
 };
@@ -595,7 +474,7 @@ public:
 
 	Grid<Entity> flowers{ grid_size };
 
-	Player player;
+	Entity player;
 	Inventory inventory;
 	RenderTarget ui;
 	Entity shed;
@@ -687,7 +566,8 @@ public:
 			}
 		});
 
-		player = Player{ manager };
+		TopDownPlayerConfig config;
+		player = CreateTopDownPlayer(manager, world_size / 2.0f, config);
 		shed   = CreateShed();
 
 		ClearFlowersUnderShed();
