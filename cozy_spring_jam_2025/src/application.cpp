@@ -708,44 +708,49 @@ ActionComponent::ActionComponent(Inventory* inventory, Grid<Entity>* grid, Entit
 	ground_selector.Hide();
 	action_indicator =
 		CreateAnimation(parent.GetManager(), "pickup_anim", milliseconds{ 500 }, 6, { 15, 15 }, 1);
-	// TODO: Fix.
-	/*
-	action_indicator.Add<callback::AnimationComplete>([=](auto entity) {
-		auto& action = parent.Get<ActionComponent>();
-		if (game.input.KeyReleased(action.action_key)) {
-			action.type = ActionType::None;
-			return;
-		}
-		if (action.type == ActionType::None) {
-			return;
-		} else {
-			PTGN_ASSERT(action.inventory);
-			if (action.type == ActionType::GroundPlace) {
-				auto&& selected_entity = action.inventory->PopSelectedEntity();
-				auto& grid_entity	   = action.grid->Get(action.tile);
-				grid_entity			   = std::move(selected_entity);
-				auto position{ action.tile * tile_size + tile_size / 2.0f };
-				grid_entity.SetPosition(position);
-				grid_entity.RemoveParent();
-				grid_entity.Show();
-				game.sound.SetVolume("plant", plant_volume);
-				game.sound.Play("plant");
-			} else if (action.type == ActionType::GroundPick) {
-				auto ground_entity = action.grid->Pop(action.tile);
-				action.inventory->AddEntity(std::move(ground_entity));
-				game.sound.SetVolume("pick", pick_volume);
-				game.sound.Play("pick");
-			} else if (action.type == ActionType::OpenAnalyzer) {
-				action.tooltip.Get<Text>().SetContent("Press 'ESC' to exit analyzer");
-				auto& grid_entity = action.grid->Get(action.tile);
-				auto& analyzer	  = grid_entity.Get<AnalyzerComponent>();
-				if (!analyzer.IsOpen()) {
-					analyzer.Open(*action.inventory);
+
+	action_indicator.SetParent(parent, true);
+
+	struct AnimationScript : public Script<AnimationScript> {
+		void OnAnimationComplete() override {
+			auto& action = entity.GetParent().Get<ActionComponent>();
+			if (game.input.KeyReleased(action.action_key)) {
+				action.type = ActionType::None;
+				return;
+			}
+			if (action.type == ActionType::None) {
+				return;
+			} else {
+				PTGN_ASSERT(action.inventory);
+				if (action.type == ActionType::GroundPlace) {
+					auto&& selected_entity = action.inventory->PopSelectedEntity();
+					auto& grid_entity	   = action.grid->Get(action.tile);
+					grid_entity			   = std::move(selected_entity);
+					auto position{ action.tile * tile_size + tile_size / 2.0f };
+					grid_entity.SetPosition(position);
+					grid_entity.RemoveParent();
+					grid_entity.Show();
+					game.sound.SetVolume("plant", plant_volume);
+					game.sound.Play("plant");
+				} else if (action.type == ActionType::GroundPick) {
+					auto ground_entity = action.grid->Pop(action.tile);
+					action.inventory->AddEntity(std::move(ground_entity));
+					game.sound.SetVolume("pick", pick_volume);
+					game.sound.Play("pick");
+				} else if (action.type == ActionType::OpenAnalyzer) {
+					action.tooltip.Get<Text>().SetContent("Press 'ESC' to exit analyzer");
+					auto& grid_entity = action.grid->Get(action.tile);
+					auto& analyzer	  = grid_entity.Get<AnalyzerComponent>();
+					if (!analyzer.IsOpen()) {
+						analyzer.Open(*action.inventory);
+					}
 				}
 			}
 		}
-	});
-	*/
+	};
+
+	action_indicator.AddScript<AnimationScript>();
+
 	action_indicator.Hide();
 }
 
