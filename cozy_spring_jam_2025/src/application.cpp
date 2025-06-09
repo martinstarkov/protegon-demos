@@ -49,10 +49,6 @@ constexpr CollisionCategory interaction_category{ 1 };
 constexpr CollisionCategory flower_category{ 2 };
 constexpr CollisionCategory wall_category{ 3 };
 
-struct WalkRepeats : public ArithmeticComponent<int> {
-	using ArithmeticComponent::ArithmeticComponent;
-};
-
 struct Item {};
 
 struct Hidden {};
@@ -84,17 +80,6 @@ struct Inventory : public Entity, public Drawable<Inventory> {
 		i.inventory.SetParent(*this);
 		i.inventory.Hide();
 		i.inventory.SetOrigin(origin);
-
-		i.inventory.Add<Interactive>();
-		i.inventory.Add<Enabled>();
-		i.inventory.Add<callback::MouseEnter>([inv = i.inventory](auto m) mutable {
-			PTGN_LOG("Mouse entered");
-			inv.SetTint(color::Red);
-		});
-		i.inventory.Add<callback::MouseLeave>([inv = i.inventory](auto m) mutable {
-			PTGN_LOG("Mouse left");
-			inv.SetTint();
-		});
 
 		i.selector = CreateSprite(manager, "selector");
 		i.selector.Hide();
@@ -381,8 +366,6 @@ struct Player : public Entity {
 		V2_float animation_size = player_size;
 		milliseconds animation_duration{ 1000 };
 
-		Add<WalkRepeats>();
-
 		auto& anim_map = Add<AnimationMap>(
 			"down",
 			CreateAnimation(
@@ -403,56 +386,57 @@ struct Player : public Entity {
 				  )
 		);
 
-		auto on_repeat = [](auto entity) {
-			auto parent{ entity.GetParent() };
-			PTGN_ASSERT(parent.template Has<WalkRepeats>());
-			auto& repeats{ parent.template Get<WalkRepeats>() };
-			++repeats.GetValue();
-			bool repeat{ repeats % walk_sound_frequency == 0 };
-			if (!repeat) {
-				return;
-			}
-			game.sound.Play("walk");
-		};
-
 		a0.SetParent(*this);
 		a1.SetParent(*this);
 		a2.SetParent(*this);
 
-		// TODO: Fix.
-		/*a0.Add<callback::AnimationRepeat>(on_repeat);
-		a1.Add<callback::AnimationRepeat>(on_repeat);
-		a2.Add<callback::AnimationRepeat>(on_repeat);*/
-
-		movement.on_move_start = [*this]() {
-			Get<AnimationMap>().GetActive().Start(false);
-		};
-		movement.on_direction_change = [*this](MoveDirection) {
-			auto& a{ Get<AnimationMap>() };
-			auto dir{ Get<TopDownMovement>().GetDirection() };
-			auto& prev_active{ a.GetActive() };
-			bool active_changed{ false };
-
-			switch (dir) {
-				case MoveDirection::Down:	   active_changed = a.SetActive("down"); break;
-				case MoveDirection::Up:		   active_changed = a.SetActive("up"); break;
-				case MoveDirection::Left:	   [[fallthrough]];
-				case MoveDirection::DownLeft:  [[fallthrough]];
-				case MoveDirection::UpLeft:	   [[fallthrough]];
-				case MoveDirection::UpRight:   [[fallthrough]];
-				case MoveDirection::DownRight: [[fallthrough]];
-				case MoveDirection::Right:	   active_changed = a.SetActive("right"); break;
-				default:					   break;
+		struct AnimationRepeat : public Script<AnimationRepeat> {
+			void OnAnimationFrameChange(int frame) override {
+				if (frame % walk_sound_frequency == 0) {
+					game.sound.Play("walk");
+				}
 			}
-			if (active_changed) {
-				prev_active.Reset();
+		};
+
+		a0.AddScript<AnimationRepeat>();
+		a1.AddScript<AnimationRepeat>();
+		a2.AddScript<AnimationRepeat>();
+
+		struct MovementScript : public Script<MovementScript> {
+			void OnMoveStart() override {
+				entity.Get<AnimationMap>().GetActive().Start(false);
 			}
-			auto& current_active{ a.GetActive() };
-			current_active.Start(false);
+
+			void OnMoveStop() override {
+				entity.Get<AnimationMap>().GetActive().Reset();
+			}
+
+			void OnMoveDirectionChange(MoveDirection) override {
+				auto& a{ entity.Get<AnimationMap>() };
+				auto dir{ entity.Get<TopDownMovement>().GetDirection() };
+				auto& prev_active{ a.GetActive() };
+				bool active_changed{ false };
+
+				switch (dir) {
+					case MoveDirection::Down:	   active_changed = a.SetActive("down"); break;
+					case MoveDirection::Up:		   active_changed = a.SetActive("up"); break;
+					case MoveDirection::Left:	   [[fallthrough]];
+					case MoveDirection::DownLeft:  [[fallthrough]];
+					case MoveDirection::UpLeft:	   [[fallthrough]];
+					case MoveDirection::UpRight:   [[fallthrough]];
+					case MoveDirection::DownRight: [[fallthrough]];
+					case MoveDirection::Right:	   active_changed = a.SetActive("right"); break;
+					default:					   break;
+				}
+				if (active_changed) {
+					prev_active.Reset();
+				}
+				auto& current_active{ a.GetActive() };
+				current_active.Start(false);
+			}
 		};
-		movement.on_move_stop = [*this]() {
-			Get<AnimationMap>().GetActive().Reset();
-		};
+
+		AddScript<MovementScript>();
 	}
 };
 
@@ -567,7 +551,7 @@ struct AnalyzerComponent {
 	}
 
 	void Update(ActionComponent& action, Entity analyzer_entity, Inventory& inventory) {
-		if (game.input.KeyDown(Key::ESCAPE)
+		if (game.input.KeyDown(Key::Escape)
 			/*game.input.KeyDown(Key::E)*/ /* || TODO: hit button to exit analyzer */) {
 			Close(inventory);
 			action.CancelPreviousAction();
@@ -647,7 +631,7 @@ public:
 		Sprite s{ CreateSprite(manager, key) };
 		s.SetPosition(position);
 		s.Add<Tile>(tile);
-		auto& flower = s.Add<FlowerComponent>();
+		auto& flower{ s.Add<FlowerComponent>() };
 		// TODO: Add lifetimes.
 		// milliseconds lifetime{ milliseconds{ 1000 } + flower.longevity * milliseconds{ 1000 } };
 		// s.Add<Lifetime>(lifetime);
@@ -705,16 +689,6 @@ public:
 
 		player = Player{ manager };
 		shed   = CreateShed();
-		shed.Add<Interactive>();
-		shed.Add<Enabled>();
-		shed.Add<callback::MouseEnter>([inv = shed](auto m) mutable {
-			PTGN_LOG("Mouse entered");
-			inv.SetTint(color::Red);
-		});
-		shed.Add<callback::MouseLeave>([inv = shed](auto m) mutable {
-			PTGN_LOG("Mouse left");
-			inv.SetTint();
-		});
 
 		ClearFlowersUnderShed();
 
@@ -752,10 +726,10 @@ public:
 		if (scroll != 0) {
 			inventory.IncrementSlot(Sign(scroll));
 		}
-		if (game.input.KeyDown(Key::LEFT)) {
+		if (game.input.KeyDown(Key::Left)) {
 			inventory.IncrementSlot(1);
 		}
-		if (game.input.KeyDown(Key::RIGHT)) {
+		if (game.input.KeyDown(Key::Right)) {
 			inventory.IncrementSlot(-1);
 		}
 
