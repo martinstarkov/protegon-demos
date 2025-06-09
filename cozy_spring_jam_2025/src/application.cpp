@@ -42,7 +42,7 @@ constexpr int pick_volume{ 60 };
 constexpr int plant_volume{ 15 };
 constexpr int music_volume{ 8 };
 constexpr int wind_volume{ 2 };
-constexpr int walk_sound_frequency{ 2 }; // every second repeat of the walk animation
+constexpr std::size_t walk_sound_frequency{ 2 }; // every second repeat of the walk animation
 
 constexpr CollisionCategory player_category{ 0 };
 constexpr CollisionCategory interaction_category{ 1 };
@@ -391,7 +391,7 @@ struct Player : public Entity {
 		a2.SetParent(*this);
 
 		struct AnimationRepeat : public Script<AnimationRepeat> {
-			void OnAnimationFrameChange(int frame) override {
+			void OnAnimationFrameChange(std::size_t frame) override {
 				if (frame % walk_sound_frequency == 0) {
 					game.sound.Play("walk");
 				}
