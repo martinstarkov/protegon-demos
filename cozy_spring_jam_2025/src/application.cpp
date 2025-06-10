@@ -16,6 +16,7 @@
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
+#include "player/player_controller.h"
 #include "protegon/protegon.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
@@ -25,7 +26,6 @@
 #include "tile/grid.h"
 #include "tweening/tween.h"
 #include "ui/button.h"
-#include "player/player_controller.h"
 
 using namespace ptgn;
 
@@ -255,8 +255,8 @@ struct ActionComponent {
 		tooltip =
 			Tooltip{ analyzer.GetManager(), "Hold 'E' to open analyzer", color::Black, "ui_font" };
 		// auto pos{ V2_int{ entity.Get<Tile>() } * tile_size };
-		tooltip.SetPosition({ -window_size.x / 2.0f + 190, window_size.y / 2.0f - 35 });
-		tooltip.SetOrigin(Origin::Center);
+		tooltip.SetPosition({ 0, 0 });
+		tooltip.SetOrigin(Origin::TopLeft);
 		tooltip.Get<Text>().SetFontSize(30);
 		// auto& scene = game.scene.Get<GameScene>("game");
 		// pos			= scene.camera.primary.TransformToScreen(pos);
