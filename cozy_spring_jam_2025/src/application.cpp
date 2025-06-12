@@ -71,18 +71,18 @@ struct Inventory : public Entity, public Drawable<Inventory> {
 	Inventory() = default;
 
 	Inventory(
-		Manager& manager, const V2_float& position, Origin origin, std::size_t slot_count,
+		Scene& scene, const V2_float& position, Origin origin, std::size_t slot_count,
 		int selected_slot = 0
 	) :
-		Entity{ manager } {
+		Entity{ scene } {
 		SetDraw<Inventory>();
 		auto& i		= Add<InventoryComponent>();
-		i.inventory = CreateSprite(manager, "inventory");
+		i.inventory = CreateSprite(scene, "inventory");
 		i.inventory.SetParent(*this);
 		i.inventory.Hide();
 		i.inventory.SetOrigin(origin);
 
-		i.selector = CreateSprite(manager, "selector");
+		i.selector = CreateSprite(scene, "selector");
 		i.selector.Hide();
 		i.selector.SetParent(*this);
 		i.selector.SetDepth(1);
@@ -219,11 +219,11 @@ struct Tooltip : public Entity, public Drawable<Tooltip> {
 	Tooltip() = default;
 
 	Tooltip(
-		Manager& manager, std::string_view content, const Color& text_color = color::Black,
+		Scene& scene, std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = ""
 	) :
-		Entity{ manager } {
-		auto& text = Add<Text>(CreateText(manager, content, text_color, font_key));
+		Entity{ scene } {
+		auto& text = Add<Text>(CreateText(scene, content, text_color, font_key));
 		text.SetParent(*this);
 		SetDraw<Tooltip>();
 	}
@@ -253,7 +253,7 @@ struct ActionComponent {
 
 	void ShowTooltip(Entity analyzer) {
 		tooltip =
-			Tooltip{ analyzer.GetManager(), "Hold 'E' to open analyzer", color::Black, "ui_font" };
+			Tooltip{ analyzer.GetScene(), "Hold 'E' to open analyzer", color::Black, "ui_font" };
 		// auto pos{ V2_int{ entity.Get<Tile>() } * tile_size };
 		tooltip.SetPosition({ 0, 0 });
 		tooltip.SetOrigin(Origin::TopLeft);
@@ -350,7 +350,7 @@ struct AnalyzerComponent {
 
 	V2_float analyzer_scale{ 1.5f, 1.5f };
 
-	AnalyzerComponent(Manager& manager) : analyzer{ CreateSprite(manager, "analyzer") } {
+	AnalyzerComponent(Scene& scene) : analyzer{ CreateSprite(scene, "analyzer") } {
 		analyzer.Hide();
 		analyzer.SetScale(analyzer_scale);
 	}
@@ -376,15 +376,15 @@ struct AnalyzerComponent {
 	void ShowInfo(Entity& entity, int selected_slot) {
 		const auto& flower{ entity.Get<FlowerComponent>() };
 		stat1 = CreateText(
-			entity.GetManager(), "Longevity: " + std::to_string(flower.longevity), color::Black,
+			entity.GetScene(), "Longevity: " + std::to_string(flower.longevity), color::Black,
 			"ui_font"
 		);
 		stat2 = CreateText(
-			entity.GetManager(), "Invasiveness: " + std::to_string(flower.invasiveness),
-			color::Black, "ui_font"
+			entity.GetScene(), "Invasiveness: " + std::to_string(flower.invasiveness), color::Black,
+			"ui_font"
 		);
 		stat3 = CreateText(
-			entity.GetManager(), "Spread Rate: " + std::to_string(flower.spread_rate), color::Black,
+			entity.GetScene(), "Spread Rate: " + std::to_string(flower.spread_rate), color::Black,
 			"ui_font"
 		);
 		stat1.Hide();
@@ -405,7 +405,7 @@ struct AnalyzerComponent {
 		stat1.SetPosition({ -15, -50 });
 		stat2.SetPosition({ -15, 0 });
 		stat3.SetPosition({ -15, 50 });
-		entry = CreateSprite(entity.GetManager(), entity.Get<TextureHandle>());
+		entry = CreateSprite(entity.GetScene(), entity.Get<TextureHandle>());
 		entry.SetScale(analyzer_scale);
 		entry.Hide();
 		entry.SetDepth(2);
@@ -491,7 +491,7 @@ public:
 	Entity CreateShed() {
 		auto house_size{ game.texture.GetSize("shed") };
 		auto house_pos = world_size / 2.0f + V2_float{ house_size.x, -house_size.y / 2.0f };
-		Sprite s{ CreateSprite(manager, "shed") };
+		Sprite s{ CreateSprite(*this, "shed") };
 		s.SetPosition(house_pos);
 		s.SetOrigin(Origin::TopLeft);
 		const auto& house_hitboxes{ game.json.Get("shed_data").at("hitboxes") };
@@ -507,7 +507,7 @@ public:
 	}
 
 	Entity CreateFlower(const V2_int& tile, const V2_int& position, const TextureHandle& key) {
-		Sprite s{ CreateSprite(manager, key) };
+		Sprite s{ CreateSprite(*this, key) };
 		s.SetPosition(position);
 		s.Add<Tile>(tile);
 		auto& flower{ s.Add<FlowerComponent>() };
@@ -518,10 +518,10 @@ public:
 	}
 
 	Entity CreateAnalyzer(const V2_int& tile, const V2_int& position) {
-		Entity s{ manager };
+		Entity s{ *this };
 		s.SetPosition(position);
 		s.Add<Tile>(tile);
-		s.Add<AnalyzerComponent>(manager);
+		s.Add<AnalyzerComponent>(*this);
 		return s;
 	}
 
@@ -534,7 +534,7 @@ public:
 		for (auto i = shed_tile_min.x; i < shed_tile_max.x; i++) {
 			for (auto j = shed_tile_min.y; j < shed_tile_max.y; j++) {
 				flowers.Get({ i, j }).Destroy();
-				flowers.Set({ i, j }, Entity{ manager });
+				flowers.Set({ i, j }, Entity{ *this });
 			}
 		}
 		V2_int analyzer_tile{ shed_tile_min + V2_int{ 3, 3 } };
@@ -547,13 +547,6 @@ public:
 	Text test;
 
 	void Enter() final {
-		// TODO: Figure out why the text is not in the top left as it should be.
-		camera.window.SetPosition({});
-		camera.window.SetZoom(camera_zoom);
-		test = CreateText(manager, "Hello World!", color::Black, {});
-		test.SetPosition({ 0, 0 });
-		test.SetOrigin(Origin::TopLeft);
-		test.Add<Camera>(camera.window_unzoomed);
 		// SetColliderVisibility(true);
 
 		fractal_noise.SetOctaves(2);
@@ -576,7 +569,7 @@ public:
 		});
 
 		TopDownPlayerConfig config;
-		player = CreateTopDownPlayer(manager, world_size / 2.0f, config);
+		player = CreateTopDownPlayer(*this, world_size / 2.0f, config);
 		shed   = CreateShed();
 
 		ClearFlowersUnderShed();
@@ -586,6 +579,14 @@ public:
 		camera.primary.SetBounds({ 0, 0 }, world_size);
 		physics.SetBounds({ 0, 0 }, world_size);
 
+		camera.window.SetZoom(camera_zoom);
+		camera.window.SetPosition({});
+		test = CreateText(*this, "Hello World!", color::Black, {});
+		test.SetPosition(world_size / 2.0f);
+		// test.SetPosition({});
+		test.SetOrigin(Origin::TopLeft);
+		// test.Add<Camera>(camera.window_unzoomed);
+
 		game.sound.SetVolume("wind", wind_volume);
 		game.sound.Play("wind", 0, -1);
 		game.sound.SetVolume("music", music_volume);
@@ -593,13 +594,13 @@ public:
 		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
 
-		ui = CreateRenderTarget(manager, window_size);
+		ui = CreateRenderTarget(*this, window_size);
 		auto& ui_camera{ ui.GetCamera() };
 		ui_camera.SetZoom(camera_zoom);
 		ui_camera.SetPosition(V2_float{});
 		auto inventory_origin{ Origin::CenterBottom };
 		auto inventory_position{ ui_camera.GetPosition(inventory_origin) };
-		inventory = Inventory{ manager, -inventory_position, inventory_origin, 8 };
+		inventory = Inventory{ *this, -inventory_position, inventory_origin, 8 };
 		ui.SetDepth(2);
 
 		player.Add<ActionComponent>(&inventory, &flowers, player);
@@ -627,7 +628,7 @@ public:
 		ui.AddEntity(inventory);
 
 		auto& action{ player.Get<ActionComponent>() };
-		for (auto [e, a] : manager.EntitiesWith<AnalyzerComponent>()) {
+		for (auto [e, a] : EntitiesWith<AnalyzerComponent>()) {
 			a.Update(action, e, inventory);
 			player.Get<TopDownMovement>().keys_enabled = !a.IsOpen();
 			if (a.IsOpen()) {
@@ -712,11 +713,11 @@ public:
 ActionComponent::ActionComponent(Inventory* inventory, Grid<Entity>* grid, Entity parent) :
 	inventory{ inventory }, grid{ grid } {
 	ground_selector = CreateAnimation(
-		parent.GetManager(), "ground_selector", milliseconds{ 1000 }, 2, { 15, 15 }, -1
+		parent.GetScene(), "ground_selector", milliseconds{ 1000 }, 2, { 15, 15 }, -1
 	);
 	ground_selector.Hide();
 	action_indicator =
-		CreateAnimation(parent.GetManager(), "pickup_anim", milliseconds{ 500 }, 6, { 15, 15 }, 1);
+		CreateAnimation(parent.GetScene(), "pickup_anim", milliseconds{ 500 }, 6, { 15, 15 }, 1);
 
 	action_indicator.SetParent(parent, true);
 
