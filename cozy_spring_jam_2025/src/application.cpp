@@ -544,7 +544,16 @@ public:
 		);
 	}
 
+	Text test;
+
 	void Enter() final {
+		// TODO: Figure out why the text is not in the top left as it should be.
+		camera.window.SetPosition({});
+		camera.window.SetZoom(camera_zoom);
+		test = CreateText(manager, "Hello World!", color::Black, {});
+		test.SetPosition({ 0, 0 });
+		test.SetOrigin(Origin::TopLeft);
+		test.Add<Camera>(camera.window_unzoomed);
 		// SetColliderVisibility(true);
 
 		fractal_noise.SetOctaves(2);
