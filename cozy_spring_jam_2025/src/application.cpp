@@ -70,28 +70,24 @@ struct InventoryComponent {
 struct Inventory : public Entity, public Drawable<Inventory> {
 	Inventory() = default;
 
-	Inventory(
-		Scene& scene, const V2_float& position, Origin origin, std::size_t slot_count,
-		int selected_slot = 0
-	) :
-		Entity{ scene } {
+	Inventory(Scene& scene, std::size_t slot_count, int selected_slot = 0) : Entity{ scene } {
 		SetDraw<Inventory>();
 		auto& i		= Add<InventoryComponent>();
 		i.inventory = CreateSprite(scene, "inventory");
 		i.inventory.SetParent(*this);
-		i.inventory.Hide();
-		i.inventory.SetOrigin(origin);
+		i.inventory.SetOrigin(Origin::CenterBottom);
+		auto pos{ scene.camera.window.GetPosition(Origin::CenterBottom) };
+		i.inventory.SetPosition(pos);
 
 		i.selector = CreateSprite(scene, "selector");
-		i.selector.Hide();
-		i.selector.SetParent(*this);
+		i.selector.SetParent(i.inventory);
 		i.selector.SetDepth(1);
 
 		i.slots.resize(slot_count);
 		PTGN_ASSERT(selected_slot >= 0);
 		i.selected_slot = selected_slot;
 
-		SetPosition(position);
+		Add<Camera>(scene.camera.window);
 
 		UpdateSelectorPosition();
 	}
@@ -101,7 +97,7 @@ struct Inventory : public Entity, public Drawable<Inventory> {
 		Sprite::Draw(ctx, i.inventory);
 		Sprite::Draw(ctx, i.selector);
 		for (const auto& item : i.slots) {
-			if (item != Entity{} && !item.Has<Hidden>()) {
+			if (item && !item.Has<Hidden>()) {
 				Sprite::Draw(ctx, item);
 			}
 		}
@@ -201,10 +197,10 @@ struct Inventory : public Entity, public Drawable<Inventory> {
 		auto& inv = Get<InventoryComponent>();
 		PTGN_ASSERT(slot >= 0 && static_cast<std::size_t>(slot) < inv.slots.size());
 		PTGN_ASSERT(!IsSlotTaken(slot));
-		entity.SetParent(*this);
+		entity.SetParent(inv.inventory);
 		entity.SetPosition(GetSlotPosition(slot));
 		entity.SetOrigin(Origin::Center);
-		entity.Hide();
+		entity.SetDepth(2);
 		inv.slots[static_cast<std::size_t>(slot)] = std::move(entity);
 	}
 
@@ -233,7 +229,8 @@ struct Tooltip : public Entity, public Drawable<Tooltip> {
 		auto size  = text.GetSize(text);
 		ctx.AddQuad(
 			text.GetAbsoluteTransform().position, size, Origin::Center, -1, text.GetDepth(),
-			text.GetOrDefault<Camera>(), text.GetBlendMode(), color::White.Normalized(), 0.0f, false
+			text.GetOrParentOrDefault<Camera>(), text.GetBlendMode(), color::White.Normalized(),
+			0.0f, false
 		);
 		Text::Draw(ctx, text);
 	}
@@ -348,19 +345,22 @@ struct AnalyzerComponent {
 	Text stat2;
 	Text stat3;
 
-	V2_float analyzer_scale{ 1.5f, 1.5f };
+	V2_float analyzer_scale{ 1.0f, 1.0f };
 
 	AnalyzerComponent(Scene& scene) : analyzer{ CreateSprite(scene, "analyzer") } {
-		analyzer.Hide();
 		analyzer.SetScale(analyzer_scale);
+		analyzer.SetPosition(scene.camera.window.GetPosition());
+		analyzer.Add<Camera>(scene.camera.window);
+		analyzer.Hide();
+		analyzer.SetDepth(3);
 	}
 
 	void Open(Inventory& inv) {
-		open = true;
+		analyzer.Show();
 	}
 
 	void Close(Inventory& inv) {
-		open	= false;
+		analyzer.Hide();
 		auto& i = inv.Get<InventoryComponent>();
 		for (auto& e : i.slots) {
 			e.Remove<Hidden>();
@@ -387,9 +387,9 @@ struct AnalyzerComponent {
 			entity.GetScene(), "Spread Rate: " + std::to_string(flower.spread_rate), color::Black,
 			"ui_font"
 		);
-		stat1.Hide();
-		stat2.Hide();
-		stat3.Hide();
+		stat1.SetParent(analyzer);
+		stat2.SetParent(analyzer);
+		stat3.SetParent(analyzer);
 		stat1.SetFontSize(30);
 		stat2.SetFontSize(30);
 		stat3.SetFontSize(30);
@@ -399,18 +399,18 @@ struct AnalyzerComponent {
 		stat1.SetTextJustify(TextJustify::Left);
 		stat2.SetTextJustify(TextJustify::Left);
 		stat3.SetTextJustify(TextJustify::Left);
-		stat1.SetDepth(2);
-		stat2.SetDepth(2);
-		stat3.SetDepth(2);
+		stat1.SetDepth(4);
+		stat2.SetDepth(4);
+		stat3.SetDepth(4);
 		stat1.SetPosition({ -15, -50 });
 		stat2.SetPosition({ -15, 0 });
 		stat3.SetPosition({ -15, 50 });
 		entry = CreateSprite(entity.GetScene(), entity.Get<TextureHandle>());
+		entry.Add<Camera>(entity.GetScene().camera.window);
 		entry.SetScale(analyzer_scale);
-		entry.Hide();
 		entry.SetDepth(2);
 		entry.Add<EntrySlot>(selected_slot);
-		entry.SetPosition({ -43, -12 });
+		entry.SetPosition({ 30, 30 });
 	}
 
 	void HideInfo(Inventory& inventory, int selected_slot) {
@@ -476,7 +476,6 @@ public:
 
 	Entity player;
 	Inventory inventory;
-	RenderTarget ui;
 	Entity shed;
 
 	Entity CreateWall(const V2_float& pos, const V2_float& size, Origin origin) {
@@ -547,6 +546,11 @@ public:
 	Text test;
 
 	void Enter() final {
+		camera.primary.SetZoom(camera_zoom);
+		camera.window.SetZoom(camera_zoom);
+		camera.window.SetPosition(window_size / 2.0f / camera_zoom);
+		camera.primary.SetBounds({ 0, 0 }, world_size);
+		physics.SetBounds({ 0, 0 }, world_size);
 		// SetColliderVisibility(true);
 
 		fractal_noise.SetOctaves(2);
@@ -570,19 +574,13 @@ public:
 
 		TopDownPlayerConfig config;
 		player = CreateTopDownPlayer(*this, world_size / 2.0f, config);
-		shed   = CreateShed();
+		camera.primary.StartFollow(player);
+		shed = CreateShed();
 
 		ClearFlowersUnderShed();
 
-		camera.primary.SetZoom(camera_zoom);
-		camera.primary.StartFollow(player);
-		camera.primary.SetBounds({ 0, 0 }, world_size);
-		physics.SetBounds({ 0, 0 }, world_size);
-
-		camera.window.SetZoom(camera_zoom);
-		camera.window.SetPosition({});
 		test = CreateText(*this, "Hello World!", color::Black, {});
-		test.SetPosition(world_size / 2.0f);
+		test.SetPosition({});
 		// test.SetPosition({});
 		test.SetOrigin(Origin::TopLeft);
 		// test.Add<Camera>(camera.window_unzoomed);
@@ -594,14 +592,7 @@ public:
 		game.sound.SetVolume("walk", walk_volume);
 		game.sound.SetVolume("repair", repair_volume);
 
-		ui = CreateRenderTarget(*this, window_size);
-		auto& ui_camera{ ui.GetCamera() };
-		ui_camera.SetZoom(camera_zoom);
-		ui_camera.SetPosition(V2_float{});
-		auto inventory_origin{ Origin::CenterBottom };
-		auto inventory_position{ ui_camera.GetPosition(inventory_origin) };
-		inventory = Inventory{ *this, -inventory_position, inventory_origin, 8 };
-		ui.SetDepth(2);
+		inventory = Inventory{ *this, 8 };
 
 		player.Add<ActionComponent>(&inventory, &flowers, player);
 	}
@@ -623,40 +614,15 @@ public:
 			inventory.IncrementSlot(-1);
 		}
 
-		ui.ClearEntities();
-
-		ui.AddEntity(inventory);
-
 		auto& action{ player.Get<ActionComponent>() };
 		for (auto [e, a] : EntitiesWith<AnalyzerComponent>()) {
 			a.Update(action, e, inventory);
-			player.Get<TopDownMovement>().keys_enabled = !a.IsOpen();
-			if (a.IsOpen()) {
-				a.analyzer.SetPosition(ui.GetCamera().GetPosition());
-				ui.AddEntity(a.analyzer);
-				if (a.entry) {
-					ui.AddEntity(a.entry);
-				}
-				if (a.stat1) {
-					ui.AddEntity(a.stat1);
-				}
-				if (a.stat2) {
-					ui.AddEntity(a.stat2);
-				}
-				if (a.stat3) {
-					ui.AddEntity(a.stat3);
-				}
-			}
 		}
 
 		auto player_pos{ player.GetAbsoluteTransform().position };
 		V2_int player_tile{ player_pos / tile_size };
 
 		action.Update(player);
-
-		if (action.tooltip) {
-			ui.AddEntity(action.tooltip);
-		}
 
 		/*flowers.ForEachCoordinate([=](auto tile) {
 			DrawDebugRect(tile * tile_size, tile_size, color::Black, Origin::TopLeft, 1.0f);
