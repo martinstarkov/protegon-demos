@@ -1,40 +1,42 @@
 #include <algorithm>
-#include <cmath>
+#include <array>
+#include <cstdint>
 #include <functional>
-#include <iostream>
+#include <iterator>
+#include <list>
+#include <map>
 #include <memory>
-#include <random>
-#include <set>
+#include <new>
+#include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
-#include "audio/audio.h"
+#include "common/assert.h"
 #include "components/common.h"
-#include "components/draw.h"
-#include "components/generic.h"
-#include "components/input.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/resource_manager.h"
-#include "core/time.h"
-#include "math/noise.h"
+#include "debug/log.h"
 #include "math/rng.h"
 #include "math/vector2.h"
-#include "physics/collision/collider.h"
-#include "physics/rigid_body.h"
-#include "player/player_controller.h"
-#include "protegon/protegon.h"
+#include "math/vector4.h"
+#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
-#include "rendering/api/origin.h"
+#include "rendering/batching/vertex.h"
+#include "rendering/buffers/buffer.h"
+#include "rendering/buffers/buffer_layout.h"
+#include "rendering/buffers/frame_buffer.h"
+#include "rendering/buffers/vertex_array.h"
+#include "rendering/gl/gl_renderer.h"
+#include "rendering/gl/gl_types.h"
+#include "rendering/resources/shader.h"
+#include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "tile/grid.h"
-#include "tweening/tween.h"
-#include "ui/button.h"
 
 using namespace ptgn;
 
@@ -266,8 +268,8 @@ struct QuadTreeScene : public Scene {
 	Entity player;
 	V2_float playerSize{ 20, 20 };
 
-	RNG<float> positionRNGX{ 0.0f, window_size.x };
-	RNG<float> positionRNGY{ 0.0f, window_size.y };
+	RNG<float> positionRNGX{ 0.0f, (float)window_size.x };
+	RNG<float> positionRNGY{ 0.0f, (float)window_size.y };
 	RNG<float> sizeRNG{ 5.0f, 30.0f };
 
 	AABB computePlayerAABBFromPosition(Entity p) {
@@ -302,30 +304,385 @@ struct QuadTreeScene : public Scene {
 			if (e != player &&
 				std::find(candidates.begin(), candidates.end(), e) != candidates.end() &&
 				Overlaps(player.Get<AABB>(), aabb)) {
-				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
+				// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
 			} else {
-				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
+				// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
 			}
 #else
 			if (e == player) {
 				continue;
 			} else if (Overlaps(player.Get<AABB>(), aabb)) {
-				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
+				// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
 			} else {
-				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
+				// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
 			}
 #endif
 			// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
 		}
 
-		DrawDebugRect(player.GetPosition(), playerSize, color::Purple);
+		// DrawDebugRect(player.GetPosition(), playerSize, color::Purple);
 	}
 };
 
-struct RenderQueueScene : public Scene {
-	void Enter() {}
+namespace ptgn {
 
-	void Update() {}
+namespace impl {
+
+class RenderQueue;
+
+class RenderCommand {
+public:
+	virtual ~RenderCommand()				 = default;
+	virtual void Execute(RenderQueue& queue) = 0;
+};
+
+class FlushCall : public RenderCommand {
+public:
+	void Execute(RenderQueue& queue) final;
+};
+
+class BlendModeBind : public RenderCommand {
+public:
+	BlendModeBind() = delete;
+
+	BlendModeBind(BlendMode blend_mode) : blend_mode_{ blend_mode } {}
+
+	void Execute(RenderQueue& queue) final {
+		GLRenderer::SetBlendMode(blend_mode_);
+	}
+
+private:
+	BlendMode blend_mode_{ BlendMode::None };
+};
+
+class ViewportBind : public RenderCommand {
+public:
+	ViewportBind() = delete;
+
+	ViewportBind(const V2_float& position, const V2_float& size) :
+		position_{ position }, size_{ size } {}
+
+	void Execute(RenderQueue& queue) final {
+		GLRenderer::SetViewport(position_, size_);
+	}
+
+private:
+	V2_float position_;
+	V2_float size_;
+};
+
+class ShaderBind : public RenderCommand {
+public:
+	ShaderBind() = delete;
+
+	ShaderBind(const Shader* shader) : shader_{ shader } {}
+
+	void Execute(RenderQueue& queue) final {
+		PTGN_ASSERT(shader_ != nullptr);
+		shader_->Bind();
+	}
+
+private:
+	const Shader* shader_{ nullptr };
+};
+
+class UniformBind : public RenderCommand {
+public:
+	UniformBind() = delete;
+
+	UniformBind(const Shader* shader, const std::function<void(const Shader&)>& callback) :
+		shader_{ shader }, callback_{ callback } {}
+
+	void Execute(RenderQueue& queue) final {
+		PTGN_ASSERT(shader_ != nullptr);
+		PTGN_ASSERT(callback_ != nullptr);
+		shader_->Bind();
+		std::invoke(callback_, *shader_);
+	}
+
+private:
+	const Shader* shader_{ nullptr };
+	std::function<void(const Shader&)> callback_;
+};
+
+using Index = std::uint32_t;
+
+struct Batch {
+	std::vector<Vertex> vertices;
+	std::vector<Index> indices;
+
+	Index index_offset{ 0 };
+};
+
+struct Batches {
+	std::vector<Batch> batches;
+};
+
+constexpr std::array<V2_float, 4> default_texture_coordinates{
+	V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
+};
+
+constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
+	quad_vertex_layout;
+
+constexpr std::size_t batch_capacity{ 4000 };
+constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
+constexpr std::size_t index_capacity{ batch_capacity * 6 };
+
+class RenderState {
+public:
+	explicit RenderState(RenderQueue& queue) : queue{ queue } {}
+
+	void Flush() {
+		for (auto& command : commands) {
+			PTGN_ASSERT(command != nullptr);
+			command->Execute(queue);
+		}
+	}
+
+	Shader* shader{ nullptr };
+	Camera camera;
+	BlendMode blend_mode{ BlendMode::None };
+	FrameBuffer* frame_buffer{ nullptr };
+	std::vector<std::uint32_t> textures;
+
+	RenderQueue& queue;
+
+	std::vector<std::unique_ptr<RenderCommand>> commands;
+};
+
+class RenderQueue {
+public:
+	void Init() {
+		max_texture_slots = GLRenderer::GetMaxTextureSlots();
+
+		const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
+
+		PTGN_ASSERT(quad_shader.IsValid());
+		PTGN_ASSERT(game.shader.Get<ShapeShader::Circle>().IsValid());
+		PTGN_ASSERT(game.shader.Get<ScreenShader::Default>().IsValid());
+		PTGN_ASSERT(game.shader.Get<OtherShader::Light>().IsValid());
+
+		std::vector<std::int32_t> samplers(max_texture_slots);
+		std::iota(samplers.begin(), samplers.end(), 0);
+
+		quad_shader.Bind();
+		quad_shader.SetUniform(
+			"u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
+		);
+
+		IndexBuffer quad_ib{ nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)),
+							 BufferUsage::DynamicDraw };
+		VertexBuffer quad_vb{ nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)),
+							  BufferUsage::DynamicDraw };
+
+		triangle_vao = VertexArray(
+			PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
+		);
+
+		white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
+
+#ifdef PTGN_PLATFORM_MACOS
+		// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+		// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+		// texture because texture unloadable."
+		for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+			Texture::Bind(white_texture.GetId(), slot);
+		}
+#endif
+	}
+
+	void BindShader(const Shader* shader) {
+		// TODO: Check state.
+		/*if (render_states.empty()) {
+			render_states.emplace_back(*this);
+		}
+		auto render_state{ &render_states.back() };
+		if (render_state->shader == nullptr) {
+			render_state->shader
+		}*/
+
+		PTGN_ASSERT(shader != nullptr);
+		// TODO: Check if shader is bound, if it is, return early.
+		commands.emplace_back(std::make_unique<ShaderBind>(shader));
+	}
+
+	void SetUniform(
+		const Shader* shader, const std::function<void(const Shader& shader)>& callback
+	) {
+		PTGN_ASSERT(shader != nullptr);
+		commands.emplace_back(std::make_unique<UniformBind>(shader, callback));
+	}
+
+	void SetBlendMode(BlendMode blend_mode) {
+		// TODO: Check if blend_mode is bound, if it is, return early.
+		commands.emplace_back(std::make_unique<BlendModeBind>(blend_mode));
+	}
+
+	void SetViewport(const V2_float& position, const V2_float& size) {
+		// TODO: Check if viewport is bound, if it is, return early.
+		commands.emplace_back(std::make_unique<ViewportBind>(position, size));
+	}
+
+	void Draw() {
+		commands.emplace_back(std::make_unique<FlushCall>());
+	}
+
+	// TODO: Add texture bind.
+	// TODO: Add frame buffer bind.
+	// TODO: Add frame buffer clear.
+
+	template <typename T>
+	void AddVertices(const T& vertices) {
+		PTGN_ASSERT(vertices.size() >= 1);
+
+		Depth depth{ static_cast<std::int32_t>(vertices[0].position[2]) };
+
+		auto [it, _] = depths.try_emplace(depth);
+
+		auto& batches{ it->second.batches };
+
+		if (batches.empty()) {
+			batches.emplace_back();
+		}
+
+		Batch* batch{ &batches.back() };
+
+		if (batch->vertices.size() + vertices.size() > vertex_capacity) {
+			batch = &batches.emplace_back();
+		}
+
+		std::copy(vertices.begin(), vertices.end(), std::back_inserter(batch->vertices));
+
+		if constexpr (std::is_same_v<T, std::array<Vertex, 3>>) {
+			batch->indices.push_back(batch->index_offset + 0);
+			batch->indices.push_back(batch->index_offset + 1);
+			batch->indices.push_back(batch->index_offset + 2);
+			batch->index_offset += 3;
+		} else if constexpr (std::is_same_v<T, std::array<Vertex, 4>>) {
+			batch->indices.push_back(batch->index_offset + 0);
+			batch->indices.push_back(batch->index_offset + 1);
+			batch->indices.push_back(batch->index_offset + 2);
+			batch->indices.push_back(batch->index_offset + 2);
+			batch->indices.push_back(batch->index_offset + 3);
+			batch->indices.push_back(batch->index_offset + 0);
+			batch->index_offset += 4;
+		} else {
+			static_assert(false, "Should not be here");
+			PTGN_ERROR("Error type");
+		}
+	}
+
+	Batch& GetBatch(const Depth& depth, std::size_t batch_index) {
+		auto it{ depths.find(depth) };
+		PTGN_ASSERT(it != depths.end());
+		auto& batches{ it->second.batches };
+		PTGN_ASSERT(batch_index < batches.size());
+		return batches[batch_index];
+	}
+
+	void Clear() {
+		depths.clear();
+		render_states.clear();
+	}
+
+	void Flush() {
+		for (auto& state : render_states) {
+			state.Flush();
+		}
+	}
+
+	std::size_t max_texture_slots{ 0 };
+	Texture white_texture;
+	VertexArray triangle_vao;
+
+	std::map<Depth, Batches> depths;
+
+	std::vector<RenderState> render_states;
+};
+
+void FlushCall::Execute(RenderQueue& queue) {
+	for (auto& [depth, batches] : queue.depths) {
+		for (auto& batch : batches.batches) {
+			queue.triangle_vao.Bind();
+
+			queue.triangle_vao.GetVertexBuffer().SetSubData(
+				batch.vertices.data(), 0, static_cast<std::uint32_t>(batch.vertices.size()),
+				sizeof(Vertex), false
+			);
+
+			queue.triangle_vao.GetIndexBuffer().SetSubData(
+				batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()),
+				sizeof(Index), false
+			);
+
+			GLRenderer::DrawElements(queue.triangle_vao, batch.indices.size(), false);
+		}
+	}
+}
+
+[[nodiscard]] static std::array<Vertex, 4> GetQuadVertices(
+	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth
+) {
+	std::array<Vertex, 4> vertices{};
+
+	V4_float c{ color.Normalized() };
+
+	PTGN_ASSERT(vertices.size() == default_texture_coordinates.size());
+
+	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
+		vertices[i].position  = { quad_points[i].x, quad_points[i].y, static_cast<float>(depth) };
+		vertices[i].color	  = { c.x, c.y, c.z, c.w };
+		vertices[i].tex_coord = { default_texture_coordinates[i].x,
+								  default_texture_coordinates[i].y };
+		vertices[i].tex_index = { 0.0f };
+	}
+
+	return vertices;
+}
+
+} // namespace impl
+
+} // namespace ptgn
+
+struct RenderQueueScene : public Scene {
+	std::array<V2_float, 4> points{ V2_float{ 50.0f, 50.0f }, V2_float{ 200.0f, 50.0f },
+									V2_float{ 200.0f, 200.0f }, V2_float{ 50.0f, 200.0f } };
+
+	std::array<impl::Vertex, 4> vertices;
+
+	impl::RenderQueue queue;
+
+	void Enter() {
+		vertices = impl::GetQuadVertices(points, color::Red, Depth{ 1 });
+
+		queue.Init();
+
+		queue.Clear();
+
+		queue.SetViewport({}, window_size);
+		queue.SetBlendMode(BlendMode::Blend);
+		queue.SetUniform(
+			&game.shader.Get<ShapeShader::Quad>(), [cam = camera.primary](const Shader& shader
+												   ) { shader.SetUniform("u_ViewProjection", cam); }
+		);
+
+		queue.Flush();
+	}
+
+	void Render() {
+		queue.Clear();
+
+		queue.white_texture.Bind(0);
+
+		queue.BindShader(&game.shader.Get<ShapeShader::Quad>());
+		queue.AddVertices(vertices);
+		// TODO: Current approach requires order of data addition to be in depth order. i.e.
+		// furthest objects from camera first.
+		queue.Draw();
+
+		queue.Flush();
+	}
 };
 
 /*
