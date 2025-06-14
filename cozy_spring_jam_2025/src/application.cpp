@@ -32,6 +32,7 @@
 #include "rendering/buffers/vertex_array.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
+#include "rendering/resources/render_target.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
@@ -431,24 +432,35 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
 class RenderState {
 public:
-	explicit RenderState(RenderQueue& queue) : queue{ queue } {}
+	RenderState() = default;
 
-	void Flush() {
-		for (auto& command : commands) {
-			PTGN_ASSERT(command != nullptr);
-			command->Execute(queue);
-		}
+	RenderState(
+		const RenderTarget& render_target, const Shader* shader, BlendMode blend_mode,
+		const Camera& camera, const std::function<void(const Shader& shader)>& uniform_callback = {}
+	) :
+		render_target_{ render_target },
+		shader_{ shader },
+		blend_mode_{ blend_mode },
+		camera_{ camera },
+		uniform_callback_{ uniform_callback } {}
+
+	friend bool operator==(const RenderState& a, const RenderState& b) {
+		return a.shader_ == b.shader_ && a.camera_ == b.camera_ &&
+			   a.render_target_ == b.render_target_ && a.blend_mode_ == b.blend_mode_ &&
+			   a.view_projection_dirty_ == b.view_projection_dirty_;
 	}
 
-	Shader* shader{ nullptr };
-	Camera camera;
-	BlendMode blend_mode{ BlendMode::None };
-	FrameBuffer* frame_buffer{ nullptr };
-	std::vector<std::uint32_t> textures;
+	friend bool operator!=(const RenderState& a, const RenderState& b) {
+		return !(a == b);
+	}
 
-	RenderQueue& queue;
-
-	std::vector<std::unique_ptr<RenderCommand>> commands;
+private:
+	RenderTarget render_target_;
+	const Shader* shader_{ nullptr };
+	BlendMode blend_mode_{ BlendMode::None };
+	Camera camera_;
+	std::function<void(const Shader& shader)> uniform_callback_;
+	bool view_projection_dirty_{ true };
 };
 
 class RenderQueue {
@@ -493,18 +505,19 @@ public:
 	}
 
 	void BindShader(const Shader* shader) {
-		// TODO: Check state.
-		/*if (render_states.empty()) {
-			render_states.emplace_back(*this);
+		PTGN_ASSERT(shader != nullptr);
+		if (render_states.empty()) {
+			auto& state	 = render_states.emplace_back(*this);
+			state.shader = shader;
 		}
 		auto render_state{ &render_states.back() };
-		if (render_state->shader == nullptr) {
-			render_state->shader
-		}*/
-
-		PTGN_ASSERT(shader != nullptr);
-		// TODO: Check if shader is bound, if it is, return early.
-		commands.emplace_back(std::make_unique<ShaderBind>(shader));
+		if (render_state->shader != shader) {
+			auto& state	 = render_states.emplace_back(*this);
+			state.shader = shader;
+		}
+		render_state = &render_states.back();
+		PTGN_ASSERT(render_state->shader == shader);
+		render_state->commands.emplace_back(std::make_unique<ShaderBind>(shader));
 	}
 
 	void SetUniform(
