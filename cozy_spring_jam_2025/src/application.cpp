@@ -415,7 +415,14 @@ Things that trigger Batch flush:
 Frame Buffer / Render Target Bind
 Shader Bind
 Blend Mode Change
-Camera Change.
+Uniform Change
+Viewport Change
+Camera Change -> Uniform Change
+view_projection_dirty
+shader_dirty (uniform has changed so flush previous batch)
+
+TODO: Think of what a typical Quad batch looks like, then consider what happens when a Circle batch
+is added. Then consider what happens if a custom render target shader is used such as with lighting.
 
 Hmm: ?
 
