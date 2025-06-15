@@ -408,6 +408,30 @@ private:
 
 using Index = std::uint32_t;
 
+template <bool have_render_targets = false>
+void SortEntities(std::vector<Entity>& entities) {
+	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
+		auto depthA{ a.GetDepth() };
+		auto depthB{ b.GetDepth() };
+
+		if constexpr (!have_render_targets) {
+			return depthA < depthB;
+		}
+
+		if (depthA != depthB) {
+			return depthA < depthB; // Smaller depth first
+		}
+
+		PTGN_ASSERT(a.Has<RenderTarget>());
+		PTGN_ASSERT(b.Has<RenderTarget>());
+
+		// If depths are equal, compare framebuffer IDs
+		auto idA{ a.Get<RenderTarget>().GetFrameBuffer().GetId() };
+		auto idB{ b.Get<RenderTarget>().GetFrameBuffer().GetId() };
+		return idA < idB;
+	});
+}
+
 /*
 
 Things that trigger Batch flush:
@@ -423,6 +447,56 @@ shader_dirty (uniform has changed so flush previous batch)
 
 TODO: Think of what a typical Quad batch looks like, then consider what happens when a Circle batch
 is added. Then consider what happens if a custom render target shader is used such as with lighting.
+
+white_texture.Bind();
+frame_buffer.Bind();
+
+if (bound_shader != quad_shader) {
+	Flush();
+}
+if (bound_blend_mode != blend_mode) {
+	Flush();
+}
+if (vertices.size() + X > vertex_capacity) {
+	Flush();
+}
+if (indices.size() + Y > index_capacity) {
+	Flush();
+}
+if (active_camera != camera) {
+	
+}
+ctx.DrawQuad();
+ctx.DrawQuad();
+ctx.DrawQuad();
+ctx.DrawQuad();
+ctx.DrawQuad();
+ctx.DrawCircle();
+ctx.DrawCircle();
+ctx.DrawCircle();
+ctx.DrawLight();
+ctx.DrawLight();
+ctx.DrawLight();
+
+
+// If entity has a blend mode:
+SetBlendMode(GetBlendMode());
+
+// If entity is a specific type.
+quad_shader.Bind();
+
+// If entity has a new camera.
+if (camera_dirty) {
+	quad_shader.Bind();
+	quad_shader.SetUniform("u_ViewProjection", camera);
+	SetViewport(camera.GetViewport());
+}
+
+// Flush
+BindTextures();
+VAO.Bind();
+VAO.SetSubData(vertices, indices);
+GLDraw(VAO);
 
 Hmm: ?
 
