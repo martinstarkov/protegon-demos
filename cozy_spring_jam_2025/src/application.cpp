@@ -451,21 +451,21 @@ is added. Then consider what happens if a custom render target shader is used su
 white_texture.Bind();
 frame_buffer.Bind();
 
-if (bound_shader != quad_shader) {
+auto new_vertex_count{ vertices.size() + X };
+auto new_index_count{ indices.size() + Y };
+auto new_texture_count{ textures.size() + Z };
+auto chosen_camera{ camera ? camera : fallback_camera -> scene camera or render target camera };
+
+if (bound_shader != quad_shader || active_camera != chosen_camera || new_texture_count > texture_capacity || bound_blend_mode != blend_mode || new_vertex_count > vertex_capacity || new_index_count > index_capacity) {
 	Flush();
+	bound_shader = quad_shader;
+	bound_blend_mode = blend_mode;
+	active_camera = chosen_camera;
 }
-if (bound_blend_mode != blend_mode) {
-	Flush();
-}
-if (vertices.size() + X > vertex_capacity) {
-	Flush();
-}
-if (indices.size() + Y > index_capacity) {
-	Flush();
-}
-if (active_camera != camera) {
-	
-}
+vertices.Add(X);
+indices.Add(Y);
+textures.Add(Z);
+
 ctx.DrawQuad();
 ctx.DrawQuad();
 ctx.DrawQuad();
