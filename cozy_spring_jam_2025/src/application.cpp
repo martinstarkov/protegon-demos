@@ -408,6 +408,28 @@ private:
 
 using Index = std::uint32_t;
 
+/*
+
+Things that trigger Batch flush:
+
+Frame Buffer / Render Target Bind
+Shader Bind
+Blend Mode Change
+Camera Change.
+
+Hmm: ?
+
+Frame Buffer / Render Target Clear.
+Shader Uniform Set.
+
+const Shader* shader_{ nullptr };
+BlendMode blend_mode_{ BlendMode::None };
+Camera camera_;
+std::function<void(const Shader& shader)> uniform_callback_;
+bool view_projection_dirty_{ true };
+
+*/
+
 struct Batch {
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
