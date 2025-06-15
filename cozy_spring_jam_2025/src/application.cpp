@@ -329,17 +329,17 @@ namespace ptgn {
 
 namespace impl {
 
-class RenderQueue;
+class RenderDataThing;
 
 class RenderCommand {
 public:
-	virtual ~RenderCommand()				 = default;
-	virtual void Execute(RenderQueue& queue) = 0;
+	virtual ~RenderCommand()					 = default;
+	virtual void Execute(RenderDataThing& queue) = 0;
 };
 
 class FlushCall : public RenderCommand {
 public:
-	void Execute(RenderQueue& queue) final;
+	void Execute(RenderDataThing& queue) final;
 };
 
 class BlendModeBind : public RenderCommand {
@@ -348,7 +348,7 @@ public:
 
 	BlendModeBind(BlendMode blend_mode) : blend_mode_{ blend_mode } {}
 
-	void Execute(RenderQueue& queue) final {
+	void Execute(RenderDataThing& queue) final {
 		GLRenderer::SetBlendMode(blend_mode_);
 	}
 
@@ -363,7 +363,7 @@ public:
 	ViewportBind(const V2_float& position, const V2_float& size) :
 		position_{ position }, size_{ size } {}
 
-	void Execute(RenderQueue& queue) final {
+	void Execute(RenderDataThing& queue) final {
 		GLRenderer::SetViewport(position_, size_);
 	}
 
@@ -378,7 +378,7 @@ public:
 
 	ShaderBind(const Shader* shader) : shader_{ shader } {}
 
-	void Execute(RenderQueue& queue) final {
+	void Execute(RenderDataThing& queue) final {
 		PTGN_ASSERT(shader_ != nullptr);
 		shader_->Bind();
 	}
@@ -394,7 +394,7 @@ public:
 	UniformBind(const Shader* shader, const std::function<void(const Shader&)>& callback) :
 		shader_{ shader }, callback_{ callback } {}
 
-	void Execute(RenderQueue& queue) final {
+	void Execute(RenderDataThing& queue) final {
 		PTGN_ASSERT(shader_ != nullptr);
 		PTGN_ASSERT(callback_ != nullptr);
 		shader_->Bind();
@@ -411,7 +411,7 @@ using Index = std::uint32_t;
 struct Batch {
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
-
+	std::vector<TextureId> textures;
 	Index index_offset{ 0 };
 };
 
@@ -429,6 +429,10 @@ constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::fl
 constexpr std::size_t batch_capacity{ 4000 };
 constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
 constexpr std::size_t index_capacity{ batch_capacity * 6 };
+
+class RenderQueue {
+public:
+};
 
 class RenderState {
 public:
@@ -463,7 +467,7 @@ private:
 	bool view_projection_dirty_{ true };
 };
 
-class RenderQueue {
+class RenderDataThing {
 public:
 	void Init() {
 		max_texture_slots = GLRenderer::GetMaxTextureSlots();
@@ -614,7 +618,7 @@ public:
 	std::vector<RenderState> render_states;
 };
 
-void FlushCall::Execute(RenderQueue& queue) {
+void FlushCall::Execute(RenderDataThing& queue) {
 	for (auto& [depth, batches] : queue.depths) {
 		for (auto& batch : batches.batches) {
 			queue.triangle_vao.Bind();
@@ -658,13 +662,13 @@ void FlushCall::Execute(RenderQueue& queue) {
 
 } // namespace ptgn
 
-struct RenderQueueScene : public Scene {
+struct RenderDataThingScene : public Scene {
 	std::array<V2_float, 4> points{ V2_float{ 50.0f, 50.0f }, V2_float{ 200.0f, 50.0f },
 									V2_float{ 200.0f, 200.0f }, V2_float{ 50.0f, 200.0f } };
 
 	std::array<impl::Vertex, 4> vertices;
 
-	impl::RenderQueue queue;
+	impl::RenderDataThing queue;
 
 	void Enter() {
 		vertices = impl::GetQuadVertices(points, color::Red, Depth{ 1 });
@@ -1178,6 +1182,6 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Test Jam", window_size);
-	game.scene.Enter<RenderQueueScene>("game");
+	game.scene.Enter<RenderDataThingScene>("game");
 	return 0;
 }
