@@ -456,11 +456,10 @@ auto new_index_count{ indices.size() + Y };
 auto new_texture_count{ textures.size() + Z };
 auto chosen_camera{ camera ? camera : fallback_camera -> scene camera or render target camera };
 
-if (bound_shader != quad_shader || active_camera != chosen_camera || new_texture_count > texture_capacity || bound_blend_mode != blend_mode || new_vertex_count > vertex_capacity || new_index_count > index_capacity) {
-	Flush();
-	bound_shader = quad_shader;
-	bound_blend_mode = blend_mode;
-	active_camera = chosen_camera;
+if (bound_shader != quad_shader || bound_camera != chosen_camera || new_texture_count >
+texture_capacity || bound_blend_mode != blend_mode || new_vertex_count > vertex_capacity ||
+new_index_count > index_capacity) { Flush(); bound_shader = quad_shader; bound_blend_mode =
+blend_mode; bound_camera = chosen_camera;
 }
 vertices.Add(X);
 indices.Add(Y);
@@ -492,6 +491,61 @@ if (camera_dirty) {
 	SetViewport(camera.GetViewport());
 }
 
+
+
+DrawCustomShader(first = [](){
+	shader.SetUniform(u_Texture, 1);
+	shader.SetUniform(u_Resolution);
+}, every = [](){
+	shader.SetUniform(light.GetRadius());
+	shader.SetUniform(light.GetOtherThing());
+});
+
+Flush(flush_to_target) {
+if (render_target != {}) {
+	flush_to_target.Bind();
+	SetBlendMode();
+	quad_shader.Bind();
+	quad_shader.SetUniform(render_target.GetCamera());
+	SetViewport(render_target.GetCamera());
+	render_target.GetTexture().Bind(1);
+	draw();
+	return;
+}
+flush_to_target.Bind();
+set blend mode
+set shader
+set uniforms (camera);
+set viewport
+set textures
+set vbos
+draw();
+}
+
+DrawCustomShader(first, every) {
+
+if (not shader) {
+	Flush();
+	Bind And Set(render_target); // Clear all render targets at the start of render cycle.
+	shader.Bind();
+	first();
+	render_target.Bind(1);
+	VAO.BindAndSetData(window);
+}
+
+every();
+draw();
+
+}
+
+
+
+
+
+
+
+
+
 // Flush
 BindTextures();
 VAO.Bind();
@@ -516,10 +570,6 @@ struct Batch {
 	std::vector<Index> indices;
 	std::vector<TextureId> textures;
 	Index index_offset{ 0 };
-};
-
-struct Batches {
-	std::vector<Batch> batches;
 };
 
 constexpr std::array<V2_float, 4> default_texture_coordinates{
