@@ -17,22 +17,33 @@ constexpr V2_int resolution{ 1280, 720 };
 constexpr Color window_color{ color::Transparent };
 constexpr const char* window_title{ "You Are God" };
 
+struct DiskIndex : public ArithmeticComponent<int> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
+struct DroppedEntities {
+	std::unordered_set<Entity> entities;
+};
+
 struct DiskDragScript : public Script<DiskDragScript> {
 	void OnDrag(V2_float mouse) override {
 		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
 	virtual void OnPickup([[maybe_unused]] Entity dropzone) {
-		PTGN_LOG("Pickup");
+		dropzone.Add<DiskIndex>(-1);
+		PTGN_LOG("Setting dropzone ", dropzone.GetPosition(), " to -1");
 	}
 
 	virtual void OnDrop([[maybe_unused]] Entity dropzone) {
-		entity.GetPosition() = dropzone.GetAbsolutePosition();
+		if (dropzone.Get<Dropzone>().entities.empty()) {
+			dropzone.Add<DiskIndex>(entity.Get<DiskIndex>());
+			PTGN_LOG(
+				"Setting dropzone ", dropzone.GetPosition(), " to ", dropzone.Get<DiskIndex>()
+			);
+			entity.GetPosition() = dropzone.GetAbsolutePosition();
+		}
 	}
-};
-
-struct DiskIndex : public ArithmeticComponent<int> {
-	using ArithmeticComponent::ArithmeticComponent;
 };
 
 Entity CreateTablet(Scene& scene) {
@@ -58,7 +69,7 @@ Entity CreateDisk(
 	return entity;
 }
 
-Entity CreateDiskEntry(Scene& scene, const V2_float& position, Sprite tablet) {
+Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 	float radius{ game.texture.GetSize("baby").x / 2.0f };
 	Entity entity = scene.CreateEntity(
 	); // CreateCircle(scene, position, radius, color::Cyan, -1.0f); // scene.CreateEntity();
@@ -67,6 +78,7 @@ Entity CreateDiskEntry(Scene& scene, const V2_float& position, Sprite tablet) {
 		position - tablet.GetDisplaySize() * 0.5f +
 		GetOriginOffset(tablet.GetOrigin(), tablet.GetDisplaySize())
 	);
+	entity.Add<DiskIndex>(-1);
 	entity.Enable();
 	// entity.Hide();
 	entity.SetInteractive();
@@ -81,28 +93,66 @@ public:
 
 	std::vector<Entity> disks;
 
+	std::vector<Entity> disk_slots;
+
+	bool CheckPattern(const std::vector<Entity>& items) {
+		if (items.empty()) {
+			return false;
+		}
+
+		auto it = std::find_if(items.begin(), items.end(), [](const Entity& item) {
+			return item.Get<DiskIndex>().GetValue() == 0;
+		});
+
+		if (it == items.end()) {
+			return false;
+		}
+
+		size_t start = std::distance(items.begin(), it);
+		size_t n	 = items.size();
+
+		for (size_t i = 0; i < n; ++i) {
+			const Entity& current = items[(start + i) % n];
+			if (current.Get<DiskIndex>().GetValue() != i) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	Button submit;
+
 	void Enter() override {
 		input.SetDrawInteractives(true);
 		input.SetTopOnly(true);
 
 		tablet = CreateTablet(*this);
 
-		CreateDiskEntry(*this, V2_float{ 121, 298 }, tablet);
-		CreateDiskEntry(*this, V2_float{ 252, 121 }, tablet);
-		CreateDiskEntry(*this, V2_float{ 395, 300 }, tablet);
-		CreateDiskEntry(*this, V2_float{ 255, 479 }, tablet);
+		disk_slots.push_back(CreateDiskSlot(*this, V2_float{ 121, 298 }, tablet));
+		disk_slots.push_back(CreateDiskSlot(*this, V2_float{ 252, 121 }, tablet));
+		disk_slots.push_back(CreateDiskSlot(*this, V2_float{ 395, 300 }, tablet));
+		disk_slots.push_back(CreateDiskSlot(*this, V2_float{ 255, 479 }, tablet));
 
 		disks.push_back(CreateDisk(*this, V2_float{ 300, 300 }, "baby", 0));
 		disks.push_back(CreateDisk(*this, V2_float{ 400, 400 }, "young", 1));
 		disks.push_back(CreateDisk(*this, V2_float{ 500, 500 }, "old", 2));
 		disks.push_back(CreateDisk(*this, V2_float{ 600, 600 }, "dead", 3));
 
-		CreateButton(*this)
-			.SetTextureKey("submit")
-			.SetButtonTint(color::Gray)
-			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-			.OnActivate([]() { PTGN_LOG("Submit"); })
-			.SetPosition(resolution / 2.0f + V2_float{ 450, 0 });
+		submit = CreateButton(*this)
+					 .SetTextureKey("submit")
+					 .SetButtonTint(color::Gray)
+					 .SetButtonTint(color::DarkGray, ButtonState::Pressed)
+					 .OnActivate([]() { PTGN_LOG("Submit"); })
+					 .SetPosition(resolution / 2.0f + V2_float{ 450, 0 });
+	}
+
+	void Update() {
+		if (CheckPattern(disk_slots)) {
+			submit.SetButtonTint(color::Cyan);
+		} else {
+			submit.SetButtonTint(color::Gray);
+		}
 	}
 };
 
