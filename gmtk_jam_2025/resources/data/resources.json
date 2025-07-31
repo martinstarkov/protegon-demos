@@ -1,3 +1,8 @@
 {
-    "main_menu_bg": "resources/ui/main_menu_bg.png"
+  "main_menu_bg": "resources/ui/main_menu_bg.png",
+  "tablet": "resources/ui/tablet.png",
+  "baby": "resources/ui/baby.png",
+  "young": "resources/ui/young.png",
+  "old": "resources/ui/old.png",
+  "dead": "resources/ui/dead.png"
 }
