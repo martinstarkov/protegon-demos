@@ -22,7 +22,7 @@ struct DiskDragScript : public Script<DiskDragScript> {
 	}
 
 	virtual void OnDrop([[maybe_unused]] Entity dropzone) {
-		entity.GetPosition() = dropzone.GetPosition();
+		entity.GetPosition() = dropzone.GetAbsolutePosition();
 	}
 };
 
@@ -46,16 +46,20 @@ Entity CreateDisk(Scene& scene, const V2_float& position, const TextureHandle& t
 	return entity;
 }
 
-Entity CreateDiskEntry(Scene& scene, const V2_float& position) {
-	float radius{ game.texture.GetSize("baby").x / 2.0f / 2.0f };
-	Entity entity =
-		CreateCircle(scene, position, radius, color::Cyan, -1.0f); // scene.CreateEntity();
-	entity.SetPosition(position);
+Entity CreateDiskEntry(Scene& scene, const V2_float& position, Sprite tablet) {
+	float radius{ game.texture.GetSize("baby").x / 2.0f };
+	Entity entity = scene.CreateEntity(
+	); // CreateCircle(scene, position, radius, color::Cyan, -1.0f); // scene.CreateEntity();
+	entity.SetParent(tablet);
+	entity.SetPosition(
+		position - tablet.GetDisplaySize() * 0.5f +
+		GetOriginOffset(tablet.GetOrigin(), tablet.GetDisplaySize())
+	);
 	entity.Enable();
 	// entity.Hide();
 	entity.SetInteractive();
 	entity.Add<InteractiveCircles>(radius);
-	entity.Add<Dropzone>().trigger = DropTrigger::CenterOverlaps;
+	entity.Add<Dropzone>().trigger = DropTrigger::MouseOverlaps;
 	return entity;
 }
 
@@ -71,7 +75,10 @@ public:
 
 		tablet = CreateTablet(*this);
 
-		CreateDiskEntry(*this, V2_float{ 630, 170 });
+		CreateDiskEntry(*this, V2_float{ 121, 298 }, tablet);
+		CreateDiskEntry(*this, V2_float{ 252, 121 }, tablet);
+		CreateDiskEntry(*this, V2_float{ 395, 300 }, tablet);
+		CreateDiskEntry(*this, V2_float{ 255, 479 }, tablet);
 
 		disks.push_back(CreateDisk(*this, V2_float{ 300, 300 }, "baby"));
 		disks.push_back(CreateDisk(*this, V2_float{ 400, 400 }, "young"));
