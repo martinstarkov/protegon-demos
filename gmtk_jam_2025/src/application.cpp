@@ -1,3 +1,4 @@
+#include "components/generic.h"
 #include "components/input.h"
 #include "components/sprite.h"
 #include "core/entity.h"
@@ -21,9 +22,17 @@ struct DiskDragScript : public Script<DiskDragScript> {
 		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
+	virtual void OnPickup([[maybe_unused]] Entity dropzone) {
+		PTGN_LOG("Pickup");
+	}
+
 	virtual void OnDrop([[maybe_unused]] Entity dropzone) {
 		entity.GetPosition() = dropzone.GetAbsolutePosition();
 	}
+};
+
+struct DiskIndex : public ArithmeticComponent<int> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
 Entity CreateTablet(Scene& scene) {
@@ -34,12 +43,15 @@ Entity CreateTablet(Scene& scene) {
 	return entity;
 }
 
-Entity CreateDisk(Scene& scene, const V2_float& position, const TextureHandle& texture_handle) {
+Entity CreateDisk(
+	Scene& scene, const V2_float& position, const TextureHandle& texture_handle, int index
+) {
 	Sprite entity = CreateSprite(scene, texture_handle);
 	entity.SetPosition(position);
 	entity.Enable();
 	entity.SetInteractive();
 	// entity.Hide();
+	entity.Add<DiskIndex>(index);
 	entity.Add<Draggable>();
 	entity.Add<InteractiveCircles>(entity.GetDisplaySize().x / 2.0f);
 	entity.AddScript<DiskDragScript>();
@@ -80,10 +92,17 @@ public:
 		CreateDiskEntry(*this, V2_float{ 395, 300 }, tablet);
 		CreateDiskEntry(*this, V2_float{ 255, 479 }, tablet);
 
-		disks.push_back(CreateDisk(*this, V2_float{ 300, 300 }, "baby"));
-		disks.push_back(CreateDisk(*this, V2_float{ 400, 400 }, "young"));
-		disks.push_back(CreateDisk(*this, V2_float{ 500, 500 }, "old"));
-		disks.push_back(CreateDisk(*this, V2_float{ 600, 600 }, "dead"));
+		disks.push_back(CreateDisk(*this, V2_float{ 300, 300 }, "baby", 0));
+		disks.push_back(CreateDisk(*this, V2_float{ 400, 400 }, "young", 1));
+		disks.push_back(CreateDisk(*this, V2_float{ 500, 500 }, "old", 2));
+		disks.push_back(CreateDisk(*this, V2_float{ 600, 600 }, "dead", 3));
+
+		CreateButton(*this)
+			.SetTextureKey("submit")
+			.SetButtonTint(color::Gray)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.OnActivate([]() { PTGN_LOG("Submit"); })
+			.SetPosition(resolution / 2.0f + V2_float{ 450, 0 });
 	}
 };
 
