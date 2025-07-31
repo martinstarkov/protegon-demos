@@ -4,5 +4,6 @@
   "baby": "resources/ui/baby.png",
   "young": "resources/ui/young.png",
   "old": "resources/ui/old.png",
-  "dead": "resources/ui/dead.png"
+  "dead": "resources/ui/dead.png",
+  "submit": "resources/ui/submit_button.png"
 }
