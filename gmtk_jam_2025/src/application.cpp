@@ -17,10 +17,19 @@ constexpr V2_int resolution{ 1280, 720 };
 constexpr Color window_color{ color::Transparent };
 constexpr const char* window_title{ "GMTK Jam 2025" };
 
+int num_directions{ 4 };
 constexpr CollisionCategory player_category{ 2 };
 constexpr CollisionCategory block_category{ 3 };
 
 // TODO: Fix script inputs being delayed.
+
+float SnapAngle(float angle_rad) {
+	float sector_size = two_pi<float> / num_directions;
+	angle_rad		  = ClampAngle2Pi(angle_rad);
+	// Snap to nearest sector
+	int sector_index = static_cast<int>(std::round(angle_rad / sector_size));
+	return sector_index * sector_size;
+}
 
 V2_float GetRandomEdgePosition(const V2_float& size) {
 	static RNG<int> edge_rng{ 0, 3 };
@@ -107,13 +116,14 @@ public:
 	BlockManager block_manager;
 	V2_int block_size{ 32, 32 };
 	float rotation_speed{ DegToRad(200.0f) };
-	int num_directions{ 16 };
 	V2_float center{ resolution / 2.0f };
 
 	Entity central_block;
 
 	Timer spawn_timer;
 	milliseconds spawn_delay{ 500 };
+
+	std::unordered_set<V2_int> taken;
 
 	void Enter() override {
 		central_block  = CreateRect(*this, center, block_size, color::Blue);
@@ -123,8 +133,8 @@ public:
 		central_block.Enable();
 		auto& rb = central_block.Add<RigidBody>();
 		central_block.Add<Connections>();
-		rb.immovable		  = true;
-		collider.overlap_only = true;
+		rb.immovable = true;
+		// collider.overlap_only = true;
 		spawn_timer.Start();
 	}
 
@@ -144,18 +154,10 @@ public:
 		rect.SetOrigin(origin);
 		auto& collider = rect.Add<BoxCollider>(block_size, origin);
 		collider.SetCollisionCategory(block_category);
-		collider.overlap_only = true;
+		// collider.overlap_only = true;
 		rect.AddScript<CollisionScript>();
 		return rect;
 	}
-
-	// float SnapAngle(float angle_rad) {
-	//	float sector_size = two_pi<float> / num_directions;
-	//	angle_rad = ClampAngle2Pi(angle_rad);
-	//	// Snap to nearest sector
-	//	int sector_index = static_cast<int>(std::round(angle_rad / sector_size));
-	//	return sector_index * sector_size;
-	// }
 
 	float rotation{ 0.0f };
 
@@ -171,7 +173,7 @@ public:
 			spawn_delay -= milliseconds{ 1 };
 			spawn_delay	 = std::max(spawn_delay, milliseconds{ 100 });
 			spawn_timer.Start(true);
-			// CreateBox(GetRandomEdgePosition(resolution), center);
+			CreateBox(GetRandomEdgePosition(resolution), center);
 		}
 		if (game.input.KeyDown(Key::Space)) {
 			CreateBox({ resolution.x / 2.0f, 0.0f }, center);
@@ -218,10 +220,29 @@ void CollisionScript::OnCollisionStart(Collision c) {
 	rb.angular_velocity = 0.0f;
 	auto parent_transform{ parent.GetAbsoluteTransform() };
 	auto& transform{ entity.GetTransform() };
-	transform = transform.InverseRelativeTo(parent_transform);
+	transform		   = transform.InverseRelativeTo(parent_transform);
+	transform.rotation = SnapAngle(transform.rotation);
+	V2_int moved_position{ Round(transform.position) };
+	V2_int coordinate{ V2_int{ moved_position / entity.Get<Rect>().size } *
+					   entity.Get<Rect>().size };
+	auto& game_scene{ game.scene.Get<GameScene>("game") };
+	int i = 0;
+	while (i < 1000 && game_scene.taken.count(coordinate) > 0) {
+		moved_position += c.normal * entity.Get<Rect>().size;
+		V2_int new_coordinate =
+			V2_int{ moved_position / entity.Get<Rect>().size } * entity.Get<Rect>().size;
+		while (new_coordinate == coordinate) {
+			moved_position += c.normal * entity.Get<Rect>().size;
+			new_coordinate =
+				V2_int{ moved_position / entity.Get<Rect>().size } * entity.Get<Rect>().size;
+		}
+		coordinate = new_coordinate;
+		i++;
+	}
+	PTGN_ASSERT(i != 1000);
+	game_scene.taken.insert(coordinate);
+	transform.position = coordinate;
 	entity.SetParent(parent);
-	entity.Get<Rect>().size		   *= 1.5f;
-	entity.Get<BoxCollider>().size *= 1.5f;
 }
 
 int main() {
