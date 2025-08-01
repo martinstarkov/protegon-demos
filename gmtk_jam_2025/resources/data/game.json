@@ -1,0 +1,11 @@
+{
+  "life": {
+    "disks": ["baby", "young", "old", "dead"],
+    "positions": [
+      [0, 0],
+      [0, 0],
+      [0, 0],
+      [0, 0]
+    ]
+  }
+}
