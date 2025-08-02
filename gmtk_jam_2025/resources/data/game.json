@@ -6,6 +6,19 @@
       [382, 317],
       [248, 454],
       [120, 317]
-    ]
+    ],
+    "message": "Looks like you can't count to 4."
+  },
+  "test": {
+    "disks": ["disk_0", "disk_1", "disk_2", "disk_3", "disk_4", "disk_5"],
+    "positions": [
+      [165, 185],
+      [316, 185],
+      [381, 321],
+      [326, 459],
+      [166, 459],
+      [116, 321]
+    ],
+    "message": "Looks like you can't count to 6."
   }
 }
