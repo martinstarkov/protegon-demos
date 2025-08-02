@@ -45,6 +45,18 @@
     ],
     "message": "Looks like you can't count to 8."
   },
+  "plant": {
+    "tablet": "tablet_5",
+    "disks": ["plant_0", "plant_1", "plant_2", "plant_3", "plant_4"],
+    "positions": [
+      [249, 160],
+      [381, 283],
+      [328, 434],
+      [167, 434],
+      [118, 283]
+    ],
+    "message": "Looks like you can't count to 8."
+  },
   "test": {
     "tablet": "tablet_6",
     "disks": ["disk_0", "disk_1", "disk_2", "disk_3", "disk_4", "disk_5"],
