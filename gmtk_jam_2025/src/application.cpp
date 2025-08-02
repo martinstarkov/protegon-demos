@@ -1,4 +1,5 @@
 #include "components/animation.h"
+#include "components/draw.h"
 #include "components/generic.h"
 #include "components/input.h"
 #include "components/sprite.h"
@@ -30,16 +31,20 @@ struct DiskDragScript : public Script<DiskDragScript> {
 	}
 
 	virtual void OnPickup([[maybe_unused]] Entity dropzone) {
-		dropzone.Add<DiskIndex>(-1);
-		PTGN_LOG("Setting dropzone ", dropzone.GetPosition(), " to -1");
+		if (dropzone.Get<Dropzone>().dropped_entities.empty()) {
+			dropzone.Add<DiskIndex>(-1);
+			entity.GetChild("disk_out").Show();
+			// PTGN_LOG("Setting dropzone ", dropzone.GetPosition(), " to -1");
+		}
 	}
 
 	virtual void OnDrop([[maybe_unused]] Entity dropzone) {
-		if (dropzone.Get<Dropzone>().entities.empty()) {
+		if (dropzone.Get<Dropzone>().dropped_entities.empty()) {
 			dropzone.Add<DiskIndex>(entity.Get<DiskIndex>());
-			PTGN_LOG(
+			entity.GetChild("disk_out").Hide();
+			/*PTGN_LOG(
 				"Setting dropzone ", dropzone.GetPosition(), " to ", dropzone.Get<DiskIndex>()
-			);
+			);*/
 			entity.GetPosition() = dropzone.GetAbsolutePosition();
 		}
 	}
@@ -56,11 +61,15 @@ Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
 Entity CreateDisk(
 	Scene& scene, const V2_float& position, const TextureHandle& texture_handle, int index
 ) {
-	Animation entity = CreateAnimation(scene, texture_handle, 2);
+	auto out		 = CreateSprite(scene, "disk_out");
+	Animation entity = CreateSprite(scene, texture_handle);
+	entity.AddChild(out, "disk_out");
 	entity.SetPosition(position);
 	entity.Enable();
 	auto circle = entity.CreateChild();
-	circle.Add<Circle>(entity.GetDisplaySize().x / 2.0f);
+	circle.Add<Circle>(
+		entity.GetDisplaySize().x / 2.0f
+	); // CreateCircle(scene, {}, entity.GetDisplaySize().x / 2.0f, color::Magenta, 1.0f);
 	entity.AddInteractable(circle);
 	// entity.Hide();
 	entity.Add<DiskIndex>(index);
@@ -71,7 +80,7 @@ Entity CreateDisk(
 
 Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 	// Size of the interactable.
-	float radius{ game.texture.GetSize("baby").x / 2.0f };
+	float radius{ game.texture.GetSize("disk_out").x / 2.0f };
 	Entity entity = scene.CreateEntity(
 	); // CreateCircle(scene, position, radius, color::Cyan, -1.0f); // scene.CreateEntity();
 	entity.SetParent(tablet);
@@ -83,7 +92,7 @@ Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 	entity.Enable();
 	// entity.Hide();
 	auto circle = entity.CreateChild();
-	circle.Add<Circle>(radius);
+	circle.Add<Circle>(radius); // CreateCircle(scene, {}, radius, color::Magenta, 1.0f);
 	entity.AddInteractable(circle);
 	entity.Add<Dropzone>().trigger = DropTrigger::MouseOverlaps;
 	return entity;
@@ -97,6 +106,15 @@ public:
 
 	std::vector<Entity> disk_slots;
 
+	// @return True if all the slots are not -1.
+	bool AllFilled(const std::vector<Entity>& items) {
+		auto it = std::find_if(items.begin(), items.end(), [](const Entity& item) {
+			return item.Get<DiskIndex>().GetValue() == -1;
+		});
+		return it == items.end();
+	}
+
+	// @return True if all the slots are consecutive disk indices.
 	bool CheckPattern(const std::vector<Entity>& items) {
 		if (items.empty()) {
 			return false;
@@ -125,12 +143,16 @@ public:
 
 	Button submit;
 
+	void FlyInTablet(const json& j) {
+		tablet = CreateTablet(*this, j.at("tablet"));
+	}
+
 	void CreateLevel(const json& j) {
 		PTGN_ASSERT(j.contains("tablet"));
 		PTGN_ASSERT(j.at("tablet").is_string());
 
 		tablet.Destroy();
-		tablet = CreateTablet(*this, j.at("tablet"));
+		FlyInTablet(j);
 
 		for (Entity slot : disk_slots) {
 			slot.Destroy();
@@ -180,7 +202,7 @@ public:
 
 	void Enter() override {
 		input.SetDrawInteractives(true);
-		input.SetTopOnly(true);
+		input.SetTopOnly(false);
 
 		auto levels{ game.json.Get("game_json") };
 		PTGN_ASSERT(levels.contains("level"));
@@ -189,21 +211,32 @@ public:
 		PTGN_ASSERT(levels.contains(level_name), "Level must be set to a valid level entry");
 		auto level{ levels.at(level_name) };
 
+		CreateSprite(*this, "game_bg").SetOrigin(Origin::TopLeft);
+
 		CreateLevel(level);
+
+		Entity submit_interactable = CreateEntity().SetPosition({ 1114, 152 }
+		); /*CreateCircle(*this, { 1114, 152 }, 56.0f, color::Magenta, 1.0f)*/
+		submit_interactable.Add<Circle>(56.0f);
 
 		submit = CreateButton(*this)
 					 .SetTextureKey("submit")
-					 .SetButtonTint(color::Gray)
-					 .SetButtonTint(color::DarkGray, ButtonState::Pressed)
+					 .SetButtonTint(color::White)
+					 .SetButtonTint(color::Gray, ButtonState::Hover)
+					 .SetButtonTint(color::Gray, ButtonState::Pressed)
 					 .OnActivate([]() { PTGN_LOG("Submit"); })
-					 .SetPosition(center + V2_float{ 450, 0 });
+					 .SetInteractable(submit_interactable, false)
+					 .SetOrigin(Origin::TopLeft)
+					 .SetPosition({ 988, 69 });
 	}
 
 	void Update() {
 		if (CheckPattern(disk_slots)) {
 			submit.SetButtonTint(color::Cyan);
+		} else if (AllFilled(disk_slots)) {
+			submit.SetButtonTint(color::Red);
 		} else {
-			submit.SetButtonTint(color::Gray);
+			submit.SetButtonTint(color::White);
 		}
 	}
 };
