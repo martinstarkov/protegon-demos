@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(gmtk_jam_2025)
 
-set(PROTEGON_DEMOS OFF CACHE BOOL "")
+set(PROTEGON_DEMOS ON CACHE BOOL "")
 set(PROTEGON_TESTS OFF CACHE BOOL "")
 
 add_subdirectory(../../protegon binary_dir)

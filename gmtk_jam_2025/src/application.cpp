@@ -21,10 +21,6 @@ struct DiskIndex : public ArithmeticComponent<int> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
-struct DroppedEntities {
-	std::unordered_set<Entity> entities;
-};
-
 struct DiskDragScript : public Script<DiskDragScript> {
 	void OnDrag(V2_float mouse) override {
 		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
@@ -108,10 +104,10 @@ public:
 			return false;
 		}
 
-		size_t start = std::distance(items.begin(), it);
-		size_t n	 = items.size();
+		std::size_t start = std::distance(items.begin(), it);
+		std::size_t n	  = items.size();
 
-		for (size_t i = 0; i < n; ++i) {
+		for (std::size_t i = 0; i < n; ++i) {
 			const Entity& current = items[(start + i) % n];
 			if (current.Get<DiskIndex>().GetValue() != i) {
 				return false;
