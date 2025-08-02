@@ -1,9 +1,17 @@
 {
   "main_menu_bg": "resources/ui/main_menu_bg.png",
   "tablet": "resources/ui/tablet.png",
+  "tablet_4": "resources/ui/tablet_4cycle.png",
+  "tablet_6": "resources/ui/tablet_6cycle.png",
   "baby": "resources/ui/baby.png",
   "young": "resources/ui/young.png",
   "old": "resources/ui/old.png",
   "dead": "resources/ui/dead.png",
-  "submit": "resources/ui/submit_button.png"
+  "submit": "resources/ui/submit_button.png",
+  "disk_0": "resources/ui/disk_0.png",
+  "disk_1": "resources/ui/disk_1.png",
+  "disk_2": "resources/ui/disk_2.png",
+  "disk_3": "resources/ui/disk_3.png",
+  "disk_4": "resources/ui/disk_4.png",
+  "disk_5": "resources/ui/disk_5.png"
 }
