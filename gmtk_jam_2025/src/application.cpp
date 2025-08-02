@@ -46,6 +46,13 @@ Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
 	return entity;
 }
 
+Entity CreateScroll(Scene& scene) {
+	Entity entity = CreateSprite(scene, "scroll");
+	entity.SetOrigin(Origin::Center);
+	entity.SetPosition(center);
+	return entity;
+}
+
 Entity CreateDisk(
 	Scene& scene, const V2_float& position, const TextureHandle& texture_handle, int index
 ) {
@@ -62,6 +69,7 @@ Entity CreateDisk(
 	// entity.Hide();
 	entity.Add<DiskIndex>(index);
 	entity.Add<Draggable>();
+	entity.SetDepth(2);
 	entity.AddScript<DiskDragScript>();
 	return entity;
 }
@@ -89,6 +97,10 @@ Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 class GameScene : public Scene {
 public:
 	Entity tablet;
+
+	Button submit;
+
+	Entity scroll;
 
 	std::vector<Entity> disks;
 
@@ -129,31 +141,61 @@ public:
 		return true;
 	}
 
-	Button submit;
+	struct NextLevelScript : public Script<NextLevelScript> {
+		NextLevelScript() {}
 
-	void FlyInTablet(const json& j) {
-		tablet = CreateTablet(*this, j.at("tablet"));
-		auto position{ tablet.GetPosition() };
-		tablet.SetPosition(position + V2_float{ 0.0f, -resolution.y });
-		TranslateTo(tablet, position, milliseconds{ 1000 }, AsymmetricalEase::OutBounce);
-		/*if (tablet.HasChild("tween")) {
-			tablet.GetChild("tween").Destroy();
+		void OnTimerStart();
+
+		bool OnTimerStop();
+	};
+
+	void DeleteLevel() {
+		int max_disk_fly_duration{ 2000 };
+
+		RNG<int> fly_duration{ 500, 2000 };
+		auto fly_ease{ AsymmetricalEase::InBounce };
+		milliseconds tablet_fly_duration{ 1000 };
+		TranslateTo(
+			tablet, tablet.GetPosition() + V2_float{ 0.0f, -resolution.y }, tablet_fly_duration,
+			fly_ease
+		);
+		for (auto& disk : disks) {
+			TranslateTo(
+				disk, disk.GetPosition() + V2_float{ 0.0f, -resolution.y },
+				milliseconds{ fly_duration() }, fly_ease
+			);
 		}
-		auto tween = CreateTween(*this);
-		tablet.AddChild(tween, "tween");
-		tween.During(milliseconds{ 1000 })
-			.Reverse()
-			.Ease(AsymmetricalEase::InBounce)
-			.AddTweenScript<FallScript>();
-		tween.Start();*/
+	}
+
+	json GetNextLevel() {
+		auto level_name{ "plant" };
+		return json{}; // GetLevel(level_name);
+	}
+
+	void ShowScroll() {
+		auto fall_ease{ AsymmetricalEase::OutBounce };
+		milliseconds scroll_fall_duration{ 1000 };
+
+		scroll.Destroy();
+		scroll = CreateScroll(*this);
+		auto scroll_position{ scroll.GetPosition() };
+		scroll.SetPosition(scroll_position + V2_float{ 0.0f, -resolution.y });
+		TranslateTo(scroll, scroll_position, scroll_fall_duration, fall_ease);
 	}
 
 	void CreateLevel(const json& j) {
 		PTGN_ASSERT(j.contains("tablet"));
 		PTGN_ASSERT(j.at("tablet").is_string());
 
+		RNG<int> fall_duration{ 500, 2000 };
+		auto fall_ease{ AsymmetricalEase::OutBounce };
+		milliseconds tablet_fall_duration{ 1000 };
+
 		tablet.Destroy();
-		FlyInTablet(j);
+		tablet = CreateTablet(*this, j.at("tablet"));
+		auto tablet_position{ tablet.GetPosition() };
+		tablet.SetPosition(tablet_position + V2_float{ 0.0f, -resolution.y });
+		TranslateTo(tablet, tablet_position, tablet_fall_duration, fall_ease);
 
 		for (Entity slot : disk_slots) {
 			slot.Destroy();
@@ -190,8 +232,6 @@ public:
 
 		PTGN_ASSERT(json_disks.size() < random_picker.Size());
 
-		RNG<int> fall_duration{ 500, 2000 };
-
 		for (std::size_t i{ 0 }; i < json_disks.size(); ++i) {
 			auto position{ random_picker.Next() };
 			PTGN_ASSERT(position);
@@ -200,24 +240,33 @@ public:
 			json_disks[i].get_to(handle);
 			auto disk{ CreateDisk(*this, *position, handle, static_cast<int>(i)) };
 			disk.SetPosition(*position + V2_float{ 0.0f, -resolution.y });
-			TranslateTo(
-				disk, *position, milliseconds{ fall_duration() }, AsymmetricalEase::OutBounce
-			);
+			TranslateTo(disk, *position, milliseconds{ fall_duration() }, fall_ease);
 			disk.SetDepth(1);
 			disks.push_back(disk);
 		}
+		submit.Enable();
+	}
+
+	json levels;
+
+	json GetLevel(std::string_view level_name) {
+		PTGN_ASSERT(level_name != "level");
+		PTGN_ASSERT(levels.contains(level_name), "Level must be set to a valid level entry");
+		auto level{ levels.at(level_name) };
+		return level;
 	}
 
 	void Enter() override {
 		input.SetDrawInteractives(true);
 		input.SetTopOnly(false);
 
-		auto levels{ game.json.Get("game_json") };
+		if (levels.empty()) {
+			levels = game.json.Get("game_json");
+		}
+
 		PTGN_ASSERT(levels.contains("level"));
 		auto level_name{ levels.at("level") };
-		PTGN_ASSERT(level_name != "level");
-		PTGN_ASSERT(levels.contains(level_name), "Level must be set to a valid level entry");
-		auto level{ levels.at(level_name) };
+		auto level{ GetLevel(level_name) };
 
 		CreateSprite(*this, "game_bg").SetOrigin(Origin::TopLeft);
 
@@ -229,7 +278,10 @@ public:
 					 .SetButtonTint(color::White)
 					 .SetButtonTint(color::Gray, ButtonState::Hover)
 					 .SetButtonTint(color::Gray, ButtonState::Pressed)
-					 .OnActivate([]() { PTGN_LOG("Submit"); })
+					 .OnActivate([this]() {
+						 submit.AddTimerScript<NextLevelScript>(milliseconds{ 2000 });
+						 submit.Disable();
+					 })
 					 .SetInteractable(submit_interactable, false)
 					 .SetOrigin(Origin::TopLeft)
 					 .SetPosition({ 988, 69 });
@@ -264,9 +316,12 @@ public:
 
 		if (correct) {
 			submit.SetButtonTint(color::Cyan);
+			submit.Enable();
 		} else if (filled) {
 			submit.SetButtonTint(color::Red);
+			submit.Enable();
 		} else {
+			submit.Disable();
 			if (diamonds.HasChild("tween")) {
 				diamonds.Hide();
 				diamonds.GetChild("tween").Destroy();
@@ -318,7 +373,8 @@ void InstructionScene::Enter() {
 		*this,
 		"You are God, forging the foundations of existence. In your hands are disks "
 		"representing a point in a cycle.\n\n Your goal is to place them in the correct order, "
-		"forming stable cycles that define the laws and rhythms of the universe.\n\n Ring the bell "
+		"forming stable cycles that define the laws and rhythms of the universe.\n\n Ring the "
+		"bell "
 		"when ready.",
 		color::White, 36, {}, properties
 	)
@@ -369,6 +425,28 @@ void DiskDragScript::OnDrop([[maybe_unused]] Entity dropzone) {
 		);*/
 		entity.GetPosition() = dropzone.GetAbsolutePosition();
 	}
+}
+
+void GameScene::NextLevelScript::OnTimerStart() {
+	auto& scene{ game.scene.Get<GameScene>("game") };
+	scene.DeleteLevel();
+}
+
+bool GameScene::NextLevelScript::OnTimerStop() {
+	auto& scene{ game.scene.Get<GameScene>("game") };
+	bool correct{ scene.CheckPattern(scene.disk_slots) };
+	if (correct) {
+		PTGN_LOG("Correct!");
+	} else {
+		PTGN_LOG("Incorrect!");
+	}
+	auto level = scene.GetNextLevel();
+	if (level.empty()) {
+		scene.ShowScroll();
+	} else {
+		scene.CreateLevel(level);
+	}
+	return true;
 }
 
 int main() {
