@@ -1,5 +1,6 @@
 {
   "life": {
+    "tablet": "tablet_4",
     "disks": ["disk_0", "disk_1", "disk_2", "disk_3"],
     "positions": [
       [248, 189],
@@ -10,6 +11,7 @@
     "message": "Looks like you can't count to 4."
   },
   "test": {
+    "tablet": "tablet_6",
     "disks": ["disk_0", "disk_1", "disk_2", "disk_3", "disk_4", "disk_5"],
     "positions": [
       [165, 185],
