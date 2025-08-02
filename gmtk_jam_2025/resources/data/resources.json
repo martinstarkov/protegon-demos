@@ -1,4 +1,5 @@
 {
+  "": "resources/font/AUGUSTUS.TTF",
   "game_json": "resources/data/game.json",
   "main_menu_bg": "resources/ui/main_menu_bg.png",
   "scroll": "resources/ui/scroll.png",

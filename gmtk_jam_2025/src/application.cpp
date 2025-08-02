@@ -16,6 +16,7 @@
 using namespace ptgn;
 
 constexpr V2_int resolution{ 1280, 720 };
+constexpr V2_int center{ resolution / 2 };
 constexpr Color window_color{ color::Transparent };
 constexpr const char* window_title{ "You Are God" };
 
@@ -48,7 +49,7 @@ Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
 	Entity entity = CreateSprite(scene, texture_handle);
 	entity.SetOrigin(Origin::Center);
 	// entity.Hide();
-	entity.SetPosition(resolution / 2.0f);
+	entity.SetPosition(center);
 	return entity;
 }
 
@@ -69,6 +70,7 @@ Entity CreateDisk(
 }
 
 Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
+	// Size of the interactable.
 	float radius{ game.texture.GetSize("baby").x / 2.0f };
 	Entity entity = scene.CreateEntity(
 	); // CreateCircle(scene, position, radius, color::Cyan, -1.0f); // scene.CreateEntity();
@@ -194,7 +196,7 @@ public:
 					 .SetButtonTint(color::Gray)
 					 .SetButtonTint(color::DarkGray, ButtonState::Pressed)
 					 .OnActivate([]() { PTGN_LOG("Submit"); })
-					 .SetPosition(resolution / 2.0f + V2_float{ 450, 0 });
+					 .SetPosition(center + V2_float{ 450, 0 });
 	}
 
 	void Update() {
@@ -206,26 +208,74 @@ public:
 	}
 };
 
+class InstructionScene : public Scene {
+public:
+	void Enter() override;
+};
+
 class MainMenuScene : public Scene {
+public:
+	void Enter() override {
+		CreateSprite(*this, "main_menu_bg").SetOrigin(Origin::TopLeft);
+		CreateButton(*this)
+			.SetText("Play", color::White)
+			.SetFontSize(48)
+			.SetBackgroundColor(color::Gray)
+			.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+			.SetBackgroundColor(color::Black, ButtonState::Pressed)
+			.SetSize(V2_float{ 500, 150 })
+			.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}); })
+			.SetPosition(center + V2_float{ -300, 100 });
+
+		CreateButton(*this)
+			.SetText("Instructions", color::White)
+			.SetFontSize(48)
+			.SetBackgroundColor(color::Gray)
+			.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+			.SetBackgroundColor(color::Black, ButtonState::Pressed)
+			.SetSize(V2_float{ 500, 150 })
+			.OnActivate([]() {
+				game.scene.Transition<InstructionScene>("main_menu", "instruction", {});
+			})
+			.SetPosition(center + V2_float{ 300, 100 });
+	}
+};
+
+void InstructionScene::Enter() {
+	CreateSprite(*this, "main_menu_bg").SetOrigin(Origin::TopLeft);
+	TextProperties properties;
+	properties.wrap_after = static_cast<std::uint32_t>(resolution.x * 0.9f);
+	properties.justify	  = TextJustify::Center;
+	CreateText(
+		*this,
+		"You are God, forging the foundations of existence.\n\n In your hands are disks "
+		"representing a point in a cycle.\n\n Your goal is to place them in the correct order, "
+		"forming stable cycles that define the laws and rhythms of the universe.",
+		color::Black, 36, {}, properties
+	)
+		.SetPosition(center + V2_float{ 0, -50 });
+	CreateButton(*this)
+		.SetText("Back", color::White)
+		.SetFontSize(36)
+		.SetBackgroundColor(color::Gray)
+		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetSize(V2_float{ 300, 100 })
+		.OnActivate([]() { game.scene.Transition<MainMenuScene>("instruction", "main_menu", {}); })
+		.SetPosition(center + V2_float{ 0, 250 });
+}
+
+class LoadingScene : public Scene {
 public:
 	void Enter() override {
 		LoadResources("resources/data/resources.json");
 
-		CreateSprite(*this, "main_menu_bg").SetOrigin(Origin::TopLeft);
-		CreateButton(*this)
-			.SetText("Play", color::White)
-			.SetFontSize(50)
-			.SetBackgroundColor(color::Gray)
-			.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-			.SetBackgroundColor(color::Black, ButtonState::Pressed)
-			.SetSize(V2_float{ 400, 200 })
-			.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}); })
-			.SetPosition(resolution / 2.0f + V2_float{ 0, 100 });
+		game.scene.Transition<MainMenuScene>("loading", "main_menu", {});
 	}
 };
 
 int main() {
 	game.Init(window_title, resolution, window_color);
-	game.scene.Enter<MainMenuScene>("main_menu");
+	game.scene.Enter<LoadingScene>("loading");
 	return 0;
 }
