@@ -1,4 +1,5 @@
 {
+  "game_json": "resources/data/game.json",
   "main_menu_bg": "resources/ui/main_menu_bg.png",
   "tablet": "resources/ui/tablet.png",
   "tablet_4": "resources/ui/tablet_4cycle.png",

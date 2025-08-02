@@ -1,3 +1,4 @@
+#include "components/animation.h"
 #include "components/generic.h"
 #include "components/input.h"
 #include "components/sprite.h"
@@ -9,6 +10,7 @@
 #include "renderer/api/origin.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
+#include "serialization/json_manager.h"
 #include "ui/button.h"
 
 using namespace ptgn;
@@ -42,8 +44,8 @@ struct DiskDragScript : public Script<DiskDragScript> {
 	}
 };
 
-Entity CreateTablet(Scene& scene) {
-	Entity entity = CreateSprite(scene, "tablet");
+Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
+	Entity entity = CreateSprite(scene, texture_handle);
 	entity.SetOrigin(Origin::Center);
 	// entity.Hide();
 	entity.SetPosition(resolution / 2.0f);
@@ -53,7 +55,7 @@ Entity CreateTablet(Scene& scene) {
 Entity CreateDisk(
 	Scene& scene, const V2_float& position, const TextureHandle& texture_handle, int index
 ) {
-	Sprite entity = CreateSprite(scene, texture_handle);
+	Animation entity = CreateAnimation(scene, texture_handle, 2);
 	entity.SetPosition(position);
 	entity.Enable();
 	auto circle = entity.CreateChild();
@@ -121,21 +123,71 @@ public:
 
 	Button submit;
 
+	void CreateLevel(const json& j) {
+		PTGN_ASSERT(j.contains("tablet"));
+		PTGN_ASSERT(j.at("tablet").is_string());
+
+		tablet.Destroy();
+		tablet = CreateTablet(*this, j.at("tablet"));
+
+		for (Entity slot : disk_slots) {
+			slot.Destroy();
+		}
+		disk_slots.clear();
+
+		PTGN_ASSERT(j.contains("positions"));
+		PTGN_ASSERT(j.at("positions").is_array());
+
+		std::vector<V2_int> slots{ j.at("positions").get<std::vector<V2_int>>() };
+
+		for (const auto& slot : slots) {
+			disk_slots.push_back(CreateDiskSlot(*this, slot, tablet));
+		}
+
+		for (Entity disk : disks) {
+			disk.Destroy();
+		}
+		disks.clear();
+
+		PTGN_ASSERT(j.contains("disks"));
+
+		const auto& json_disks{ j.at("disks") };
+
+		PTGN_ASSERT(json_disks.is_array());
+
+		std::array<V2_float, 8> positions{
+			V2_float{ 300, 300 },
+		};
+
+		RandomPicker<V2_float> random_picker{ V2_float{ 200, 200 }, V2_float{ 300, 300 },
+											  V2_float{ 400, 400 }, V2_float{ 500, 500 },
+											  V2_float{ 600, 600 }, V2_float{ 800, 600 },
+											  V2_float{ 900, 500 }, V2_float{ 1000, 400 } };
+
+		PTGN_ASSERT(json_disks.size() < random_picker.Size());
+
+		for (std::size_t i{ 0 }; i < json_disks.size(); ++i) {
+			auto position{ random_picker.Next() };
+			PTGN_ASSERT(position);
+			PTGN_ASSERT(json_disks[i].is_string());
+			TextureHandle handle;
+			json_disks[i].get_to(handle);
+			disks.push_back(CreateDisk(*this, *position, handle, static_cast<int>(i)));
+		}
+	}
+
 	void Enter() override {
 		input.SetDrawInteractives(true);
 		input.SetTopOnly(true);
 
-		tablet = CreateTablet(*this);
+		auto levels{ game.json.Get("game_json") };
+		PTGN_ASSERT(levels.contains("level"));
+		auto level_name{ levels.at("level") };
+		PTGN_ASSERT(level_name != "level");
+		PTGN_ASSERT(levels.contains(level_name), "Level must be set to a valid level entry");
+		auto level{ levels.at(level_name) };
 
-		disk_slots.push_back(CreateDiskSlot(*this, V2_float{ 121, 298 }, tablet));
-		disk_slots.push_back(CreateDiskSlot(*this, V2_float{ 252, 121 }, tablet));
-		disk_slots.push_back(CreateDiskSlot(*this, V2_float{ 395, 300 }, tablet));
-		disk_slots.push_back(CreateDiskSlot(*this, V2_float{ 255, 479 }, tablet));
-
-		disks.push_back(CreateDisk(*this, V2_float{ 300, 300 }, "baby", 0));
-		disks.push_back(CreateDisk(*this, V2_float{ 400, 400 }, "young", 1));
-		disks.push_back(CreateDisk(*this, V2_float{ 500, 500 }, "old", 2));
-		disks.push_back(CreateDisk(*this, V2_float{ 600, 600 }, "dead", 3));
+		CreateLevel(level);
 
 		submit = CreateButton(*this)
 					 .SetTextureKey("submit")
