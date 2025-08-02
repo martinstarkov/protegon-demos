@@ -3,10 +3,10 @@
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "math/geometry/circle.h"
 #include "math/vector2.h"
-#include "rendering/api/color.h"
-#include "rendering/api/origin.h"
-#include "rendering/graphics/circle.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "ui/button.h"
@@ -60,7 +60,7 @@ Entity CreateDisk(
 	// entity.Hide();
 	entity.Add<DiskIndex>(index);
 	entity.Add<Draggable>();
-	entity.Add<InteractiveCircles>(entity.GetDisplaySize().x / 2.0f);
+	entity.Add<Circle>(entity.GetDisplaySize().x / 2.0f);
 	entity.AddScript<DiskDragScript>();
 	return entity;
 }
@@ -78,7 +78,7 @@ Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 	entity.Enable();
 	// entity.Hide();
 	entity.SetInteractive();
-	entity.Add<InteractiveCircles>(radius);
+	entity.Add<Circle>(radius);
 	entity.Add<Dropzone>().trigger = DropTrigger::MouseOverlaps;
 	return entity;
 }
