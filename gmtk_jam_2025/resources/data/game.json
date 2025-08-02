@@ -1,26 +1,60 @@
 {
-  "level": "life",
   "life": {
     "tablet": "tablet_4",
     "disks": ["disk_0", "disk_1", "disk_2", "disk_3"],
     "positions": [
-      [248, 189],
-      [382, 317],
-      [248, 454],
-      [120, 317]
+      [248, 166],
+      [380, 291],
+      [248, 432],
+      [118, 291]
     ],
     "message": "Looks like you can't count to 4."
+  },
+  "water": {
+    "tablet": "tablet_4",
+    "disks": ["water_0", "water_1", "water_2", "water_3"],
+    "positions": [
+      [248, 166],
+      [380, 291],
+      [248, 432],
+      [118, 291]
+    ],
+    "message": "Looks like the water is not working."
+  },
+  "moon": {
+    "tablet": "tablet_8",
+    "disks": [
+      "moon_0",
+      "moon_1",
+      "moon_2",
+      "moon_3",
+      "moon_4",
+      "moon_5",
+      "moon_6",
+      "moon_7"
+    ],
+    "positions": [
+      [183, 119],
+      [313, 119],
+      [383, 236],
+      [383, 361],
+      [313, 477],
+      [183, 477],
+      [117, 361],
+      [117, 236]
+    ],
+    "message": "Looks like you can't count to 8."
   },
   "test": {
     "tablet": "tablet_6",
     "disks": ["disk_0", "disk_1", "disk_2", "disk_3", "disk_4", "disk_5"],
     "positions": [
-      [165, 185],
-      [316, 185],
-      [381, 321],
-      [326, 459],
-      [166, 459],
-      [116, 321]
+      [168, 158],
+      [318, 158],
+      [385, 298],
+      [330, 436],
+      [167, 434],
+      [119, 298]
     ],
     "message": "Looks like you can't count to 6."
   }
