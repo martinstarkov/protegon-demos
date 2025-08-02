@@ -12,6 +12,7 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "serialization/json_manager.h"
+#include "tweens/tween.h"
 #include "ui/button.h"
 
 using namespace ptgn;
@@ -26,32 +27,19 @@ struct DiskIndex : public ArithmeticComponent<int> {
 };
 
 struct DiskDragScript : public Script<DiskDragScript> {
-	void OnDrag(V2_float mouse) override {
-		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
-	}
+	void OnDrag(V2_float mouse) override;
 
-	virtual void OnPickup([[maybe_unused]] Entity dropzone) {
-		if (dropzone.Get<Dropzone>().dropped_entities.empty()) {
-			dropzone.Add<DiskIndex>(-1);
-			entity.GetChild("disk_out").Show();
-			// PTGN_LOG("Setting dropzone ", dropzone.GetPosition(), " to -1");
-		}
-	}
+	virtual void OnPickup([[maybe_unused]] Entity dropzone);
 
-	virtual void OnDrop([[maybe_unused]] Entity dropzone) {
-		if (dropzone.Get<Dropzone>().dropped_entities.empty()) {
-			dropzone.Add<DiskIndex>(entity.Get<DiskIndex>());
-			entity.GetChild("disk_out").Hide();
-			/*PTGN_LOG(
-				"Setting dropzone ", dropzone.GetPosition(), " to ", dropzone.Get<DiskIndex>()
-			);*/
-			entity.GetPosition() = dropzone.GetAbsolutePosition();
-		}
-	}
+	virtual void OnDrop([[maybe_unused]] Entity dropzone);
 };
 
 Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
 	Entity entity = CreateSprite(scene, texture_handle);
+	auto diamonds = CreateSprite(scene, "diamonds");
+	diamonds.SetDepth(1);
+	diamonds.Hide();
+	entity.AddChild(diamonds, "diamonds");
 	entity.SetOrigin(Origin::Center);
 	// entity.Hide();
 	entity.SetPosition(center);
@@ -145,6 +133,19 @@ public:
 
 	void FlyInTablet(const json& j) {
 		tablet = CreateTablet(*this, j.at("tablet"));
+		auto position{ tablet.GetPosition() };
+		tablet.SetPosition(position + V2_float{ 0.0f, -resolution.y });
+		TranslateTo(tablet, position, milliseconds{ 1000 }, AsymmetricalEase::OutBounce);
+		/*if (tablet.HasChild("tween")) {
+			tablet.GetChild("tween").Destroy();
+		}
+		auto tween = CreateTween(*this);
+		tablet.AddChild(tween, "tween");
+		tween.During(milliseconds{ 1000 })
+			.Reverse()
+			.Ease(AsymmetricalEase::InBounce)
+			.AddTweenScript<FallScript>();
+		tween.Start();*/
 	}
 
 	void CreateLevel(const json& j) {
@@ -179,16 +180,17 @@ public:
 
 		PTGN_ASSERT(json_disks.is_array());
 
-		std::array<V2_float, 8> positions{
-			V2_float{ 300, 300 },
-		};
-
-		RandomPicker<V2_float> random_picker{ V2_float{ 200, 200 }, V2_float{ 300, 300 },
-											  V2_float{ 400, 400 }, V2_float{ 500, 500 },
-											  V2_float{ 600, 600 }, V2_float{ 800, 600 },
-											  V2_float{ 900, 500 }, V2_float{ 1000, 400 } };
+		RandomPicker<V2_float> random_picker{ V2_float{ 110, 236 },	 V2_float{ 314, 234 },
+											  V2_float{ 80, 400 },	 V2_float{ 238, 375 },
+											  V2_float{ 102, 575 },	 V2_float{ 300, 512 },
+											  V2_float{ 253, 652 },	 V2_float{ 987, 331 },
+											  V2_float{ 1152, 322 }, V2_float{ 1023, 476 },
+											  V2_float{ 1207, 454 }, V2_float{ 976, 616 },
+											  V2_float{ 1166, 617 } };
 
 		PTGN_ASSERT(json_disks.size() < random_picker.Size());
+
+		RNG<int> fall_duration{ 500, 2000 };
 
 		for (std::size_t i{ 0 }; i < json_disks.size(); ++i) {
 			auto position{ random_picker.Next() };
@@ -196,7 +198,13 @@ public:
 			PTGN_ASSERT(json_disks[i].is_string());
 			TextureHandle handle;
 			json_disks[i].get_to(handle);
-			disks.push_back(CreateDisk(*this, *position, handle, static_cast<int>(i)));
+			auto disk{ CreateDisk(*this, *position, handle, static_cast<int>(i)) };
+			disk.SetPosition(*position + V2_float{ 0.0f, -resolution.y });
+			TranslateTo(
+				disk, *position, milliseconds{ fall_duration() }, AsymmetricalEase::OutBounce
+			);
+			disk.SetDepth(1);
+			disks.push_back(disk);
 		}
 	}
 
@@ -213,12 +221,9 @@ public:
 
 		CreateSprite(*this, "game_bg").SetOrigin(Origin::TopLeft);
 
-		CreateLevel(level);
-
 		Entity submit_interactable = CreateEntity().SetPosition({ 1114, 152 }
 		); /*CreateCircle(*this, { 1114, 152 }, 56.0f, color::Magenta, 1.0f)*/
 		submit_interactable.Add<Circle>(56.0f);
-
 		submit = CreateButton(*this)
 					 .SetTextureKey("submit")
 					 .SetButtonTint(color::White)
@@ -228,14 +233,44 @@ public:
 					 .SetInteractable(submit_interactable, false)
 					 .SetOrigin(Origin::TopLeft)
 					 .SetPosition({ 988, 69 });
+
+		CreateLevel(level);
 	}
 
+	struct DiamondsScript : public TweenScript<DiamondsScript> {
+		DiamondsScript() {}
+
+		void OnUpdate(TweenInfo info) {
+			info.parent.SetTint(color::Black.WithAlpha(info.progress * 0.5f));
+		}
+	};
+
 	void Update() {
-		if (CheckPattern(disk_slots)) {
+		bool correct{ CheckPattern(disk_slots) };
+		bool filled{ AllFilled(disk_slots) };
+
+		auto diamonds = tablet.GetChild("diamonds");
+
+		if ((filled || correct) && !diamonds.IsVisible()) {
+			diamonds.Show();
+			if (diamonds.HasChild("tween")) {
+				diamonds.GetChild("tween").Destroy();
+			}
+			auto tween = CreateTween(*this);
+			diamonds.AddChild(tween, "tween");
+			tween.During(milliseconds{ 3000 }).Repeat(-1).Yoyo().AddTweenScript<DiamondsScript>();
+			tween.Start();
+		}
+
+		if (correct) {
 			submit.SetButtonTint(color::Cyan);
-		} else if (AllFilled(disk_slots)) {
+		} else if (filled) {
 			submit.SetButtonTint(color::Red);
 		} else {
+			if (diamonds.HasChild("tween")) {
+				diamonds.Hide();
+				diamonds.GetChild("tween").Destroy();
+			}
 			submit.SetButtonTint(color::White);
 		}
 	}
@@ -275,16 +310,17 @@ public:
 };
 
 void InstructionScene::Enter() {
-	CreateSprite(*this, "main_menu_bg").SetOrigin(Origin::TopLeft);
+	CreateSprite(*this, "instructions_bg").SetOrigin(Origin::TopLeft);
 	TextProperties properties;
 	properties.wrap_after = static_cast<std::uint32_t>(resolution.x * 0.9f);
 	properties.justify	  = TextJustify::Center;
 	CreateText(
 		*this,
-		"You are God, forging the foundations of existence.\n\n In your hands are disks "
+		"You are God, forging the foundations of existence. In your hands are disks "
 		"representing a point in a cycle.\n\n Your goal is to place them in the correct order, "
-		"forming stable cycles that define the laws and rhythms of the universe.",
-		color::Black, 36, {}, properties
+		"forming stable cycles that define the laws and rhythms of the universe.\n\n Ring the bell "
+		"when ready.",
+		color::White, 36, {}, properties
 	)
 		.SetPosition(center + V2_float{ 0, -50 });
 	CreateButton(*this)
@@ -295,7 +331,7 @@ void InstructionScene::Enter() {
 		.SetBackgroundColor(color::Black, ButtonState::Pressed)
 		.SetSize(V2_float{ 300, 100 })
 		.OnActivate([]() { game.scene.Transition<MainMenuScene>("instruction", "main_menu", {}); })
-		.SetPosition(center + V2_float{ 0, 250 });
+		.SetPosition(center + V2_float{ 0, 280 });
 }
 
 class LoadingScene : public Scene {
@@ -306,6 +342,34 @@ public:
 		game.scene.Transition<MainMenuScene>("loading", "main_menu", {});
 	}
 };
+
+void DiskDragScript::OnDrag(V2_float mouse) {
+	auto& pos = entity.GetPosition();
+	pos		  = mouse + entity.Get<Draggable>().offset;
+	pos.x	  = std::clamp(pos.x, 0.0f, (float)resolution.x);
+	pos.y	  = std::clamp(pos.y, 0.0f, (float)resolution.y);
+}
+
+void DiskDragScript::OnPickup([[maybe_unused]] Entity dropzone) {
+	if (dropzone.Get<Dropzone>().dropped_entities.empty()) {
+		dropzone.Add<DiskIndex>(-1);
+		entity.GetChild("disk_out").Show();
+		// PTGN_LOG("Setting dropzone ", dropzone.GetPosition(), " to -1");
+	}
+}
+
+void DiskDragScript::OnDrop([[maybe_unused]] Entity dropzone) {
+	if (dropzone.Get<Dropzone>().dropped_entities.empty()) {
+		dropzone.Add<DiskIndex>(entity.Get<DiskIndex>());
+		// Shake(game.scene.Get<GameScene>("game").tablet, 0.5f);
+		Shake(entity, 0.2f);
+		entity.GetChild("disk_out").Hide();
+		/*PTGN_LOG(
+			"Setting dropzone ", dropzone.GetPosition(), " to ", dropzone.Get<DiskIndex>()
+		);*/
+		entity.GetPosition() = dropzone.GetAbsolutePosition();
+	}
+}
 
 int main() {
 	game.Init(window_title, resolution, window_color);
