@@ -56,11 +56,12 @@ Entity CreateDisk(
 	Sprite entity = CreateSprite(scene, texture_handle);
 	entity.SetPosition(position);
 	entity.Enable();
-	entity.SetInteractive();
+	auto circle = entity.CreateChild();
+	circle.Add<Circle>(entity.GetDisplaySize().x / 2.0f);
+	entity.AddInteractable(circle);
 	// entity.Hide();
 	entity.Add<DiskIndex>(index);
 	entity.Add<Draggable>();
-	entity.Add<Circle>(entity.GetDisplaySize().x / 2.0f);
 	entity.AddScript<DiskDragScript>();
 	return entity;
 }
@@ -77,8 +78,9 @@ Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 	entity.Add<DiskIndex>(-1);
 	entity.Enable();
 	// entity.Hide();
-	entity.SetInteractive();
-	entity.Add<Circle>(radius);
+	auto circle = entity.CreateChild();
+	circle.Add<Circle>(radius);
+	entity.AddInteractable(circle);
 	entity.Add<Dropzone>().trigger = DropTrigger::MouseOverlaps;
 	return entity;
 }
