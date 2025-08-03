@@ -26,8 +26,8 @@
       [248, 429],
       [118, 291]
     ],
-    "failure_message": "The water stagnates, its sacred flow choked by silence and stillness.",
-    "success_message": "Water dances and surges, breathing life into every corner of the universe."
+    "failure_message": "The water is stagnate, it cannot support the thirst of the universe.",
+    "success_message": "Water surges through the mountains and streams, breathing life into every corner of the world."
   },
   "seasons": {
     "tablet": "tablet_4",
@@ -38,8 +38,8 @@
       [248, 429],
       [118, 291]
     ],
-    "failure_message": "Seasons stumble, their cycle broken, winter's chill lingers without end.",
-    "success_message": "Seasons turn in flawless rhythm, the eternal heartbeat of the world."
+    "failure_message": "Seasons stumble and halt, some creatures live in eternal ice, others in barren heat.",
+    "success_message": "Seasons turn in flawless rhythm, in tune with the revolution of earth itself."
   },
   "moon": {
     "tablet": "tablet_8",
@@ -63,8 +63,8 @@
       [117, 360],
       [117, 234]
     ],
-    "failure_message": "The moon flickers like a dying ember, casting restless shadows upon the world.",
-    "success_message": "A radiant orb called the moon guides the night, its glow a beacon of serenity and power."
+    "failure_message": "The moon dances with care around the earth, oceans are unstable.",
+    "success_message": "The moon is bright in the sky, its cycles guide the smallest to largest creatures."
   },
   "plant": {
     "tablet": "tablet_5",
@@ -76,8 +76,8 @@
       [167, 432],
       [118, 281]
     ],
-    "failure_message": "The green lifeblood of plants withers; growth succumbs to shadow and decay.",
-    "success_message": "Plants flourish, weaving verdant spells that bind earth and sky in harmony."
+    "failure_message": "The green lifeblood of plants withers. Growth succumbs to decay and the world is fruitless.",
+    "success_message": "Plants flourish, bringing bounty to the earth."
   },
   "star": {
     "tablet": "tablet_6",
@@ -90,8 +90,8 @@
       [167, 433],
       [119, 295]
     ],
-    "failure_message": "Stars dim and shatter, the heavens mourn a lost brilliance.",
-    "success_message": "Stars blaze as eternal sentinels, lighting the cosmos with divine fire."
+    "failure_message": "Stars dim and fail to form anew, the universe is cold and dead.",
+    "success_message": "Stars blaze throughout the universe, their life cycles provide energy for everything else."
   },
   "mitosis": {
     "tablet": "tablet_6",
