@@ -1,0 +1,210 @@
+{
+  "levels": [
+    { "cycles": ["life", "seasons", "water", "frog"], "font_size": 30 },
+    { "cycles": ["plant", "moon", "racecar", "econ"], "font_size": 30 },
+    { "cycles": ["mitosis", "scrolling", "star", "rock"], "font_size": 30 }
+  ],
+  "life": {
+    "tablet": "tablet_5",
+    "disks": ["life_0", "life_1", "life_2", "life_3", "life_4"],
+    "positions": [
+      [249, 160],
+      [383, 283],
+      [329, 434],
+      [167, 432],
+      [118, 281]
+    ],
+    "failure_message": "There is something seriously amiss with the progression of life...people are aging in reverse!",
+    "success_message": "While there are those that may seek to outmatch the cycle of aging, all is in balance."
+  },
+  "water": {
+    "tablet": "tablet_4",
+    "disks": ["water_0", "water_1", "water_2", "water_3"],
+    "positions": [
+      [248, 164],
+      [380, 291],
+      [248, 429],
+      [118, 291]
+    ],
+    "failure_message": "The water is stagnate, it cannot support the thirst of the universe.",
+    "success_message": "Water surges through the mountains and streams, breathing life into every corner of the world."
+  },
+  "seasons": {
+    "tablet": "tablet_4",
+    "disks": ["seasons_0", "seasons_1", "seasons_2", "seasons_3"],
+    "positions": [
+      [248, 164],
+      [380, 291],
+      [248, 429],
+      [118, 291]
+    ],
+    "failure_message": "Seasons stumble and halt, some creatures live in eternal ice, others in barren heat.",
+    "success_message": "Seasons turn in flawless rhythm, in tune with the revolution of earth itself."
+  },
+  "moon": {
+    "tablet": "tablet_8",
+    "disks": [
+      "moon_0",
+      "moon_7",
+      "moon_6",
+      "moon_5",
+      "moon_4",
+      "moon_3",
+      "moon_2",
+      "moon_1"
+    ],
+    "positions": [
+      [182, 119],
+      [313, 119],
+      [382, 234],
+      [382, 360],
+      [313, 475],
+      [182, 475],
+      [117, 360],
+      [117, 234]
+    ],
+    "failure_message": "The moon dances with care around the earth, oceans are unstable.",
+    "success_message": "The moon is bright in the sky, its cycles guide the smallest to largest creatures."
+  },
+  "plant": {
+    "tablet": "tablet_5",
+    "disks": ["plant_0", "plant_1", "plant_2", "plant_3", "plant_4"],
+    "positions": [
+      [249, 160],
+      [383, 283],
+      [329, 434],
+      [167, 432],
+      [118, 281]
+    ],
+    "failure_message": "The green lifeblood of plants withers. Growth succumbs to decay and the world is fruitless.",
+    "success_message": "Plants flourish, bringing bounty to the earth."
+  },
+  "star": {
+    "tablet": "tablet_6",
+    "disks": ["star_0", "star_1", "star_2", "star_3", "star_4", "star_5"],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
+    ],
+    "failure_message": "Stars dim and fail to form anew, the universe is cold and dead.",
+    "success_message": "Stars blaze throughout the universe, their life cycles provide energy for everything else."
+  },
+  "mitosis": {
+    "tablet": "tablet_6",
+    "disks": [
+      "mitosis_0",
+      "mitosis_1",
+      "mitosis_2",
+      "mitosis_3",
+      "mitosis_4",
+      "mitosis_5"
+    ],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
+    ],
+    "failure_message": "Cells cannot multiply properly, life fails before it has even begun.",
+    "success_message": "Cells split and multiply with ease, life will succeed!"
+  },
+  "racecar": {
+    "tablet": "tablet_6",
+    "disks": [
+      "racecar_0",
+      "racecar_1",
+      "racecar_2",
+      "racecar_3",
+      "racecar_4",
+      "racecar_5"
+    ],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
+    ],
+    "failure_message": "The racecar engines sputter and fail, their is no need for speed.",
+    "success_message": "The roar of the racecars echoe through the land, we are family."
+  },
+  "scrolling": {
+    "tablet": "tablet_5",
+    "disks": [
+      "scrolling_0",
+      "scrolling_1",
+      "scrolling_2",
+      "scrolling_3",
+      "scrolling_4"
+    ],
+    "positions": [
+      [249, 160],
+      [383, 283],
+      [329, 434],
+      [167, 432],
+      [118, 281]
+    ],
+    "failure_message": "Humanity seems far more productive with their time than they should be.",
+    "success_message": "Smartphones bring endless hours of content to all!"
+  },
+  "econ": {
+    "tablet": "tablet_4",
+    "disks": ["econ_0", "econ_1", "econ_2", "econ_3"],
+    "positions": [
+      [248, 164],
+      [380, 291],
+      [248, 429],
+      [118, 291]
+    ],
+    "failure_message": "The economy never properly forms. All are equally desitute.",
+    "success_message": "The cycle of the free market churns smoothly. Its highs and lows bring fortune and famine like clockwork."
+  },
+  "frog": {
+    "tablet": "tablet_5",
+    "disks": ["frog_0", "frog_1", "frog_2", "frog_3", "frog_4"],
+    "positions": [
+      [249, 160],
+      [383, 283],
+      [329, 434],
+      [167, 432],
+      [118, 281]
+    ],
+    "failure_message": "Tadpoles have no gills and frogs no lungs. The earth is ribbitless.",
+    "success_message": "The beautiful metamorphosis of tadpoles to frogs is a joy to behold."
+  },
+  "rock": {
+    "tablet": "tablet_6",
+    "disks": ["rock_0", "rock_1", "rock_2", "rock_3", "rock_4", "rock_5"],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
+    ],
+    "failure_message": "The earth cannot form its stones. There is only dust.",
+    "success_message": "Volcanoes erupt and deposit new stones to the earth. Oceans errode away the old. Geology is in harmony."
+  },
+  "test": {
+    "tablet": "tablet_6",
+    "disks": ["disk_0", "disk_1", "disk_2", "disk_3", "disk_4", "disk_5"],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
+    ],
+    "failure_message": "Nothing happened here.",
+    "success_message": "Everything happened here."
+  }
+}

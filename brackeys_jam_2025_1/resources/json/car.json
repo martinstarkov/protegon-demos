@@ -1,0 +1,17 @@
+{
+  "Transform": {
+    "position": [300, 300]
+  },
+  "RigidBody": {
+    "max_speed": 350.0
+  },
+  "CarController": {
+    "acceleration": 500.0,
+    "drag": 3.0,
+    "steer_angle": 0.5,
+    "traction": 0.9,
+    "drifting_drag": 4.0,
+    "drifting_steer_angle": 0.9,
+    "drifting_traction": 0.4
+  }
+}
