@@ -48,5 +48,11 @@
   "seasons_1": "resources/ui/seasons/seasons_1.png",
   "seasons_2": "resources/ui/seasons/seasons_2.png",
   "seasons_3": "resources/ui/seasons/seasons_3.png",
+  "star_0": "resources/ui/star/star_0.png",
+  "star_1": "resources/ui/star/star_1.png",
+  "star_2": "resources/ui/star/star_2.png",
+  "star_3": "resources/ui/star/star_3.png",
+  "star_4": "resources/ui/star/star_4.png",
+  "star_5": "resources/ui/star/star_5.png",
   "game_json": "resources/data/game.json"
 }
