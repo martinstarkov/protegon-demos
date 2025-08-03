@@ -5,6 +5,7 @@
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "input/input_handler.h"
 #include "math/geometry/circle.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -102,6 +103,8 @@ public:
 
 	Entity scroll;
 
+	Timer game_timer;
+
 	std::vector<Entity> disks;
 
 	std::vector<Entity> disk_slots;
@@ -172,6 +175,12 @@ public:
 		return json{}; // GetLevel(level_name);
 	}
 
+	struct ScrollFallScript : public Script<ScrollFallScript> {
+		ScrollFallScript() {}
+
+		bool OnTimerStop();
+	};
+
 	void ShowScroll() {
 		auto fall_ease{ AsymmetricalEase::OutBounce };
 		milliseconds scroll_fall_duration{ 1000 };
@@ -181,6 +190,8 @@ public:
 		auto scroll_position{ scroll.GetPosition() };
 		scroll.SetPosition(scroll_position + V2_float{ 0.0f, -resolution.y });
 		TranslateTo(scroll, scroll_position, scroll_fall_duration, fall_ease);
+
+		scroll.AddTimerScript<ScrollFallScript>(scroll_fall_duration);
 	}
 
 	void CreateLevel(const json& j) {
@@ -256,7 +267,10 @@ public:
 		return level;
 	}
 
+	Text timer_text;
+
 	void Enter() override {
+		game_timer.Start();
 		input.SetDrawInteractives(true);
 		input.SetTopOnly(false);
 
@@ -287,6 +301,10 @@ public:
 					 .SetPosition({ 988, 69 });
 
 		CreateLevel(level);
+
+		timer_text = CreateText(*this, "", color::White, 48, {});
+		timer_text.SetPosition(V2_float{ 20.0f });
+		timer_text.SetOrigin(Origin::TopLeft);
 	}
 
 	struct DiamondsScript : public TweenScript<DiamondsScript> {
@@ -297,43 +315,14 @@ public:
 		}
 	};
 
-	void Update() {
-		bool correct{ CheckPattern(disk_slots) };
-		bool filled{ AllFilled(disk_slots) };
-
-		auto diamonds = tablet.GetChild("diamonds");
-
-		if ((filled || correct) && !diamonds.IsVisible()) {
-			diamonds.Show();
-			if (diamonds.HasChild("tween")) {
-				diamonds.GetChild("tween").Destroy();
-			}
-			auto tween = CreateTween(*this);
-			diamonds.AddChild(tween, "tween");
-			tween.During(milliseconds{ 3000 }).Repeat(-1).Yoyo().AddTweenScript<DiamondsScript>();
-			tween.Start();
-		}
-
-		if (correct) {
-			submit.SetButtonTint(color::Cyan);
-			submit.Enable();
-		} else if (filled) {
-			submit.SetButtonTint(color::Red);
-			submit.Enable();
-		} else {
-			submit.Disable();
-			if (diamonds.HasChild("tween")) {
-				diamonds.Hide();
-				diamonds.GetChild("tween").Destroy();
-			}
-			submit.SetButtonTint(color::White);
-		}
-	}
+	void Update();
 };
 
 class InstructionScene : public Scene {
 public:
 	void Enter() override;
+
+	void Update() override;
 };
 
 class MainMenuScene : public Scene {
@@ -363,6 +352,12 @@ public:
 			.SetPosition(center + V2_float{ 300, 100 });
 	}
 };
+
+void InstructionScene::Update() {
+	if (game.input.KeyDown(Key::Escape)) {
+		game.scene.Transition<InstructionScene>("instruction", "main_menu", {});
+	}
+}
 
 void InstructionScene::Enter() {
 	CreateSprite(*this, "instructions_bg").SetOrigin(Origin::TopLeft);
@@ -398,6 +393,45 @@ public:
 		game.scene.Transition<MainMenuScene>("loading", "main_menu", {});
 	}
 };
+
+void GameScene::Update() {
+	bool correct{ CheckPattern(disk_slots) };
+	bool filled{ AllFilled(disk_slots) };
+
+	auto diamonds = tablet.GetChild("diamonds");
+
+	if ((filled || correct) && !diamonds.IsVisible()) {
+		diamonds.Show();
+		if (diamonds.HasChild("tween")) {
+			diamonds.GetChild("tween").Destroy();
+		}
+		auto tween = CreateTween(*this);
+		diamonds.AddChild(tween, "tween");
+		tween.During(milliseconds{ 3000 }).Repeat(-1).Yoyo().AddTweenScript<DiamondsScript>();
+		tween.Start();
+	}
+
+	if (correct) {
+		submit.SetButtonTint(color::Cyan);
+		submit.Enable();
+	} else if (filled) {
+		submit.SetButtonTint(color::Red);
+		submit.Enable();
+	} else {
+		submit.Disable();
+		if (diamonds.HasChild("tween")) {
+			diamonds.Hide();
+			diamonds.GetChild("tween").Destroy();
+		}
+		submit.SetButtonTint(color::White);
+	}
+	if (game.input.KeyDown(Key::Escape)) {
+		game.scene.Transition<MainMenuScene>("game", "main_menu", {});
+	}
+	std::string elapsed_text{ "Time: " +
+							  ToString(game_timer.Elapsed<duration<float>>().count(), 1) };
+	timer_text.SetContent(elapsed_text);
+}
 
 void DiskDragScript::OnDrag(V2_float mouse) {
 	auto& pos = entity.GetPosition();
@@ -442,10 +476,35 @@ bool GameScene::NextLevelScript::OnTimerStop() {
 	}
 	auto level = scene.GetNextLevel();
 	if (level.empty()) {
+		scene.game_timer.Stop();
 		scene.ShowScroll();
 	} else {
 		scene.CreateLevel(level);
 	}
+	return true;
+}
+
+bool GameScene::ScrollFallScript::OnTimerStop() {
+	auto& scene{ game.scene.Get<GameScene>("game") };
+	CreateButton(scene)
+		.SetText("Replay", color::White)
+		.SetFontSize(24)
+		.SetBackgroundColor(color::Gray)
+		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetSize(V2_float{ 200, 60 })
+		.OnActivate([&scene]() { scene.ReEnter(); })
+		.SetPosition(center + V2_float{ 450, 200 });
+
+	CreateButton(scene)
+		.SetText("Level Select", color::White)
+		.SetFontSize(24)
+		.SetBackgroundColor(color::Gray)
+		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetSize(V2_float{ 200, 60 })
+		.OnActivate([this]() { game.scene.Transition<MainMenuScene>("game", "main_menu", {}); })
+		.SetPosition(center + V2_float{ 450, 300 });
 	return true;
 }
 
