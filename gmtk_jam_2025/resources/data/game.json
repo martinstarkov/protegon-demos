@@ -2,8 +2,8 @@
   "level": "moon",
   "levels": [
     { "cycles": ["life", "moon"] },
-    { "cycles": ["water"] },
-    { "cycles": ["plant"] }
+    { "cycles": ["water", "star"] },
+    { "cycles": ["plant", "seasons", "mitosis"] }
   ],
   "life": {
     "tablet": "tablet_5",
