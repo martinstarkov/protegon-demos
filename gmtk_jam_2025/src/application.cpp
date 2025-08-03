@@ -16,6 +16,7 @@
 #include "serialization/json_manager.h"
 #include "tweens/tween.h"
 #include "ui/button.h"
+#include "utility/string.h"
 
 using namespace ptgn;
 
@@ -85,7 +86,6 @@ Entity CreateDisk(
 ) {
 	auto out		 = CreateSprite(scene, "disk_out");
 	Animation entity = CreateSprite(scene, texture_handle);
-	entity.SetDepth(1);
 	entity.AddChild(out, "disk_out");
 	entity.SetPosition(position);
 	entity.Enable();
@@ -97,7 +97,7 @@ Entity CreateDisk(
 	// entity.Hide();
 	entity.Add<DiskIndex>(index);
 	entity.Add<Draggable>();
-	entity.SetDepth(2);
+	entity.SetDepth(1);
 	entity.AddScript<DiskDragScript>();
 	return entity;
 }
@@ -301,9 +301,15 @@ public:
 
 		current_cycle++;
 
+		auto remaining{ cycles.size() - current_cycle };
+
 		auto next_name = GetCurrentCycleName();
 		if (next_name.empty()) {
+			cycles_remaining_text.SetContent("Level completed");
 			return json{}; // No more cycles remaining.
+		} else {
+			std::string remaining_text{ "Cycles remaining: " + ToString(remaining) };
+			cycles_remaining_text.SetContent(remaining_text);
 		}
 		return GetCycle(next_name);
 	}
@@ -437,7 +443,6 @@ public:
 			auto disk{ CreateDisk(*this, *position, handle, static_cast<int>(i)) };
 			disk.SetPosition(*position + V2_float{ 0.0f, -resolution.y });
 			TranslateTo(disk, *position, milliseconds{ fall_duration() }, fall_ease);
-			disk.SetDepth(1);
 			disks.push_back(disk);
 		}
 		submit.Enable();
@@ -454,6 +459,9 @@ public:
 	}
 
 	Text timer_text;
+
+	Sprite cycles_remaining;
+	Text cycles_remaining_text;
 
 	void Enter() override {
 		current_cycle = 0;
@@ -492,6 +500,21 @@ public:
 					 .SetInteractable(submit_interactable, false)
 					 .SetOrigin(Origin::TopLeft)
 					 .SetPosition({ 988, 69 });
+
+		cycles_remaining_text.Destroy();
+		cycles_remaining.Destroy();
+
+		auto remaining{ cycles.size() };
+		std::string remaining_content{ "Cycles remaining: " + ToString(remaining) };
+		TextProperties proper;
+		proper.justify		  = TextJustify::Center;
+		cycles_remaining_text = CreateText(*this, remaining_content, color::Black, 24, {}, proper);
+		cycles_remaining	  = CreateSprite(*this, "cycles_remaining");
+		cycles_remaining.SetPosition({ 0.0f, resolution.y });
+		cycles_remaining.SetOrigin(Origin::BottomLeft);
+		cycles_remaining_text.SetPosition(V2_float{ 181, 677 });
+		cycles_remaining_text.SetOrigin(Origin::Center);
+		cycles_remaining_text.SetDepth(0);
 
 		game.sound.Play("rockfly2");
 		DestroyCycle();
