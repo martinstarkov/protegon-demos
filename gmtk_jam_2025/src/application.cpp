@@ -462,6 +462,7 @@ public:
 
 	Sprite cycles_remaining;
 	Text cycles_remaining_text;
+	Sprite timer_bg;
 
 	void Enter() override {
 		current_cycle = 0;
@@ -516,12 +517,17 @@ public:
 		cycles_remaining_text.SetOrigin(Origin::Center);
 		cycles_remaining_text.SetDepth(0);
 
+		timer_bg.Destroy();
+		timer_bg = CreateSprite(*this, "replay_button");
+		timer_bg.SetPosition({ 0.0f, 0.0f });
+		timer_bg.SetOrigin(Origin::TopLeft);
+
 		game.sound.Play("rockfly2");
 		DestroyCycle();
 		CreateCycle(cycle);
 
-		timer_text = CreateText(*this, "", color::White, 48, {});
-		timer_text.SetPosition(V2_float{ 20.0f });
+		timer_text = CreateText(*this, "", color::Black, 48, {});
+		timer_text.SetPosition(V2_float{ 20.0f, 20.0f });
 		timer_text.SetOrigin(Origin::TopLeft);
 	}
 
