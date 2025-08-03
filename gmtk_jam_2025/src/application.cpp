@@ -59,6 +59,7 @@ Entity CreateDisk(
 ) {
 	auto out		 = CreateSprite(scene, "disk_out");
 	Animation entity = CreateSprite(scene, texture_handle);
+	entity.SetDepth(1);
 	entity.AddChild(out, "disk_out");
 	entity.SetPosition(position);
 	entity.Enable();
