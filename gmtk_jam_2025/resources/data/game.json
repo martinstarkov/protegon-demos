@@ -1,5 +1,4 @@
 {
-  "level": "moon",
   "levels": [
     { "cycles": ["life", "moon"] },
     { "cycles": ["water"] },

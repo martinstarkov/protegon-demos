@@ -115,7 +115,28 @@ public:
 
 	int set_of_cycles_index{ 0 };
 
-	GameScene(int set_of_cycles_index) : set_of_cycles_index{ set_of_cycles_index } {}
+	json game_json;
+	json cycles;
+	int current_cycle{ 0 };
+
+	GameScene(int set_of_cycles_index) : set_of_cycles_index{ set_of_cycles_index } {
+		if (game_json.empty()) {
+			game_json = game.json.Get("game_json");
+			// PTGN_LOG("Levels json: ", levels.dump(4));
+		}
+		PTGN_ASSERT(game_json.contains("levels"));
+		auto levels = game_json.at("levels");
+		PTGN_ASSERT(levels.is_array());
+		if (set_of_cycles_index > levels.size()) {
+			PTGN_ERROR("Level index outside of range of json levels array");
+		}
+		json level_object = levels.at(set_of_cycles_index);
+		PTGN_ASSERT(level_object.is_object());
+		PTGN_ASSERT(level_object.contains("cycles"));
+		cycles = level_object.at("cycles");
+		PTGN_ASSERT(cycles.is_array());
+		PTGN_ASSERT(cycles.size() > 0, "Each level must have at least one cycle");
+	}
 
 	// @return True if all the slots are not -1.
 	bool AllFilled(const std::vector<Entity>& items) {
@@ -155,8 +176,8 @@ public:
 		return true;
 	}
 
-	struct NextLevelScript : public Script<NextLevelScript> {
-		NextLevelScript() {}
+	struct NextCycleScript : public Script<NextCycleScript> {
+		NextCycleScript() {}
 
 		void OnTimerStart() override;
 		void OnTimerUpdate(float f) override;
@@ -182,9 +203,24 @@ public:
 		}
 	}
 
-	json GetNextLevel() {
-		auto level_name{ "plant" };
-		return json{}; // GetLevel(level_name);
+	std::string GetCurrentCycleName() {
+		PTGN_ASSERT(!cycles.empty());
+		if (current_cycle < cycles.size()) {
+			json cycle = cycles.at(current_cycle);
+			PTGN_ASSERT(cycle.is_string());
+			std::string cycle_name{ cycle.get<std::string>() };
+			return cycle_name;
+		}
+		return "";
+	}
+
+	json GetNextCycle() {
+		current_cycle++;
+		auto name = GetCurrentCycleName();
+		if (name.empty()) {
+			return json{}; // No more cycles remaining.
+		}
+		return GetCycle(name);
 	}
 
 	struct ScrollFallScript : public Script<ScrollFallScript> {
@@ -207,7 +243,7 @@ public:
 		scroll.AddTimerScript<ScrollFallScript>(scroll_fall_duration);
 	}
 
-	void DestroyLevel() {
+	void DestroyCycle() {
 		tablet.Destroy();
 
 		for (auto i = 0; i < disk_slots.size(); ++i) {
@@ -223,7 +259,7 @@ public:
 		disks.clear();
 	}
 
-	void CreateLevel(json j) {
+	void CreateCycle(json j) {
 		if (j.is_array()) {
 			j = j.at(0);
 		}
@@ -290,37 +326,32 @@ public:
 		submit.Enable();
 	}
 
-	json levels;
-
-	json GetLevel(std::string_view level_name) {
-		PTGN_ASSERT(level_name != "level");
-		PTGN_ASSERT(levels.contains(level_name), "Level must be set to a valid level entry");
-		auto level{ levels.at(level_name) };
-		if (level.is_array()) {
-			level = level.at(0);
+	json GetCycle(std::string_view cycle_name) {
+		PTGN_ASSERT(cycle_name != "level");
+		PTGN_ASSERT(game_json.contains(cycle_name), "Cycle ", cycle_name, " not found in json");
+		auto cycle{ game_json.at(cycle_name) };
+		if (cycle.is_array()) {
+			cycle = cycle.at(0);
 		}
-		return level;
+		return cycle;
 	}
 
 	Text timer_text;
 
 	void Enter() override {
+		current_cycle = 0;
+
 		game_timer.Start();
 		input.SetDrawInteractives(true);
 		input.SetTopOnly(false);
 
-		PTGN_LOG("Entering game scene for level: ", set_of_cycles_index);
+		auto name = GetCurrentCycleName();
 
-		if (levels.empty()) {
-			levels = game.json.Get("game_json");
-			// PTGN_LOG("Levels json: ", levels.dump(4));
-		}
+		PTGN_ASSERT(!name.empty(), "Could not find a current cycle name that is valid");
 
-		PTGN_ASSERT(levels.contains("level"));
-		auto level_name{ levels.at("level").get<std::string>() };
-		auto level{ GetLevel(level_name) };
-		if (level.is_array()) {
-			level = level.at(0);
+		auto cycle{ GetCycle(name) };
+		if (cycle.is_array()) {
+			cycle = cycle.at(0);
 		}
 
 		CreateSprite(*this, "game_bg").SetOrigin(Origin::TopLeft);
@@ -334,8 +365,8 @@ public:
 					 .SetButtonTint(color::Gray, ButtonState::Hover)
 					 .SetButtonTint(color::Gray, ButtonState::Pressed)
 					 .OnActivate([this]() {
-						 if (!submit.HasScript<NextLevelScript>()) {
-							 submit.AddTimerScript<NextLevelScript>(milliseconds{ 2000 });
+						 if (!submit.HasScript<NextCycleScript>()) {
+							 submit.AddTimerScript<NextCycleScript>(milliseconds{ 2000 });
 						 }
 						 submit.Disable();
 					 })
@@ -343,8 +374,8 @@ public:
 					 .SetOrigin(Origin::TopLeft)
 					 .SetPosition({ 988, 69 });
 
-		DestroyLevel();
-		CreateLevel(level);
+		DestroyCycle();
+		CreateCycle(cycle);
 
 		timer_text = CreateText(*this, "", color::White, 48, {});
 		timer_text.SetPosition(V2_float{ 20.0f });
@@ -412,7 +443,7 @@ void LevelSelect::Enter() {
 		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
 		.SetBackgroundColor(color::Black, ButtonState::Pressed)
 		.SetSize(V2_float{ 150, 150 })
-		.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}, 0); })
+		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 0); })
 		.SetPosition(center + V2_float{ -300, 0 });
 	CreateButton(*this)
 		.SetText("2", color::White)
@@ -421,7 +452,7 @@ void LevelSelect::Enter() {
 		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
 		.SetBackgroundColor(color::Black, ButtonState::Pressed)
 		.SetSize(V2_float{ 150, 150 })
-		.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}, 1); })
+		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 1); })
 		.SetPosition(center + V2_float{ 0, 0 });
 	CreateButton(*this)
 		.SetText("3", color::White)
@@ -430,7 +461,7 @@ void LevelSelect::Enter() {
 		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
 		.SetBackgroundColor(color::Black, ButtonState::Pressed)
 		.SetSize(V2_float{ 150, 150 })
-		.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}, 2); })
+		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 2); })
 		.SetPosition(center + V2_float{ 300, 0 });
 	CreateButton(*this)
 		.SetText("Back", color::White)
@@ -562,17 +593,17 @@ void DiskDragScript::OnDrop([[maybe_unused]] Entity dropzone) {
 	}
 }
 
-void GameScene::NextLevelScript::OnTimerStart() {
+void GameScene::NextCycleScript::OnTimerStart() {
 	auto& scene{ game.scene.Get<GameScene>("game") };
 	scene.DeleteLevel();
 }
 
-void GameScene::NextLevelScript::OnTimerUpdate(float f) {
+void GameScene::NextCycleScript::OnTimerUpdate(float f) {
 	auto& scene{ game.scene.Get<GameScene>("game") };
 	scene.submit.Disable();
 }
 
-bool GameScene::NextLevelScript::OnTimerStop() {
+bool GameScene::NextCycleScript::OnTimerStop() {
 	auto& scene{ game.scene.Get<GameScene>("game") };
 	bool correct{ scene.CheckPattern(scene.disk_slots) };
 	if (correct) {
@@ -580,15 +611,15 @@ bool GameScene::NextLevelScript::OnTimerStop() {
 	} else {
 		PTGN_LOG("Incorrect!");
 	}
-	auto level = scene.GetNextLevel();
-	if (level.empty()) {
+	auto cycle = scene.GetNextCycle();
+	if (cycle.empty()) {
 		scene.game_timer.Stop();
 		scene.submit.Disable();
 		scene.ShowScroll();
-		scene.DestroyLevel();
+		scene.DestroyCycle();
 	} else {
-		scene.DestroyLevel();
-		scene.CreateLevel(level);
+		scene.DestroyCycle();
+		scene.CreateCycle(cycle);
 	}
 	return true;
 }
