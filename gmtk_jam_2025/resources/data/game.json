@@ -30,6 +30,18 @@
     "failure_message": "The water seems a bit off.",
     "success_message": "The water is flowing perfectly."
   },
+  "seasons": {
+    "tablet": "tablet_4",
+    "disks": ["seasons_0", "seasons_1", "seasons_2", "seasons_3"],
+    "positions": [
+      [248, 166],
+      [380, 291],
+      [248, 432],
+      [118, 291]
+    ],
+    "failure_message": "The seasons seems a bit off.",
+    "success_message": "The seasons are flowing perfectly."
+  },
   "moon": {
     "tablet": "tablet_8",
     "disks": [

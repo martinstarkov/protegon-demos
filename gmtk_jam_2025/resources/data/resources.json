@@ -44,5 +44,9 @@
   "water_1": "resources/ui/water/water_1.png",
   "water_2": "resources/ui/water/water_2.png",
   "water_3": "resources/ui/water/water_3.png",
+  "seasons_0": "resources/ui/seasons/seasons_0.png",
+  "seasons_1": "resources/ui/seasons/seasons_1.png",
+  "seasons_2": "resources/ui/seasons/seasons_2.png",
+  "seasons_3": "resources/ui/seasons/seasons_3.png",
   "game_json": "resources/data/game.json"
 }
