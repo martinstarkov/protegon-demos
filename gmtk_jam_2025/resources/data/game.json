@@ -1,7 +1,7 @@
 {
   "levels": [
-    { "cycles": ["racecar", "life", "moon", "star"] },
-    { "cycles": ["water"] },
+    { "cycles": ["moon", "life", "racecar", "star"], "font_size": 18 },
+    { "cycles": ["water"], "font_size": 36 },
     { "cycles": ["plant", "seasons", "mitosis"] }
   ],
   "life": {
@@ -9,10 +9,10 @@
     "disks": ["life_0", "life_1", "life_2", "life_3", "life_4"],
     "positions": [
       [249, 160],
-      [381, 283],
-      [328, 434],
-      [167, 434],
-      [118, 283]
+      [383, 283],
+      [329, 434],
+      [167, 432],
+      [118, 281]
     ],
     "failure_message": "The sacred thread unravels, life's tapestry frays in chaos and shadow",
     "success_message": "Life's eternal dance spins flawlessly, from dust to stars, creation thrives!"
@@ -21,9 +21,9 @@
     "tablet": "tablet_4",
     "disks": ["water_0", "water_1", "water_2", "water_3"],
     "positions": [
-      [248, 166],
+      [248, 164],
       [380, 291],
-      [248, 432],
+      [248, 429],
       [118, 291]
     ],
     "failure_message": "The water stagnates, its sacred flow choked by silence and stillness.",
@@ -33,9 +33,9 @@
     "tablet": "tablet_4",
     "disks": ["seasons_0", "seasons_1", "seasons_2", "seasons_3"],
     "positions": [
-      [248, 166],
+      [248, 164],
       [380, 291],
-      [248, 432],
+      [248, 429],
       [118, 291]
     ],
     "failure_message": "Seasons stumble, their cycle broken, winter's chill lingers without end.",
@@ -54,14 +54,14 @@
       "moon_1"
     ],
     "positions": [
-      [183, 119],
+      [182, 119],
       [313, 119],
-      [383, 236],
-      [383, 361],
-      [313, 477],
-      [183, 477],
-      [117, 361],
-      [117, 236]
+      [382, 234],
+      [382, 360],
+      [313, 475],
+      [182, 475],
+      [117, 360],
+      [117, 234]
     ],
     "failure_message": "The moon flickers like a dying ember, casting restless shadows upon the world.",
     "success_message": "A radiant orb called the moon guides the night, its glow a beacon of serenity and power."
@@ -71,10 +71,10 @@
     "disks": ["plant_0", "plant_1", "plant_2", "plant_3", "plant_4"],
     "positions": [
       [249, 160],
-      [381, 283],
-      [328, 434],
-      [167, 434],
-      [118, 283]
+      [383, 283],
+      [329, 434],
+      [167, 432],
+      [118, 281]
     ],
     "failure_message": "The green lifeblood of plants withers; growth succumbs to shadow and decay.",
     "success_message": "Plants flourish, weaving verdant spells that bind earth and sky in harmony."
@@ -85,10 +85,10 @@
     "positions": [
       [168, 158],
       [318, 158],
-      [385, 298],
-      [330, 436],
-      [167, 434],
-      [119, 298]
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
     ],
     "failure_message": "Stars dim and shatter, the heavens mourn a lost brilliance.",
     "success_message": "Stars blaze as eternal sentinels, lighting the cosmos with divine fire."
@@ -106,10 +106,10 @@
     "positions": [
       [168, 158],
       [318, 158],
-      [385, 298],
-      [330, 436],
-      [167, 434],
-      [119, 298]
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
     ],
     "failure_message": "Cells falter in their sacred division, the seed of life splinters and fades.",
     "success_message": "Cells split and multiply, spawning endless life in perfect harmony."
@@ -127,10 +127,10 @@
     "positions": [
       [168, 158],
       [318, 158],
-      [385, 298],
-      [330, 436],
-      [167, 434],
-      [119, 298]
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
     ],
     "failure_message": "The racecar engines falter, and the symphony of speed falls silent across the realms.",
     "success_message": "The roar of the racecar echoes through eternity, champions are crowned in blazing glory."
@@ -141,10 +141,10 @@
     "positions": [
       [168, 158],
       [318, 158],
-      [385, 298],
-      [330, 436],
-      [167, 434],
-      [119, 298]
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
     ],
     "failure_message": "Nothing happened here.",
     "success_message": "Everything happened here."

@@ -47,7 +47,7 @@ Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
 	return entity;
 }
 
-Entity CreateScroll(Scene& scene, const TextContent& scroll_content) {
+Entity CreateScroll(Scene& scene, const TextContent& scroll_content, const FontSize& font_size) {
 	Sprite entity = CreateSprite(scene, "scroll");
 	entity.SetOrigin(Origin::Center);
 	entity.SetPosition(center);
@@ -56,7 +56,7 @@ Entity CreateScroll(Scene& scene, const TextContent& scroll_content) {
 	properties.wrap_after =
 		435; // How wide we want the text to be within the scroll texture (has some margins)
 	auto scroll_text =
-		CreateText(scene, scroll_content, color::Black, 24, "scroll_font", properties);
+		CreateText(scene, scroll_content, color::Black, font_size, "scroll_font", properties);
 	scroll_text.SetParent(entity);
 	scroll_text.SetOrigin(Origin::Center);
 	return entity;
@@ -192,6 +192,7 @@ public:
 	int set_of_cycles_index{ 0 };
 
 	json game_json;
+	json level_object;
 	json cycles;
 	// pair: name of cycle, correctness score
 	std::vector<std::pair<std::string, int>> correctness;
@@ -208,7 +209,7 @@ public:
 		if (set_of_cycles_index > levels.size()) {
 			PTGN_ERROR("Level index outside of range of json levels array");
 		}
-		json level_object = levels.at(set_of_cycles_index);
+		level_object = levels.at(set_of_cycles_index);
 		PTGN_ASSERT(level_object.is_object());
 		PTGN_ASSERT(level_object.contains("cycles"));
 		cycles = level_object.at("cycles");
@@ -298,7 +299,12 @@ public:
 		auto fall_ease{ AsymmetricalEase::OutBounce };
 		milliseconds scroll_fall_duration{ 1000 };
 
-		TextContent scroll_content{ "Here is how you did: \n" };
+		TextContent scroll_content{ "Here is how you did: \n\n" };
+		FontSize font_size{ 18 };
+		if (level_object.contains("font_size")) {
+			int font_size_json{ level_object.at("font_size").get<int>() };
+			font_size = font_size_json;
+		}
 
 		for (auto i = 0; i < correctness.size(); i++) {
 			std::string cycle_name = correctness[i].first;
@@ -312,10 +318,10 @@ public:
 			std::string message;
 			if (cycle_correctness == 0 && cycle_json.contains("failure_message")) {
 				std::string failure{ cycle_json.at("failure_message").get<std::string>() };
-				message = failure + "\n";
+				message = failure + " "; // + "\n";
 			} else if (cycle_correctness == 1 && cycle_json.contains("success_message")) {
 				std::string success{ cycle_json.at("success_message").get<std::string>() };
-				message = success + "\n";
+				message = success + " "; // + "\n";
 			} else {
 				message = "CYCLE MESSAGE NOT FOUND, SORRY.";
 			}
@@ -323,7 +329,7 @@ public:
 		}
 
 		scroll.Destroy();
-		scroll = CreateScroll(*this, scroll_content);
+		scroll = CreateScroll(*this, scroll_content, font_size);
 		auto scroll_position{ scroll.GetPosition() };
 		scroll.SetPosition(scroll_position + V2_float{ 0.0f, -resolution.y });
 		TranslateTo(scroll, scroll_position, scroll_fall_duration, fall_ease);

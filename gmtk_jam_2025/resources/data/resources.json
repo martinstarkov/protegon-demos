@@ -1,6 +1,6 @@
 {
   "": "resources/font/AUGUSTUS.TTF",
-  "scroll_font": "resources/font/GRECOromanLubedWrestling.ttf",
+  "scroll_font": "resources/font/AUGUSTUS.ttf",
   "main_menu_bg": "resources/ui/main_menu_bg.png",
   "instructions_bg": "resources/ui/instructions_bg.png",
   "level_select_bg": "resources/ui/level_select_bg.png",
