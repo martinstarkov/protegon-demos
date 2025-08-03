@@ -6,6 +6,7 @@
   "level_select_bg": "resources/ui/level_select_bg.png",
   "game_bg": "resources/ui/background.png",
   "scroll": "resources/ui/scroll.png",
+  "cycles_remaining": "resources/ui/cycles_remaining.png",
   "diamonds": "resources/ui/diamonds.png",
   "tablet": "resources/ui/tablet.png",
   "tablet_4": "resources/ui/tablet_4cycle.png",
