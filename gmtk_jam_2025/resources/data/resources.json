@@ -7,6 +7,8 @@
   "game_bg": "resources/ui/background.png",
   "scroll": "resources/ui/scroll.png",
   "cycles_remaining": "resources/ui/cycles_remaining.png",
+  "generic_button": "resources/ui/button.png",
+  "square_button": "resources/ui/square_button.png",
   "diamonds": "resources/ui/diamonds.png",
   "tablet": "resources/ui/tablet.png",
   "tablet_4": "resources/ui/tablet_4cycle.png",
