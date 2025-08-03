@@ -68,5 +68,14 @@
   "racecar_3": "resources/ui/racecar/racecar_3.png",
   "racecar_4": "resources/ui/racecar/racecar_4.png",
   "racecar_5": "resources/ui/racecar/racecar_5.png",
+  "scrolling_0": "resources/ui/scrolling/scrolling_0.png",
+  "scrolling_1": "resources/ui/scrolling/scrolling_1.png",
+  "scrolling_2": "resources/ui/scrolling/scrolling_2.png",
+  "scrolling_3": "resources/ui/scrolling/scrolling_3.png",
+  "scrolling_4": "resources/ui/scrolling/scrolling_4.png",
+  "econ_0": "resources/ui/econ/econ_0.png",
+  "econ_1": "resources/ui/econ/econ_1.png",
+  "econ_2": "resources/ui/econ/econ_2.png",
+  "econ_3": "resources/ui/econ/econ_3.png",
   "game_json": "resources/data/game.json"
 }

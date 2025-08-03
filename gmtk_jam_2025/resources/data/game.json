@@ -135,6 +135,37 @@
     "failure_message": "The racecar engines falter, and the symphony of speed falls silent across the realms.",
     "success_message": "The roar of the racecar echoes through eternity, champions are crowned in blazing glory."
   },
+  "scrolling": {
+    "tablet": "tablet_5",
+    "disks": [
+      "scrolling_0",
+      "scrolling_1",
+      "scrolling_2",
+      "scrolling_3",
+      "scrolling_4"
+    ],
+    "positions": [
+      [249, 160],
+      [383, 283],
+      [329, 434],
+      [167, 432],
+      [118, 281]
+    ],
+    "failure_message": "Humanity seems far more productive with their time than they should be.",
+    "success_message": "Smartphones bring endless hours of content to all!"
+  },
+  "econ": {
+    "tablet": "tablet_4",
+    "disks": ["econ_0", "econ_1", "econ_2", "econ_3"],
+    "positions": [
+      [248, 164],
+      [380, 291],
+      [248, 429],
+      [118, 291]
+    ],
+    "failure_message": "The economy never properly forms. All are equally desitute.",
+    "success_message": "The cycle of the free market churns smoothly. Its highs and lows bring fortune and famine like clockwork."
+  },
   "test": {
     "tablet": "tablet_6",
     "disks": ["disk_0", "disk_1", "disk_2", "disk_3", "disk_4", "disk_5"],
