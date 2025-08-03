@@ -55,5 +55,11 @@
   "star_3": "resources/ui/star/star_3.png",
   "star_4": "resources/ui/star/star_4.png",
   "star_5": "resources/ui/star/star_5.png",
+  "mitosis_0": "resources/ui/mitosis/mitosis_0.png",
+  "mitosis_1": "resources/ui/mitosis/mitosis_1.png",
+  "mitosis_2": "resources/ui/mitosis/mitosis_2.png",
+  "mitosis_3": "resources/ui/mitosis/mitosis_3.png",
+  "mitosis_4": "resources/ui/mitosis/mitosis_4.png",
+  "mitosis_5": "resources/ui/mitosis/mitosis_5.png",
   "game_json": "resources/data/game.json"
 }
