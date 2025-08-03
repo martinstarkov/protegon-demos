@@ -14,8 +14,8 @@
       [167, 434],
       [118, 283]
     ],
-    "failure_message": "Failure message!",
-    "success_message": "Success message!"
+    "failure_message": "The sacred thread unravels, life's tapestry frays in chaos and shadow",
+    "success_message": "Life's eternal dance spins flawlessly, from dust to stars, creation thrives!"
   },
   "water": {
     "tablet": "tablet_4",
@@ -26,8 +26,8 @@
       [248, 432],
       [118, 291]
     ],
-    "failure_message": "The water seems a bit off.",
-    "success_message": "The water is flowing perfectly."
+    "failure_message": "The water stagnates, its sacred flow choked by silence and stillness.",
+    "success_message": "Water dances and surges, breathing life into every corner of the universe."
   },
   "seasons": {
     "tablet": "tablet_4",
@@ -38,8 +38,8 @@
       [248, 432],
       [118, 291]
     ],
-    "failure_message": "The seasons seems a bit off.",
-    "success_message": "The seasons are flowing perfectly."
+    "failure_message": "Seasons stumble, their cycle broken, winter's chill lingers without end.",
+    "success_message": "Seasons turn in flawless rhythm, the eternal heartbeat of the world."
   },
   "moon": {
     "tablet": "tablet_8",
@@ -63,8 +63,8 @@
       [117, 361],
       [117, 236]
     ],
-    "failure_message": "The moon keeps flashing.",
-    "success_message": "The moon is bright and full."
+    "failure_message": "The moon flickers like a dying ember, casting restless shadows upon the world.",
+    "success_message": "A radiant orb called the moon guides the night, its glow a beacon of serenity and power."
   },
   "plant": {
     "tablet": "tablet_5",
@@ -76,8 +76,8 @@
       [167, 434],
       [118, 283]
     ],
-    "failure_message": "Plants are deteriorating and wilting.",
-    "success_message": "Plants are growing and sustaining life."
+    "failure_message": "The green lifeblood of plants withers; growth succumbs to shadow and decay.",
+    "success_message": "Plants flourish, weaving verdant spells that bind earth and sky in harmony."
   },
   "star": {
     "tablet": "tablet_6",
@@ -90,8 +90,8 @@
       [167, 434],
       [119, 298]
     ],
-    "failure_message": "The stars are broken.",
-    "success_message": "The stars are shining."
+    "failure_message": "Stars dim and shatter, the heavens mourn a lost brilliance.",
+    "success_message": "Stars blaze as eternal sentinels, lighting the cosmos with divine fire."
   },
   "mitosis": {
     "tablet": "tablet_6",
@@ -111,8 +111,8 @@
       [167, 434],
       [119, 298]
     ],
-    "failure_message": "The cells are broken.",
-    "success_message": "The cells are dividing."
+    "failure_message": "Cells falter in their sacred division, the seed of life splinters and fades.",
+    "success_message": "Cells split and multiply, spawning endless life in perfect harmony."
   },
   "racecar": {
     "tablet": "tablet_6",
@@ -132,8 +132,8 @@
       [167, 434],
       [119, 298]
     ],
-    "failure_message": "Humans fail to find fast cars cool.",
-    "success_message": "Car racing becomes a cult sport."
+    "failure_message": "The racecar engines falter, and the symphony of speed falls silent across the realms.",
+    "success_message": "The roar of the racecar echoes through eternity, champions are crowned in blazing glory."
   },
   "test": {
     "tablet": "tablet_6",

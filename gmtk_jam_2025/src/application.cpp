@@ -193,7 +193,8 @@ public:
 
 	json game_json;
 	json cycles;
-	std::vector<int> correctness;
+	// pair: name of cycle, correctness score
+	std::vector<std::pair<std::string, int>> correctness;
 	int current_cycle{ 0 };
 
 	GameScene(int set_of_cycles_index) : set_of_cycles_index{ set_of_cycles_index } {
@@ -267,7 +268,6 @@ public:
 
 	json GetNextCycle() {
 		auto name = GetCurrentCycleName();
-		current_cycle++;
 		bool correct{ CheckPattern(disk_slots) };
 		int score = 0;
 		if (correct) {
@@ -276,7 +276,10 @@ public:
 		} else {
 			PTGN_LOG("Cycle '", name, "' incorrect");
 		}
-		correctness.emplace_back(score);
+		correctness.emplace_back(name, score);
+
+		current_cycle++;
+
 		auto next_name = GetCurrentCycleName();
 		if (next_name.empty()) {
 			return json{}; // No more cycles remaining.
@@ -295,12 +298,28 @@ public:
 		auto fall_ease{ AsymmetricalEase::OutBounce };
 		milliseconds scroll_fall_duration{ 1000 };
 
-		TextContent scroll_content{ "Correctness: " };
+		TextContent scroll_content{ "Here is how you did: \n" };
 
 		for (auto i = 0; i < correctness.size(); i++) {
-			std::string content{ " i:  " + ToString(i) + ", value: " + ToString(correctness[i]) +
-								 " | " };
-			scroll_content.GetValue() += content;
+			std::string cycle_name = correctness[i].first;
+			int cycle_correctness  = correctness[i].second;
+			PTGN_ASSERT(game_json.contains(cycle_name), "Cycle ", cycle_name, " not found in json");
+			json cycle_json = game_json.at(cycle_name);
+			PTGN_ASSERT(cycle_json.is_object());
+			if (cycle_json.is_array()) {
+				cycle_json = cycle_json.at(0);
+			}
+			std::string message;
+			if (cycle_correctness == 0 && cycle_json.contains("failure_message")) {
+				std::string failure{ cycle_json.at("failure_message").get<std::string>() };
+				message = failure + "\n";
+			} else if (cycle_correctness == 1 && cycle_json.contains("success_message")) {
+				std::string success{ cycle_json.at("success_message").get<std::string>() };
+				message = success + "\n";
+			} else {
+				message = "CYCLE MESSAGE NOT FOUND, SORRY.";
+			}
+			scroll_content.GetValue() += message;
 		}
 
 		scroll.Destroy();
