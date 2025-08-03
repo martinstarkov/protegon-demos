@@ -6,13 +6,14 @@
     { "cycles": ["plant"] }
   ],
   "life": {
-    "tablet": "tablet_4",
-    "disks": ["disk_0", "disk_1", "disk_2", "disk_3"],
+    "tablet": "tablet_5",
+    "disks": ["life_0", "life_1", "life_2", "life_3", "life_4"],
     "positions": [
-      [248, 166],
-      [380, 291],
-      [248, 432],
-      [118, 291]
+      [249, 160],
+      [381, 283],
+      [328, 434],
+      [167, 434],
+      [118, 283]
     ],
     "failure_message": "Failure message!",
     "success_message": "Success message!"
@@ -29,17 +30,29 @@
     "failure_message": "The water seems a bit off.",
     "success_message": "The water is flowing perfectly."
   },
+  "seasons": {
+    "tablet": "tablet_4",
+    "disks": ["seasons_0", "seasons_1", "seasons_2", "seasons_3"],
+    "positions": [
+      [248, 166],
+      [380, 291],
+      [248, 432],
+      [118, 291]
+    ],
+    "failure_message": "The seasons seems a bit off.",
+    "success_message": "The seasons are flowing perfectly."
+  },
   "moon": {
     "tablet": "tablet_8",
     "disks": [
       "moon_0",
-      "moon_1",
-      "moon_2",
-      "moon_3",
-      "moon_4",
-      "moon_5",
+      "moon_7",
       "moon_6",
-      "moon_7"
+      "moon_5",
+      "moon_4",
+      "moon_3",
+      "moon_2",
+      "moon_1"
     ],
     "positions": [
       [183, 119],
@@ -66,6 +79,20 @@
     ],
     "failure_message": "Plants are deteriorating and wilting.",
     "success_message": "Plants are growing and sustaining life."
+  },
+  "star": {
+    "tablet": "tablet_6",
+    "disks": ["star_0", "star_1", "star_2", "star_3", "star_4", "star_5"],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 298],
+      [330, 436],
+      [167, 434],
+      [119, 298]
+    ],
+    "failure_message": "The stars are broken.",
+    "success_message": "The stars are shining."
   },
   "test": {
     "tablet": "tablet_6",
