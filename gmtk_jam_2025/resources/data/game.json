@@ -1,6 +1,6 @@
 {
   "levels": [
-    { "cycles": ["life", "seasons", "water"], "font_size": 30 },
+    { "cycles": ["life", "seasons", "water", "frog"], "font_size": 30 },
     { "cycles": ["plant", "moon", "racecar", "econ"], "font_size": 30 },
     { "cycles": ["mitosis", "scrolling", "star"], "font_size": 30 }
   ],
@@ -178,6 +178,20 @@
     ],
     "failure_message": "Tadpoles have no gills and frogs no lungs. The earth is ribbitless.",
     "success_message": "The beautiful metamorphosis of tadpoles to frogs is a joy to behold."
+  },
+  "rock": {
+    "tablet": "tablet_6",
+    "disks": ["rock_0", "rock_1", "rock_2", "rock_3", "rock_4", "rock_5"],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 296],
+      [330, 434],
+      [167, 433],
+      [119, 295]
+    ],
+    "failure_message": "The earth cannot form its stones. Their is only dust.",
+    "success_message": "Volcanoes erupt and deposit new stones to the earth. Oceans errode away the old. Geology is in harmony."
   },
   "test": {
     "tablet": "tablet_6",
