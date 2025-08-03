@@ -1,8 +1,8 @@
 {
   "levels": [
     { "cycles": ["life", "moon"] },
-    { "cycles": ["water"] },
-    { "cycles": ["plant"] }
+    { "cycles": ["water", "star"] },
+    { "cycles": ["plant", "seasons", "mitosis"] }
   ],
   "life": {
     "tablet": "tablet_5",
@@ -92,6 +92,27 @@
     ],
     "failure_message": "The stars are broken.",
     "success_message": "The stars are shining."
+  },
+  "mitosis": {
+    "tablet": "tablet_6",
+    "disks": [
+      "mitosis_0",
+      "mitosis_1",
+      "mitosis_2",
+      "mitosis_3",
+      "mitosis_4",
+      "mitosis_5"
+    ],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 298],
+      [330, 436],
+      [167, 434],
+      [119, 298]
+    ],
+    "failure_message": "The cells are broken.",
+    "success_message": "The cells are dividing."
   },
   "test": {
     "tablet": "tablet_6",
