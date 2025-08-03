@@ -111,6 +111,9 @@ public:
 
 	// @return True if all the slots are not -1.
 	bool AllFilled(const std::vector<Entity>& items) {
+		if (items.empty()) {
+			return false;
+		}
 		auto it = std::find_if(items.begin(), items.end(), [](const Entity& item) {
 			return item.Get<DiskIndex>().GetValue() == -1;
 		});
@@ -148,7 +151,7 @@ public:
 		NextLevelScript() {}
 
 		void OnTimerStart();
-
+		void OnTimerUpdate(float f);
 		bool OnTimerStop();
 	};
 
@@ -178,6 +181,7 @@ public:
 	struct ScrollFallScript : public Script<ScrollFallScript> {
 		ScrollFallScript() {}
 
+		void OnTimerUpdate(float f);
 		bool OnTimerStop();
 	};
 
@@ -194,6 +198,20 @@ public:
 		scroll.AddTimerScript<ScrollFallScript>(scroll_fall_duration);
 	}
 
+	void DestroyLevel() {
+		tablet.Destroy();
+
+		for (Entity slot : disk_slots) {
+			slot.Destroy();
+		}
+		disk_slots.clear();
+
+		for (Entity disk : disks) {
+			disk.Destroy();
+		}
+		disks.clear();
+	}
+
 	void CreateLevel(const json& j) {
 		PTGN_ASSERT(j.contains("tablet"));
 		PTGN_ASSERT(j.at("tablet").is_string());
@@ -202,16 +220,10 @@ public:
 		auto fall_ease{ AsymmetricalEase::OutBounce };
 		milliseconds tablet_fall_duration{ 1000 };
 
-		tablet.Destroy();
 		tablet = CreateTablet(*this, j.at("tablet"));
 		auto tablet_position{ tablet.GetPosition() };
 		tablet.SetPosition(tablet_position + V2_float{ 0.0f, -resolution.y });
 		TranslateTo(tablet, tablet_position, tablet_fall_duration, fall_ease);
-
-		for (Entity slot : disk_slots) {
-			slot.Destroy();
-		}
-		disk_slots.clear();
 
 		PTGN_ASSERT(j.contains("positions"));
 		PTGN_ASSERT(j.at("positions").is_array());
@@ -221,11 +233,6 @@ public:
 		for (const auto& slot : slots) {
 			disk_slots.push_back(CreateDiskSlot(*this, slot, tablet));
 		}
-
-		for (Entity disk : disks) {
-			disk.Destroy();
-		}
-		disks.clear();
 
 		PTGN_ASSERT(j.contains("disks"));
 
@@ -293,13 +300,16 @@ public:
 					 .SetButtonTint(color::Gray, ButtonState::Hover)
 					 .SetButtonTint(color::Gray, ButtonState::Pressed)
 					 .OnActivate([this]() {
-						 submit.AddTimerScript<NextLevelScript>(milliseconds{ 2000 });
+						 if (!submit.HasScript<NextLevelScript>()) {
+							 submit.AddTimerScript<NextLevelScript>(milliseconds{ 2000 });
+						 }
 						 submit.Disable();
 					 })
 					 .SetInteractable(submit_interactable, false)
 					 .SetOrigin(Origin::TopLeft)
 					 .SetPosition({ 988, 69 });
 
+		DestroyLevel();
 		CreateLevel(level);
 
 		timer_text = CreateText(*this, "", color::White, 48, {});
@@ -400,30 +410,37 @@ void GameScene::Update() {
 
 	auto diamonds = tablet.GetChild("diamonds");
 
-	if ((filled || correct) && !diamonds.IsVisible()) {
-		diamonds.Show();
-		if (diamonds.HasChild("tween")) {
-			diamonds.GetChild("tween").Destroy();
+	if (diamonds) {
+		if ((filled || correct) && !diamonds.IsVisible()) {
+			diamonds.Show();
+			if (diamonds.HasChild("tween")) {
+				diamonds.GetChild("tween").Destroy();
+			}
+			auto tween = CreateTween(*this);
+			diamonds.AddChild(tween, "tween");
+			tween.During(milliseconds{ 3000 })
+				.Repeat(-1)
+				.Yoyo()
+				.AddTweenScript<GameScene::DiamondsScript>();
+			tween.Start();
 		}
-		auto tween = CreateTween(*this);
-		diamonds.AddChild(tween, "tween");
-		tween.During(milliseconds{ 3000 }).Repeat(-1).Yoyo().AddTweenScript<DiamondsScript>();
-		tween.Start();
 	}
 
-	if (correct) {
-		submit.SetButtonTint(color::Cyan);
-		submit.Enable();
-	} else if (filled) {
-		submit.SetButtonTint(color::Red);
-		submit.Enable();
-	} else {
-		submit.Disable();
-		if (diamonds.HasChild("tween")) {
-			diamonds.Hide();
-			diamonds.GetChild("tween").Destroy();
+	if (submit) {
+		if (correct) {
+			// submit.SetButtonTint(color::Cyan);
+			submit.Enable();
+		} else if (filled) {
+			// submit.SetButtonTint(color::Red);
+			submit.Enable();
+		} else {
+			submit.Disable();
+			if (diamonds && diamonds.HasChild("tween")) {
+				diamonds.Hide();
+				diamonds.GetChild("tween").Destroy();
+			}
+			// submit.SetButtonTint(color::White);
 		}
-		submit.SetButtonTint(color::White);
 	}
 	if (game.input.KeyDown(Key::Escape)) {
 		game.scene.Transition<MainMenuScene>("game", "main_menu", {});
@@ -466,6 +483,11 @@ void GameScene::NextLevelScript::OnTimerStart() {
 	scene.DeleteLevel();
 }
 
+void GameScene::NextLevelScript::OnTimerUpdate(float f) {
+	auto& scene{ game.scene.Get<GameScene>("game") };
+	scene.submit.Disable();
+}
+
 bool GameScene::NextLevelScript::OnTimerStop() {
 	auto& scene{ game.scene.Get<GameScene>("game") };
 	bool correct{ scene.CheckPattern(scene.disk_slots) };
@@ -477,15 +499,24 @@ bool GameScene::NextLevelScript::OnTimerStop() {
 	auto level = scene.GetNextLevel();
 	if (level.empty()) {
 		scene.game_timer.Stop();
+		scene.submit.Disable();
 		scene.ShowScroll();
+		scene.DestroyLevel();
 	} else {
+		scene.DestroyLevel();
 		scene.CreateLevel(level);
 	}
 	return true;
 }
 
+void GameScene::ScrollFallScript::OnTimerUpdate(float f) {
+	auto& scene{ game.scene.Get<GameScene>("game") };
+	scene.submit.Disable();
+}
+
 bool GameScene::ScrollFallScript::OnTimerStop() {
 	auto& scene{ game.scene.Get<GameScene>("game") };
+	scene.submit.Disable();
 	CreateButton(scene)
 		.SetText("Replay", color::White)
 		.SetFontSize(24)
