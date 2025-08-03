@@ -111,8 +111,8 @@
       [167, 433],
       [119, 295]
     ],
-    "failure_message": "Cells falter in their sacred division, the seed of life splinters and fades.",
-    "success_message": "Cells split and multiply, spawning endless life in perfect harmony."
+    "failure_message": "Cells cannot multiply properly, life fails before it has even begun.",
+    "success_message": "Cells split and multiply with ease, life will suceed!"
   },
   "racecar": {
     "tablet": "tablet_6",
@@ -132,8 +132,8 @@
       [167, 433],
       [119, 295]
     ],
-    "failure_message": "The racecar engines falter, and the symphony of speed falls silent across the realms.",
-    "success_message": "The roar of the racecar echoes through eternity, champions are crowned in blazing glory."
+    "failure_message": "The racecar engines sputter and fail, their is no need for speed.",
+    "success_message": "The roar of the racecars echoe through the land, we are family."
   },
   "scrolling": {
     "tablet": "tablet_5",
