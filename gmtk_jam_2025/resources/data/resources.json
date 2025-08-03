@@ -89,5 +89,10 @@
   "econ_1": "resources/ui/econ/econ_1.png",
   "econ_2": "resources/ui/econ/econ_2.png",
   "econ_3": "resources/ui/econ/econ_3.png",
+  "frog_0": "resources/ui/frog/frog_0.png",
+  "frog_1": "resources/ui/frog/frog_1.png",
+  "frog_2": "resources/ui/frog/frog_2.png",
+  "frog_3": "resources/ui/frog/frog_3.png",
+  "frog_4": "resources/ui/frog/frog_4.png",
   "game_json": "resources/data/game.json"
 }

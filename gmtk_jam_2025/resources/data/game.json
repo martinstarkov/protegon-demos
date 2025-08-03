@@ -166,6 +166,19 @@
     "failure_message": "The economy never properly forms. All are equally desitute.",
     "success_message": "The cycle of the free market churns smoothly. Its highs and lows bring fortune and famine like clockwork."
   },
+  "frog": {
+    "tablet": "tablet_5",
+    "disks": ["frog_0", "frog_1", "frog_2", "frog_3", "frog_4"],
+    "positions": [
+      [249, 160],
+      [383, 283],
+      [329, 434],
+      [167, 432],
+      [118, 281]
+    ],
+    "failure_message": "Tadpoles have no gills and frogs no lungs. The earth is ribbitless.",
+    "success_message": "The beautiful metamorphosis of tadpoles to frogs is a joy to behold."
+  },
   "test": {
     "tablet": "tablet_6",
     "disks": ["disk_0", "disk_1", "disk_2", "disk_3", "disk_4", "disk_5"],
