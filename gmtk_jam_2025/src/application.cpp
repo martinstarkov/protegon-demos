@@ -649,7 +649,7 @@ void InstructionScene::Enter() {
 	ResourceHandle font_key{ "text_font" };
 	CreateText(
 		*this,
-		"You are God, forging the foundations of existence. In your hands are disks "
+		"You are God, forging the foundations of existence.\n\n In your hands are disks "
 		"representing a point in a cycle.\n\n Your goal is to place them in the correct order, "
 		"forming stable cycles that define the laws and rhythms of the universe.\n\n Ring the "
 		"bell "
