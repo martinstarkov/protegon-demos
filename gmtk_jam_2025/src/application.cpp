@@ -99,6 +99,8 @@ Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 
 class GameScene : public Scene {
 public:
+	bool reactive{ false };
+
 	Entity tablet;
 
 	Button submit;
@@ -161,7 +163,7 @@ public:
 		int max_disk_fly_duration{ 2000 };
 
 		RNG<int> fly_duration{ 500, 2000 };
-		auto fly_ease{ AsymmetricalEase::InBounce };
+		auto fly_ease{ AsymmetricalEase::InBack };
 		milliseconds tablet_fly_duration{ 1000 };
 		TranslateTo(
 			tablet, tablet.GetPosition() + V2_float{ 0.0f, -resolution.y }, tablet_fly_duration,
@@ -170,8 +172,8 @@ public:
 		for (auto i = 0; i < disks.size(); i++) {
 			auto disk = disks[i];
 			TranslateTo(
-				disk, disk.GetPosition() + V2_float{ 0.0f, -resolution.y },
-				milliseconds{ fly_duration() }, fly_ease
+				disk, disk.GetPosition() + V2_float{ 0.0f, -resolution.y }, tablet_fly_duration,
+				fly_ease
 			);
 		}
 	}
@@ -472,6 +474,11 @@ void GameScene::Update() {
 	std::string elapsed_text{ "Time: " +
 							  ToString(game_timer.Elapsed<duration<float>>().count(), 1) };
 	timer_text.SetContent(elapsed_text);
+
+	if (reactive) {
+		reactive = false;
+		ReEnter();
+	}
 }
 
 void DiskDragScript::OnDrag(V2_float mouse) {
@@ -548,7 +555,7 @@ bool GameScene::ScrollFallScript::OnTimerStop() {
 		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
 		.SetBackgroundColor(color::Black, ButtonState::Pressed)
 		.SetSize(V2_float{ 200, 60 })
-		.OnActivate([&scene]() { scene.ReEnter(); })
+		.OnActivate([&scene]() { scene.reactive = true; })
 		.SetPosition(center + V2_float{ 450, 200 });
 
 	CreateButton(scene)
