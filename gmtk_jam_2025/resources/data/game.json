@@ -2,7 +2,7 @@
   "levels": [
     { "cycles": ["life", "seasons", "water", "frog"], "font_size": 30 },
     { "cycles": ["plant", "moon", "racecar", "econ"], "font_size": 30 },
-    { "cycles": ["mitosis", "scrolling", "star"], "font_size": 30 }
+    { "cycles": ["mitosis", "scrolling", "star", "rock"], "font_size": 30 }
   ],
   "life": {
     "tablet": "tablet_5",
@@ -190,7 +190,7 @@
       [167, 433],
       [119, 295]
     ],
-    "failure_message": "The earth cannot form its stones. Their is only dust.",
+    "failure_message": "The earth cannot form its stones. There is only dust.",
     "success_message": "Volcanoes erupt and deposit new stones to the earth. Oceans errode away the old. Geology is in harmony."
   },
   "test": {
