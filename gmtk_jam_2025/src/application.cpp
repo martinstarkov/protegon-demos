@@ -16,6 +16,7 @@
 #include "serialization/json_manager.h"
 #include "tweens/tween.h"
 #include "ui/button.h"
+#include "utility/string.h"
 
 using namespace ptgn;
 
@@ -85,7 +86,6 @@ Entity CreateDisk(
 ) {
 	auto out		 = CreateSprite(scene, "disk_out");
 	Animation entity = CreateSprite(scene, texture_handle);
-	entity.SetDepth(1);
 	entity.AddChild(out, "disk_out");
 	entity.SetPosition(position);
 	entity.Enable();
@@ -97,7 +97,7 @@ Entity CreateDisk(
 	// entity.Hide();
 	entity.Add<DiskIndex>(index);
 	entity.Add<Draggable>();
-	entity.SetDepth(2);
+	entity.SetDepth(1);
 	entity.AddScript<DiskDragScript>();
 	return entity;
 }
@@ -301,9 +301,15 @@ public:
 
 		current_cycle++;
 
+		auto remaining{ cycles.size() - current_cycle };
+
 		auto next_name = GetCurrentCycleName();
 		if (next_name.empty()) {
+			cycles_remaining_text.SetContent("Level completed");
 			return json{}; // No more cycles remaining.
+		} else {
+			std::string remaining_text{ "Cycles remaining: " + ToString(remaining) };
+			cycles_remaining_text.SetContent(remaining_text);
 		}
 		return GetCycle(next_name);
 	}
@@ -437,7 +443,6 @@ public:
 			auto disk{ CreateDisk(*this, *position, handle, static_cast<int>(i)) };
 			disk.SetPosition(*position + V2_float{ 0.0f, -resolution.y });
 			TranslateTo(disk, *position, milliseconds{ fall_duration() }, fall_ease);
-			disk.SetDepth(1);
 			disks.push_back(disk);
 		}
 		submit.Enable();
@@ -454,6 +459,9 @@ public:
 	}
 
 	Text timer_text;
+
+	Sprite cycles_remaining;
+	Text cycles_remaining_text;
 
 	void Enter() override {
 		current_cycle = 0;
@@ -493,6 +501,21 @@ public:
 					 .SetOrigin(Origin::TopLeft)
 					 .SetPosition({ 988, 69 });
 
+		cycles_remaining_text.Destroy();
+		cycles_remaining.Destroy();
+
+		auto remaining{ cycles.size() };
+		std::string remaining_content{ "Cycles remaining: " + ToString(remaining) };
+		TextProperties proper;
+		proper.justify		  = TextJustify::Center;
+		cycles_remaining_text = CreateText(*this, remaining_content, color::Black, 24, {}, proper);
+		cycles_remaining	  = CreateSprite(*this, "cycles_remaining");
+		cycles_remaining.SetPosition({ 0.0f, resolution.y });
+		cycles_remaining.SetOrigin(Origin::BottomLeft);
+		cycles_remaining_text.SetPosition(V2_float{ 181, 677 });
+		cycles_remaining_text.SetOrigin(Origin::Center);
+		cycles_remaining_text.SetDepth(0);
+
 		game.sound.Play("rockfly2");
 		DestroyCycle();
 		CreateCycle(cycle);
@@ -530,23 +553,25 @@ public:
 	void Enter() override {
 		CreateSprite(*this, "main_menu_bg").SetOrigin(Origin::TopLeft);
 		CreateMyButton(*this)
-			.SetText("Play", color::White)
+			.SetText("Play", color::Black)
 			.SetFontSize(48)
-			.SetBackgroundColor(color::Gray)
-			.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-			.SetBackgroundColor(color::Black, ButtonState::Pressed)
-			.SetSize(V2_float{ 500, 150 })
+			.SetTextureKey("main_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 450, 150 })
 			.OnActivate([]() {
 				game.scene.Transition<LevelSelect>("main_menu", "level_select", {});
 			})
 			.SetPosition(center + V2_float{ -300, 100 });
 		CreateMyButton(*this)
-			.SetText("Instructions", color::White)
+			.SetText("Instructions", color::Black)
 			.SetFontSize(48)
-			.SetBackgroundColor(color::Gray)
-			.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-			.SetBackgroundColor(color::Black, ButtonState::Pressed)
-			.SetSize(V2_float{ 500, 150 })
+			.SetTextureKey("main_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 450, 150 })
 			.OnActivate([]() {
 				game.scene.Transition<InstructionScene>("main_menu", "instruction", {});
 			})
@@ -557,38 +582,42 @@ public:
 void LevelSelect::Enter() {
 	CreateSprite(*this, "level_select_bg").SetOrigin(Origin::TopLeft);
 	CreateMyButton(*this)
-		.SetText("1", color::White)
+		.SetText("1", color::Black)
 		.SetFontSize(48)
-		.SetBackgroundColor(color::Gray)
-		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-		.SetBackgroundColor(color::Black, ButtonState::Pressed)
-		.SetSize(V2_float{ 150, 150 })
+		.SetTextureKey("square_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+		.SetSize(V2_float{ 125 })
 		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 0); })
 		.SetPosition(center + V2_float{ -300, 0 });
 	CreateMyButton(*this)
-		.SetText("2", color::White)
+		.SetText("2", color::Black)
 		.SetFontSize(48)
-		.SetBackgroundColor(color::Gray)
-		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-		.SetBackgroundColor(color::Black, ButtonState::Pressed)
-		.SetSize(V2_float{ 150, 150 })
+		.SetTextureKey("square_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+		.SetSize(V2_float{ 125 })
 		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 1); })
 		.SetPosition(center + V2_float{ 0, 0 });
 	CreateMyButton(*this)
-		.SetText("3", color::White)
+		.SetText("3", color::Black)
 		.SetFontSize(48)
-		.SetBackgroundColor(color::Gray)
-		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-		.SetBackgroundColor(color::Black, ButtonState::Pressed)
-		.SetSize(V2_float{ 150, 150 })
+		.SetTextureKey("square_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+		.SetSize(V2_float{ 125 })
 		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 2); })
 		.SetPosition(center + V2_float{ 300, 0 });
 	CreateMyButton(*this)
-		.SetText("Back", color::White)
+		.SetText("Back", color::Black)
 		.SetFontSize(36)
-		.SetBackgroundColor(color::Gray)
-		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetTextureKey("back_button1")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 		.SetSize(V2_float{ 300, 100 })
 		.OnActivate([]() { game.scene.Transition<MainMenuScene>("level_select", "main_menu", {}); })
 		.SetPosition(center + V2_float{ 0, 280 });
@@ -617,11 +646,12 @@ void InstructionScene::Enter() {
 	)
 		.SetPosition(center + V2_float{ 0, -50 });
 	CreateMyButton(*this)
-		.SetText("Back", color::White)
+		.SetText("Back", color::Black)
 		.SetFontSize(36)
-		.SetBackgroundColor(color::Gray)
-		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetTextureKey("back_button1")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 		.SetSize(V2_float{ 300, 100 })
 		.OnActivate([]() { game.scene.Transition<MainMenuScene>("instruction", "main_menu", {}); })
 		.SetPosition(center + V2_float{ 0, 280 });
@@ -754,21 +784,23 @@ bool GameScene::ScrollFallScript::OnTimerStop() {
 	auto& scene{ game.scene.Get<GameScene>("game") };
 	scene.submit.Disable();
 	CreateMyButton(scene)
-		.SetText("Replay", color::White)
+		.SetText("Replay", color::Black)
 		.SetFontSize(36)
-		.SetBackgroundColor(color::Gray)
-		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetTextureKey("replay_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 		.SetSize(V2_float{ 300, 80 })
 		.OnActivate([&scene]() { scene.reactive = true; })
 		.SetPosition(center + V2_float{ 470, 200 });
 
 	CreateMyButton(scene)
-		.SetText("Level Select", color::White)
+		.SetText("Level Select", color::Black)
 		.SetFontSize(36)
-		.SetBackgroundColor(color::Gray)
-		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
-		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetTextureKey("replay_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 		.SetSize(V2_float{ 300, 80 })
 		.OnActivate([this]() { game.scene.Transition<MainMenuScene>("game", "main_menu", {}); })
 		.SetPosition(center + V2_float{ 470, 300 });
