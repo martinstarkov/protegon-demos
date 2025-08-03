@@ -6,6 +6,7 @@
   "rockfly2": "resources/audio/rockfly3.ogg",
   "bell": "resources/audio/bell.ogg",
   "click": "resources/audio/click.ogg",
+  "take": "resources/audio/take.ogg",
   "replay_button": "resources/ui/replay_button.png",
   "main_button": "resources/ui/main_button.png",
   "back_button1": "resources/ui/back_button1.png",

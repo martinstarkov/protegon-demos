@@ -331,7 +331,7 @@ public:
 			int font_size_json{ level_object.at("font_size").get<int>() };
 			font_size = font_size_json;
 		}
-
+		int correct_count{ 0 };
 		for (auto i = 0; i < correctness.size(); i++) {
 			std::string cycle_name = correctness[i].first;
 			int cycle_correctness  = correctness[i].second;
@@ -347,13 +347,19 @@ public:
 				message = failure + " "; // + "\n";
 			} else if (cycle_correctness == 1 && cycle_json.contains("success_message")) {
 				std::string success{ cycle_json.at("success_message").get<std::string>() };
-				message = success + " "; // + "\n";
+				message		   = success + " "; // + "\n";
+				correct_count += 1;
 			} else {
 				message = "CYCLE MESSAGE NOT FOUND, SORRY.";
 			}
 			scroll_content.GetValue() += message;
 		}
 
+		scroll_content.GetValue() += "\n\n";
+		scroll_content.GetValue() += "Correct: ";
+		scroll_content.GetValue() += ToString(correct_count);
+		scroll_content.GetValue() += "/";
+		scroll_content.GetValue() += ToString(correctness.size());
 		// PTGN_LOG("Scroll size: ", font_size.GetValue(), ", content: ",
 		// scroll_content.GetValue());
 
@@ -569,7 +575,7 @@ public:
 			.OnActivate([]() {
 				game.scene.Transition<LevelSelect>("main_menu", "level_select", {});
 			})
-			.SetPosition(center + V2_float{ -300, 100 });
+			.SetPosition(center + V2_float{ -300, 200 });
 		CreateMyButton(*this)
 			.SetText("Instructions", color::Black)
 			.SetFontSize(48)
@@ -581,7 +587,7 @@ public:
 			.OnActivate([]() {
 				game.scene.Transition<InstructionScene>("main_menu", "instruction", {});
 			})
-			.SetPosition(center + V2_float{ 300, 100 });
+			.SetPosition(center + V2_float{ 300, 200 });
 	}
 };
 
@@ -672,6 +678,7 @@ public:
 		game.sound.SetVolume("rockfly2", 128);
 		game.sound.SetVolume("bell", 40);
 		game.sound.SetVolume("click", 40);
+		game.sound.SetVolume("take", 40);
 		game.music.Play("elevator_music", -1);
 		game.scene.Transition<MainMenuScene>("loading", "main_menu", {});
 	}
@@ -739,7 +746,8 @@ void DiskDragScript::OnPickup([[maybe_unused]] Entity dropzone) {
 	if (dropzone.Get<Dropzone>().dropped_entities.empty()) {
 		dropzone.Add<DiskIndex>(-1);
 		entity.GetChild("disk_out").Show();
-		// PTGN_LOG("Setting dropzone ", dropzone.GetPosition(), " to -1");
+		// game.sound.Play("take");
+		//  PTGN_LOG("Setting dropzone ", dropzone.GetPosition(), " to -1");
 	}
 }
 
@@ -747,6 +755,7 @@ void DiskDragScript::OnDrop([[maybe_unused]] Entity dropzone) {
 	if (dropzone.Get<Dropzone>().dropped_entities.empty()) {
 		dropzone.Add<DiskIndex>(entity.Get<DiskIndex>());
 		// Shake(game.scene.Get<GameScene>("game").tablet, 0.5f);
+		game.sound.Play("take");
 		Shake(entity, 0.2f);
 		entity.GetChild("disk_out").Hide();
 		/*PTGN_LOG(
