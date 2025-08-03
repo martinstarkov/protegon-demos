@@ -47,10 +47,18 @@ Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
 	return entity;
 }
 
-Entity CreateScroll(Scene& scene) {
-	Entity entity = CreateSprite(scene, "scroll");
+Entity CreateScroll(Scene& scene, const TextContent& scroll_content) {
+	Sprite entity = CreateSprite(scene, "scroll");
 	entity.SetOrigin(Origin::Center);
 	entity.SetPosition(center);
+	TextProperties properties;
+	properties.style = FontStyle::Bold;
+	properties.wrap_after =
+		435; // How wide we want the text to be within the scroll texture (has some margins)
+	auto scroll_text =
+		CreateText(scene, scroll_content, color::Black, 24, "scroll_font", properties);
+	scroll_text.SetParent(entity);
+	scroll_text.SetOrigin(Origin::Center);
 	return entity;
 }
 
@@ -185,6 +193,7 @@ public:
 
 	json game_json;
 	json cycles;
+	std::vector<int> correctness;
 	int current_cycle{ 0 };
 
 	GameScene(int set_of_cycles_index) : set_of_cycles_index{ set_of_cycles_index } {
@@ -202,6 +211,7 @@ public:
 		PTGN_ASSERT(level_object.is_object());
 		PTGN_ASSERT(level_object.contains("cycles"));
 		cycles = level_object.at("cycles");
+		correctness.clear();
 		PTGN_ASSERT(cycles.is_array());
 		PTGN_ASSERT(cycles.size() > 0, "Each level must have at least one cycle");
 	}
@@ -256,12 +266,22 @@ public:
 	}
 
 	json GetNextCycle() {
-		current_cycle++;
 		auto name = GetCurrentCycleName();
-		if (name.empty()) {
+		current_cycle++;
+		bool correct{ CheckPattern(disk_slots) };
+		int score = 0;
+		if (correct) {
+			PTGN_LOG("Cycle '", name, "' correct");
+			score = 1;
+		} else {
+			PTGN_LOG("Cycle '", name, "' incorrect");
+		}
+		correctness.emplace_back(score);
+		auto next_name = GetCurrentCycleName();
+		if (next_name.empty()) {
 			return json{}; // No more cycles remaining.
 		}
-		return GetCycle(name);
+		return GetCycle(next_name);
 	}
 
 	struct ScrollFallScript : public Script<ScrollFallScript> {
@@ -275,8 +295,16 @@ public:
 		auto fall_ease{ AsymmetricalEase::OutBounce };
 		milliseconds scroll_fall_duration{ 1000 };
 
+		TextContent scroll_content{ "Correctness: " };
+
+		for (auto i = 0; i < correctness.size(); i++) {
+			std::string content{ " i:  " + ToString(i) + ", value: " + ToString(correctness[i]) +
+								 " | " };
+			scroll_content.GetValue() += content;
+		}
+
 		scroll.Destroy();
-		scroll = CreateScroll(*this);
+		scroll = CreateScroll(*this, scroll_content);
 		auto scroll_position{ scroll.GetPosition() };
 		scroll.SetPosition(scroll_position + V2_float{ 0.0f, -resolution.y });
 		TranslateTo(scroll, scroll_position, scroll_fall_duration, fall_ease);
@@ -381,6 +409,7 @@ public:
 
 	void Enter() override {
 		current_cycle = 0;
+		correctness.clear();
 
 		game_timer.Start();
 		input.SetDrawInteractives(true);
@@ -646,12 +675,6 @@ void GameScene::NextCycleScript::OnTimerUpdate(float f) {
 
 bool GameScene::NextCycleScript::OnTimerStop() {
 	auto& scene{ game.scene.Get<GameScene>("game") };
-	bool correct{ scene.CheckPattern(scene.disk_slots) };
-	if (correct) {
-		PTGN_LOG("Correct!");
-	} else {
-		PTGN_LOG("Incorrect!");
-	}
 	auto cycle = scene.GetNextCycle();
 	if (cycle.empty()) {
 		scene.game_timer.Stop();

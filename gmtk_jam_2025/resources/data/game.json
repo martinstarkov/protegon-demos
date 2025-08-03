@@ -1,7 +1,7 @@
 {
   "levels": [
-    { "cycles": ["racecar", "life", "moon"] },
-    { "cycles": ["water", "star"] },
+    { "cycles": ["racecar", "life", "moon", "star"] },
+    { "cycles": ["water"] },
     { "cycles": ["plant", "seasons", "mitosis"] }
   ],
   "life": {
