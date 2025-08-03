@@ -1,6 +1,6 @@
 {
   "levels": [
-    { "cycles": ["life", "moon"] },
+    { "cycles": ["racecar", "life", "moon"] },
     { "cycles": ["water", "star"] },
     { "cycles": ["plant", "seasons", "mitosis"] }
   ],
@@ -113,6 +113,27 @@
     ],
     "failure_message": "The cells are broken.",
     "success_message": "The cells are dividing."
+  },
+  "racecar": {
+    "tablet": "tablet_6",
+    "disks": [
+      "racecar_0",
+      "racecar_1",
+      "racecar_2",
+      "racecar_3",
+      "racecar_4",
+      "racecar_5"
+    ],
+    "positions": [
+      [168, 158],
+      [318, 158],
+      [385, 298],
+      [330, 436],
+      [167, 434],
+      [119, 298]
+    ],
+    "failure_message": "Humans fail to find fast cars cool.",
+    "success_message": "Car racing becomes a cult sport."
   },
   "test": {
     "tablet": "tablet_6",

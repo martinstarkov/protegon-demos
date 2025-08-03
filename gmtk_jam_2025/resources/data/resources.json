@@ -61,5 +61,11 @@
   "mitosis_3": "resources/ui/mitosis/mitosis_3.png",
   "mitosis_4": "resources/ui/mitosis/mitosis_4.png",
   "mitosis_5": "resources/ui/mitosis/mitosis_5.png",
+  "racecar_0": "resources/ui/racecar/racecar_0.png",
+  "racecar_1": "resources/ui/racecar/racecar_1.png",
+  "racecar_2": "resources/ui/racecar/racecar_2.png",
+  "racecar_3": "resources/ui/racecar/racecar_3.png",
+  "racecar_4": "resources/ui/racecar/racecar_4.png",
+  "racecar_5": "resources/ui/racecar/racecar_5.png",
   "game_json": "resources/data/game.json"
 }

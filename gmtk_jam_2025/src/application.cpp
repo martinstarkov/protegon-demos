@@ -100,6 +100,73 @@ Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 
 class GameScene : public Scene {
 public:
+	bool CheckSequenceWithFlip(
+		const std::vector<Entity>& items, std::vector<Entity>::const_iterator it,
+		const std::vector<std::pair<std::size_t, std::size_t>>& flip_pairs
+	) {
+		std::size_t start = std::distance(items.begin(), it);
+		std::size_t n	  = items.size();
+
+		auto is_flippable = [&](std::size_t i, std::size_t val) -> bool {
+			if (i == val) {
+				return true; // normal case
+			}
+
+			// Check if i and val form a flip pair (order does not matter)
+			for (const auto& p : flip_pairs) {
+				if ((i == p.first && val == p.second) || (i == p.second && val == p.first)) {
+					return true;
+				}
+			}
+			return false;
+		};
+
+		for (std::size_t i = 0; i < n; ++i) {
+			const Entity& current = items[(start + i) % n];
+			std::size_t val		  = current.Get<DiskIndex>().GetValue();
+
+			if (!is_flippable(i, val)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	// @return True if all the slots are consecutive disk indices.
+	bool CheckPattern(const std::vector<Entity>& items) {
+		if (items.empty()) {
+			return false;
+		}
+
+		auto it = std::find_if(items.begin(), items.end(), [](const Entity& item) {
+			return item.Get<DiskIndex>().GetValue() == 0;
+		});
+
+		if (it == items.end()) {
+			return false;
+		}
+
+		auto current_cycle_name{ GetCurrentCycleName() };
+
+		if (current_cycle_name == "racecar") {
+			std::vector<std::pair<std::size_t, std::size_t>> flip_pairs = { { 1, 5 }, { 2, 4 } };
+			return CheckSequenceWithFlip(items, it, flip_pairs);
+		}
+
+		std::size_t start = std::distance(items.begin(), it);
+		std::size_t n	  = items.size();
+
+		for (std::size_t i = 0; i < n; ++i) {
+			const Entity& current = items[(start + i) % n];
+			if (current.Get<DiskIndex>().GetValue() != i) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	bool reactive{ false };
 
 	Entity tablet;
@@ -148,33 +215,6 @@ public:
 			return item.Get<DiskIndex>().GetValue() == -1;
 		});
 		return it == items.end();
-	}
-
-	// @return True if all the slots are consecutive disk indices.
-	bool CheckPattern(const std::vector<Entity>& items) {
-		if (items.empty()) {
-			return false;
-		}
-
-		auto it = std::find_if(items.begin(), items.end(), [](const Entity& item) {
-			return item.Get<DiskIndex>().GetValue() == 0;
-		});
-
-		if (it == items.end()) {
-			return false;
-		}
-
-		std::size_t start = std::distance(items.begin(), it);
-		std::size_t n	  = items.size();
-
-		for (std::size_t i = 0; i < n; ++i) {
-			const Entity& current = items[(start + i) % n];
-			if (current.Get<DiskIndex>().GetValue() != i) {
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 	struct NextCycleScript : public Script<NextCycleScript> {
@@ -635,23 +675,23 @@ bool GameScene::ScrollFallScript::OnTimerStop() {
 	scene.submit.Disable();
 	CreateButton(scene)
 		.SetText("Replay", color::White)
-		.SetFontSize(24)
+		.SetFontSize(36)
 		.SetBackgroundColor(color::Gray)
 		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
 		.SetBackgroundColor(color::Black, ButtonState::Pressed)
-		.SetSize(V2_float{ 200, 60 })
+		.SetSize(V2_float{ 300, 80 })
 		.OnActivate([&scene]() { scene.reactive = true; })
-		.SetPosition(center + V2_float{ 450, 200 });
+		.SetPosition(center + V2_float{ 470, 200 });
 
 	CreateButton(scene)
 		.SetText("Level Select", color::White)
-		.SetFontSize(24)
+		.SetFontSize(36)
 		.SetBackgroundColor(color::Gray)
 		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
 		.SetBackgroundColor(color::Black, ButtonState::Pressed)
-		.SetSize(V2_float{ 200, 60 })
+		.SetSize(V2_float{ 300, 80 })
 		.OnActivate([this]() { game.scene.Transition<MainMenuScene>("game", "main_menu", {}); })
-		.SetPosition(center + V2_float{ 450, 300 });
+		.SetPosition(center + V2_float{ 470, 300 });
 	return true;
 }
 
