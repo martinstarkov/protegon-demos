@@ -112,7 +112,7 @@
       [119, 295]
     ],
     "failure_message": "Cells cannot multiply properly, life fails before it has even begun.",
-    "success_message": "Cells split and multiply with ease, life will suceed!"
+    "success_message": "Cells split and multiply with ease, life will succeed!"
   },
   "racecar": {
     "tablet": "tablet_6",
