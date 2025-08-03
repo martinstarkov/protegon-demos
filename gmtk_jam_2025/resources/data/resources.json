@@ -2,6 +2,7 @@
   "": "resources/font/AUGUSTUS.TTF",
   "main_menu_bg": "resources/ui/main_menu_bg.png",
   "instructions_bg": "resources/ui/instructions_bg.png",
+  "level_select_bg": "resources/ui/level_select_bg.png",
   "game_bg": "resources/ui/background.png",
   "scroll": "resources/ui/scroll.png",
   "diamonds": "resources/ui/diamonds.png",

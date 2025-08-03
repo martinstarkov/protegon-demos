@@ -113,6 +113,10 @@ public:
 
 	std::vector<Entity> disk_slots;
 
+	int set_of_cycles_index{ 0 };
+
+	GameScene(int set_of_cycles_index) : set_of_cycles_index{ set_of_cycles_index } {}
+
 	// @return True if all the slots are not -1.
 	bool AllFilled(const std::vector<Entity>& items) {
 		if (items.empty()) {
@@ -305,6 +309,8 @@ public:
 		input.SetDrawInteractives(true);
 		input.SetTopOnly(false);
 
+		PTGN_LOG("Entering game scene for level: ", set_of_cycles_index);
+
 		if (levels.empty()) {
 			levels = game.json.Get("game_json");
 			// PTGN_LOG("Levels json: ", levels.dump(4));
@@ -363,6 +369,11 @@ public:
 	void Update() override;
 };
 
+class LevelSelect : public Scene {
+public:
+	void Enter() override;
+};
+
 class MainMenuScene : public Scene {
 public:
 	void Enter() override {
@@ -374,7 +385,9 @@ public:
 			.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
 			.SetBackgroundColor(color::Black, ButtonState::Pressed)
 			.SetSize(V2_float{ 500, 150 })
-			.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}); })
+			.OnActivate([]() {
+				game.scene.Transition<LevelSelect>("main_menu", "level_select", {});
+			})
 			.SetPosition(center + V2_float{ -300, 100 });
 		CreateButton(*this)
 			.SetText("Instructions", color::White)
@@ -389,6 +402,46 @@ public:
 			.SetPosition(center + V2_float{ 300, 100 });
 	}
 };
+
+void LevelSelect::Enter() {
+	CreateSprite(*this, "level_select_bg").SetOrigin(Origin::TopLeft);
+	CreateButton(*this)
+		.SetText("1", color::White)
+		.SetFontSize(48)
+		.SetBackgroundColor(color::Gray)
+		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetSize(V2_float{ 150, 150 })
+		.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}, 0); })
+		.SetPosition(center + V2_float{ -300, 0 });
+	CreateButton(*this)
+		.SetText("2", color::White)
+		.SetFontSize(48)
+		.SetBackgroundColor(color::Gray)
+		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetSize(V2_float{ 150, 150 })
+		.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}, 1); })
+		.SetPosition(center + V2_float{ 0, 0 });
+	CreateButton(*this)
+		.SetText("3", color::White)
+		.SetFontSize(48)
+		.SetBackgroundColor(color::Gray)
+		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetSize(V2_float{ 150, 150 })
+		.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}, 2); })
+		.SetPosition(center + V2_float{ 300, 0 });
+	CreateButton(*this)
+		.SetText("Back", color::White)
+		.SetFontSize(36)
+		.SetBackgroundColor(color::Gray)
+		.SetBackgroundColor(color::DarkGray, ButtonState::Hover)
+		.SetBackgroundColor(color::Black, ButtonState::Pressed)
+		.SetSize(V2_float{ 300, 100 })
+		.OnActivate([]() { game.scene.Transition<MainMenuScene>("level_select", "main_menu", {}); })
+		.SetPosition(center + V2_float{ 0, 280 });
+}
 
 void InstructionScene::Update() {
 	if (game.input.KeyDown(Key::Escape)) {
