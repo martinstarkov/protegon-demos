@@ -6,13 +6,14 @@
     { "cycles": ["plant"] }
   ],
   "life": {
-    "tablet": "tablet_4",
-    "disks": ["disk_0", "disk_1", "disk_2", "disk_3"],
+    "tablet": "tablet_5",
+    "disks": ["life_0", "life_1", "life_2", "life_3", "life_4"],
     "positions": [
-      [248, 166],
-      [380, 291],
-      [248, 432],
-      [118, 291]
+      [249, 160],
+      [381, 283],
+      [328, 434],
+      [167, 434],
+      [118, 283]
     ],
     "failure_message": "Failure message!",
     "success_message": "Success message!"
@@ -33,13 +34,13 @@
     "tablet": "tablet_8",
     "disks": [
       "moon_0",
-      "moon_1",
-      "moon_2",
-      "moon_3",
-      "moon_4",
-      "moon_5",
+      "moon_7",
       "moon_6",
-      "moon_7"
+      "moon_5",
+      "moon_4",
+      "moon_3",
+      "moon_2",
+      "moon_1"
     ],
     "positions": [
       [183, 119],
