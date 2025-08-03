@@ -1,3 +1,4 @@
+#include "audio/audio.h"
 #include "components/animation.h"
 #include "components/draw.h"
 #include "components/generic.h"
@@ -35,6 +36,20 @@ struct DiskDragScript : public Script<DiskDragScript> {
 	virtual void OnDrop([[maybe_unused]] Entity dropzone) override;
 };
 
+struct ButtonAudioScript : public Script<ButtonAudioScript> {
+	ButtonAudioScript() {}
+
+	void OnButtonActivate() override {
+		game.sound.Play("click");
+	}
+};
+
+Button CreateMyButton(Scene& scene) {
+	auto button = CreateButton(scene);
+	button.AddScript<ButtonAudioScript>();
+	return button;
+}
+
 Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
 	Entity entity = CreateSprite(scene, texture_handle);
 	auto diamonds = CreateSprite(scene, "diamonds");
@@ -48,17 +63,20 @@ Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
 }
 
 Entity CreateScroll(Scene& scene, const TextContent& scroll_content, const FontSize& font_size) {
+	TextProperties properties;
+	// properties.style = FontStyle::Bold;
+	// How wide we want the text to be within the scroll texture (has some margins).
+	properties.wrap_after = 440;
+	ResourceHandle font_key{ "text_font" };
+	auto scroll_text =
+		CreateText(scene, scroll_content, color::Black, font_size, font_key, properties);
 	Sprite entity = CreateSprite(scene, "scroll");
+	entity.SetDepth(2);
 	entity.SetOrigin(Origin::Center);
 	entity.SetPosition(center);
-	TextProperties properties;
-	properties.style = FontStyle::Bold;
-	properties.wrap_after =
-		435; // How wide we want the text to be within the scroll texture (has some margins)
-	auto scroll_text =
-		CreateText(scene, scroll_content, color::Black, font_size, "scroll_font", properties);
+	scroll_text.SetPosition(V2_float{ 10.0f, 0.0f });
 	scroll_text.SetParent(entity);
-	scroll_text.SetOrigin(Origin::Center);
+	scroll_text.SetDepth(3);
 	return entity;
 }
 
@@ -243,6 +261,8 @@ public:
 		RNG<int> fly_duration{ 500, 2000 };
 		auto fly_ease{ AsymmetricalEase::InBack };
 		milliseconds tablet_fly_duration{ 1000 };
+
+		game.sound.Play("rockfly");
 		TranslateTo(
 			tablet, tablet.GetPosition() + V2_float{ 0.0f, -resolution.y }, tablet_fly_duration,
 			fly_ease
@@ -299,7 +319,7 @@ public:
 		auto fall_ease{ AsymmetricalEase::OutBounce };
 		milliseconds scroll_fall_duration{ 1000 };
 
-		TextContent scroll_content{ "Here is how you did: \n\n" };
+		TextContent scroll_content{ "" /*"Here is how you did: \n\n"*/ };
 		FontSize font_size{ 18 };
 		if (level_object.contains("font_size")) {
 			int font_size_json{ level_object.at("font_size").get<int>() };
@@ -310,7 +330,7 @@ public:
 			std::string cycle_name = correctness[i].first;
 			int cycle_correctness  = correctness[i].second;
 			PTGN_ASSERT(game_json.contains(cycle_name), "Cycle ", cycle_name, " not found in json");
-			json cycle_json = game_json.at(cycle_name);
+			json cycle_json{ game_json.at(cycle_name) };
 			PTGN_ASSERT(cycle_json.is_object());
 			if (cycle_json.is_array()) {
 				cycle_json = cycle_json.at(0);
@@ -327,6 +347,9 @@ public:
 			}
 			scroll_content.GetValue() += message;
 		}
+
+		// PTGN_LOG("Scroll size: ", font_size.GetValue(), ", content: ",
+		// scroll_content.GetValue());
 
 		scroll.Destroy();
 		scroll = CreateScroll(*this, scroll_content, font_size);
@@ -461,6 +484,7 @@ public:
 					 .SetButtonTint(color::Gray, ButtonState::Pressed)
 					 .OnActivate([this]() {
 						 if (!submit.HasScript<NextCycleScript>()) {
+							 game.sound.Play("bell");
 							 submit.AddTimerScript<NextCycleScript>(milliseconds{ 2000 });
 						 }
 						 submit.Disable();
@@ -469,6 +493,7 @@ public:
 					 .SetOrigin(Origin::TopLeft)
 					 .SetPosition({ 988, 69 });
 
+		game.sound.Play("rockfly2");
 		DestroyCycle();
 		CreateCycle(cycle);
 
@@ -504,7 +529,7 @@ class MainMenuScene : public Scene {
 public:
 	void Enter() override {
 		CreateSprite(*this, "main_menu_bg").SetOrigin(Origin::TopLeft);
-		CreateButton(*this)
+		CreateMyButton(*this)
 			.SetText("Play", color::White)
 			.SetFontSize(48)
 			.SetBackgroundColor(color::Gray)
@@ -515,7 +540,7 @@ public:
 				game.scene.Transition<LevelSelect>("main_menu", "level_select", {});
 			})
 			.SetPosition(center + V2_float{ -300, 100 });
-		CreateButton(*this)
+		CreateMyButton(*this)
 			.SetText("Instructions", color::White)
 			.SetFontSize(48)
 			.SetBackgroundColor(color::Gray)
@@ -531,7 +556,7 @@ public:
 
 void LevelSelect::Enter() {
 	CreateSprite(*this, "level_select_bg").SetOrigin(Origin::TopLeft);
-	CreateButton(*this)
+	CreateMyButton(*this)
 		.SetText("1", color::White)
 		.SetFontSize(48)
 		.SetBackgroundColor(color::Gray)
@@ -540,7 +565,7 @@ void LevelSelect::Enter() {
 		.SetSize(V2_float{ 150, 150 })
 		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 0); })
 		.SetPosition(center + V2_float{ -300, 0 });
-	CreateButton(*this)
+	CreateMyButton(*this)
 		.SetText("2", color::White)
 		.SetFontSize(48)
 		.SetBackgroundColor(color::Gray)
@@ -549,7 +574,7 @@ void LevelSelect::Enter() {
 		.SetSize(V2_float{ 150, 150 })
 		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 1); })
 		.SetPosition(center + V2_float{ 0, 0 });
-	CreateButton(*this)
+	CreateMyButton(*this)
 		.SetText("3", color::White)
 		.SetFontSize(48)
 		.SetBackgroundColor(color::Gray)
@@ -558,7 +583,7 @@ void LevelSelect::Enter() {
 		.SetSize(V2_float{ 150, 150 })
 		.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 2); })
 		.SetPosition(center + V2_float{ 300, 0 });
-	CreateButton(*this)
+	CreateMyButton(*this)
 		.SetText("Back", color::White)
 		.SetFontSize(36)
 		.SetBackgroundColor(color::Gray)
@@ -580,6 +605,7 @@ void InstructionScene::Enter() {
 	TextProperties properties;
 	properties.wrap_after = static_cast<std::uint32_t>(resolution.x * 0.9f);
 	properties.justify	  = TextJustify::Center;
+	ResourceHandle font_key{ "text_font" };
 	CreateText(
 		*this,
 		"You are God, forging the foundations of existence. In your hands are disks "
@@ -587,10 +613,10 @@ void InstructionScene::Enter() {
 		"forming stable cycles that define the laws and rhythms of the universe.\n\n Ring the "
 		"bell "
 		"when ready.",
-		color::White, 36, {}, properties
+		color::White, 36, font_key, properties
 	)
 		.SetPosition(center + V2_float{ 0, -50 });
-	CreateButton(*this)
+	CreateMyButton(*this)
 		.SetText("Back", color::White)
 		.SetFontSize(36)
 		.SetBackgroundColor(color::Gray)
@@ -605,6 +631,12 @@ class LoadingScene : public Scene {
 public:
 	void Enter() override {
 		LoadResources("resources/data/resources.json");
+		game.music.SetVolume(15);
+		game.sound.SetVolume("rockfly", 15);
+		game.sound.SetVolume("rockfly2", 128);
+		game.sound.SetVolume("bell", 40);
+		game.sound.SetVolume("click", 40);
+		game.music.Play("elevator_music", -1);
 		game.scene.Transition<MainMenuScene>("loading", "main_menu", {});
 	}
 };
@@ -721,7 +753,7 @@ void GameScene::ScrollFallScript::OnTimerUpdate(float f) {
 bool GameScene::ScrollFallScript::OnTimerStop() {
 	auto& scene{ game.scene.Get<GameScene>("game") };
 	scene.submit.Disable();
-	CreateButton(scene)
+	CreateMyButton(scene)
 		.SetText("Replay", color::White)
 		.SetFontSize(36)
 		.SetBackgroundColor(color::Gray)
@@ -731,7 +763,7 @@ bool GameScene::ScrollFallScript::OnTimerStop() {
 		.OnActivate([&scene]() { scene.reactive = true; })
 		.SetPosition(center + V2_float{ 470, 200 });
 
-	CreateButton(scene)
+	CreateMyButton(scene)
 		.SetText("Level Select", color::White)
 		.SetFontSize(36)
 		.SetBackgroundColor(color::Gray)

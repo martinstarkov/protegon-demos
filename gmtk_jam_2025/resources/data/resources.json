@@ -1,6 +1,11 @@
 {
   "": "resources/font/AUGUSTUS.TTF",
-  "scroll_font": "resources/font/AUGUSTUS.ttf",
+  "text_font": "resources/font/AppleGaramond.ttf",
+  "elevator_music": "resources/audio/elevator.ogg",
+  "rockfly": "resources/audio/rockfly.ogg",
+  "rockfly2": "resources/audio/rockfly3.ogg",
+  "bell": "resources/audio/bell.ogg",
+  "click": "resources/audio/click.ogg",
   "main_menu_bg": "resources/ui/main_menu_bg.png",
   "instructions_bg": "resources/ui/instructions_bg.png",
   "level_select_bg": "resources/ui/level_select_bg.png",

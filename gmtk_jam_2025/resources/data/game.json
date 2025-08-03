@@ -1,8 +1,8 @@
 {
   "levels": [
-    { "cycles": ["moon", "life", "racecar", "star"], "font_size": 18 },
-    { "cycles": ["water"], "font_size": 36 },
-    { "cycles": ["plant", "seasons", "mitosis"] }
+    { "cycles": ["moon", "life", "racecar", "star"], "font_size": 30 },
+    { "cycles": ["water"], "font_size": 30 },
+    { "cycles": ["plant", "seasons", "mitosis"], "font_size": 30 }
   ],
   "life": {
     "tablet": "tablet_5",
