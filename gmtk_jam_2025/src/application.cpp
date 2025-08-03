@@ -30,9 +30,9 @@ struct DiskIndex : public ArithmeticComponent<int> {
 struct DiskDragScript : public Script<DiskDragScript> {
 	void OnDrag(V2_float mouse) override;
 
-	virtual void OnPickup([[maybe_unused]] Entity dropzone);
+	virtual void OnPickup([[maybe_unused]] Entity dropzone) override;
 
-	virtual void OnDrop([[maybe_unused]] Entity dropzone);
+	virtual void OnDrop([[maybe_unused]] Entity dropzone) override;
 };
 
 Entity CreateTablet(Scene& scene, const TextureHandle& texture_handle) {
@@ -77,7 +77,9 @@ Entity CreateDisk(
 
 Entity CreateDiskSlot(Scene& scene, const V2_float& position, Sprite tablet) {
 	// Size of the interactable.
+	// PTGN_LOG("Disk slot inside1");
 	float radius{ game.texture.GetSize("disk_out").x / 2.0f };
+	// PTGN_LOG("Disk slot inside2");
 	Entity entity = scene.CreateEntity(
 	); // CreateCircle(scene, position, radius, color::Cyan, -1.0f); // scene.CreateEntity();
 	entity.SetParent(tablet);
@@ -150,9 +152,9 @@ public:
 	struct NextLevelScript : public Script<NextLevelScript> {
 		NextLevelScript() {}
 
-		void OnTimerStart();
-		void OnTimerUpdate(float f);
-		bool OnTimerStop();
+		void OnTimerStart() override;
+		void OnTimerUpdate(float f) override;
+		bool OnTimerStop() override;
 	};
 
 	void DeleteLevel() {
@@ -165,7 +167,8 @@ public:
 			tablet, tablet.GetPosition() + V2_float{ 0.0f, -resolution.y }, tablet_fly_duration,
 			fly_ease
 		);
-		for (auto& disk : disks) {
+		for (auto i = 0; i < disks.size(); i++) {
+			auto disk = disks[i];
 			TranslateTo(
 				disk, disk.GetPosition() + V2_float{ 0.0f, -resolution.y },
 				milliseconds{ fly_duration() }, fly_ease
@@ -181,8 +184,8 @@ public:
 	struct ScrollFallScript : public Script<ScrollFallScript> {
 		ScrollFallScript() {}
 
-		void OnTimerUpdate(float f);
-		bool OnTimerStop();
+		void OnTimerUpdate(float f) override;
+		bool OnTimerStop() override;
 	};
 
 	void ShowScroll() {
@@ -201,26 +204,34 @@ public:
 	void DestroyLevel() {
 		tablet.Destroy();
 
-		for (Entity slot : disk_slots) {
+		for (auto i = 0; i < disk_slots.size(); ++i) {
+			Entity slot = disk_slots[i];
 			slot.Destroy();
 		}
 		disk_slots.clear();
 
-		for (Entity disk : disks) {
+		for (auto i = 0; i < disks.size(); ++i) {
+			Entity disk = disks[i];
 			disk.Destroy();
 		}
 		disks.clear();
 	}
 
-	void CreateLevel(const json& j) {
+	void CreateLevel(json j) {
+		if (j.is_array()) {
+			j = j.at(0);
+		}
 		PTGN_ASSERT(j.contains("tablet"));
 		PTGN_ASSERT(j.at("tablet").is_string());
+		// PTGN_LOG("Level json: ", j);
 
 		RNG<int> fall_duration{ 500, 2000 };
 		auto fall_ease{ AsymmetricalEase::OutBounce };
 		milliseconds tablet_fall_duration{ 1000 };
 
-		tablet = CreateTablet(*this, j.at("tablet"));
+		TextureHandle tablet_handle{ j.at("tablet").get<std::string>() };
+
+		tablet = CreateTablet(*this, tablet_handle);
 		auto tablet_position{ tablet.GetPosition() };
 		tablet.SetPosition(tablet_position + V2_float{ 0.0f, -resolution.y });
 		TranslateTo(tablet, tablet_position, tablet_fall_duration, fall_ease);
@@ -230,13 +241,22 @@ public:
 
 		std::vector<V2_int> slots{ j.at("positions").get<std::vector<V2_int>>() };
 
-		for (const auto& slot : slots) {
-			disk_slots.push_back(CreateDiskSlot(*this, slot, tablet));
+		// PTGN_LOG("11: ", j.at("positions").dump(4));
+
+		/*for (auto i = 0; i < slots.size(); i++) {
+			PTGN_LOG(slots[i]);
+		}*/
+
+		for (auto i = 0; i < slots.size(); i++) {
+			V2_int slot = slots[i];
+			disk_slots.emplace_back(CreateDiskSlot(*this, slot, tablet));
 		}
 
 		PTGN_ASSERT(j.contains("disks"));
+		// PTGN_LOG("15: ", j.dump(4));
 
 		const auto& json_disks{ j.at("disks") };
+		// PTGN_LOG("16: ", json_disks.dump(4));
 
 		PTGN_ASSERT(json_disks.is_array());
 
@@ -254,8 +274,7 @@ public:
 			auto position{ random_picker.Next() };
 			PTGN_ASSERT(position);
 			PTGN_ASSERT(json_disks[i].is_string());
-			TextureHandle handle;
-			json_disks[i].get_to(handle);
+			TextureHandle handle{ json_disks[i].get<std::string>() };
 			auto disk{ CreateDisk(*this, *position, handle, static_cast<int>(i)) };
 			disk.SetPosition(*position + V2_float{ 0.0f, -resolution.y });
 			TranslateTo(disk, *position, milliseconds{ fall_duration() }, fall_ease);
@@ -271,6 +290,9 @@ public:
 		PTGN_ASSERT(level_name != "level");
 		PTGN_ASSERT(levels.contains(level_name), "Level must be set to a valid level entry");
 		auto level{ levels.at(level_name) };
+		if (level.is_array()) {
+			level = level.at(0);
+		}
 		return level;
 	}
 
@@ -283,11 +305,15 @@ public:
 
 		if (levels.empty()) {
 			levels = game.json.Get("game_json");
+			// PTGN_LOG("Levels json: ", levels.dump(4));
 		}
 
 		PTGN_ASSERT(levels.contains("level"));
-		auto level_name{ levels.at("level") };
+		auto level_name{ levels.at("level").get<std::string>() };
 		auto level{ GetLevel(level_name) };
+		if (level.is_array()) {
+			level = level.at(0);
+		}
 
 		CreateSprite(*this, "game_bg").SetOrigin(Origin::TopLeft);
 
@@ -320,12 +346,12 @@ public:
 	struct DiamondsScript : public TweenScript<DiamondsScript> {
 		DiamondsScript() {}
 
-		void OnUpdate(TweenInfo info) {
+		void OnUpdate(TweenInfo info) override {
 			info.parent.SetTint(color::Black.WithAlpha(info.progress * 0.5f));
 		}
 	};
 
-	void Update();
+	void Update() override;
 };
 
 class InstructionScene : public Scene {
@@ -348,7 +374,6 @@ public:
 			.SetSize(V2_float{ 500, 150 })
 			.OnActivate([]() { game.scene.Transition<GameScene>("main_menu", "game", {}); })
 			.SetPosition(center + V2_float{ -300, 100 });
-
 		CreateButton(*this)
 			.SetText("Instructions", color::White)
 			.SetFontSize(48)
@@ -399,7 +424,6 @@ class LoadingScene : public Scene {
 public:
 	void Enter() override {
 		LoadResources("resources/data/resources.json");
-
 		game.scene.Transition<MainMenuScene>("loading", "main_menu", {});
 	}
 };
