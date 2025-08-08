@@ -39,7 +39,7 @@ if(EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
 
     # Check if sdl is needed here.
-    set(ECXXFLAGS "${ECXXFLAGS} -std=c++17 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg --use-port=sdl2_mixer --use-port=sdl2_ttf")
+    set(ECXXFLAGS "${ECXXFLAGS} -std=c++20 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg --use-port=sdl2_mixer --use-port=sdl2_ttf")
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "${ECXXFLAGS} --shell-file ${SHELL_HTML_FILE} --preload-file ${ASSETS_DIRECTORY} -s FULL_ES3=1 -s ALLOW_MEMORY_GROWTH=1 -s WARN_ON_UNDEFINED_SYMBOLS=1 -s NO_EXIT_RUNTIME=1 -s AGGRESSIVE_VARIABLE_ELIMINATION=1")
     set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "${ECXXFLAGS}")
     set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "index")
