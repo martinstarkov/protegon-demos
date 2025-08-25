@@ -71,12 +71,6 @@ public:
 
 		StartFollow(camera, player, FollowConfig{ .teleport_on_start = true });
 	}
-
-	void Update() override {
-		PTGN_LOG(GetTransform(player));
-	}
-
-	void Exit() override {}
 };
 
 int main() {
