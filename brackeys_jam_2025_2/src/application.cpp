@@ -5,8 +5,9 @@ using namespace ptgn;
 constexpr V2_int resolution{ 320, 180 };
 
 void SetupWindow() {
+	game.window.SetSize(resolution * 4);
 	game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::IntegerScale);
-	game.window.SetSetting(WindowSetting::Maximized);
+	// game.window.SetSetting(WindowSetting::Maximized);
 }
 
 struct FollowMouseScript : public Script<FollowMouseScript> {
