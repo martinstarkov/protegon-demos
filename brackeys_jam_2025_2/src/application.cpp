@@ -16,16 +16,7 @@ struct FollowMouseScript : public Script<FollowMouseScript> {
 	}
 };
 
-void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_float& dir_norm) {
-	auto bullet = CreateSprite(scene, "bullet1", start_pos);
-	auto& rb	= bullet.Add<RigidBody>();
-	float bullet_speed{ 500.0f };
-	rb.velocity = dir_norm * bullet_speed;
-	bullet.Add<Lifetime>(milliseconds{ 1000 }, true);
-	float heading{ dir_norm.Angle() + DegToRad(90.0f) };
-	SetRotation(bullet, heading);
-	game.sound.Play("bullet1_sound");
-}
+void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_float& dir_norm);
 
 struct ShootMouseBulletScript : public Script<ShootMouseBulletScript, GlobalMouseScript> {
 	void OnMouseDown(Mouse mouse_button) {
@@ -73,6 +64,19 @@ public:
 		StartFollow(camera, player, FollowConfig{ .teleport_on_start = true });
 	}
 };
+
+void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_float& dir_norm) {
+	auto bullet = CreateSprite(scene, "bullet1", start_pos);
+	auto& rb	= bullet.Add<RigidBody>();
+	float bullet_speed{ 500.0f };
+	rb.velocity = dir_norm * bullet_speed;
+	bullet.Add<Lifetime>(milliseconds{ 1000 }, true);
+	float heading{ dir_norm.Angle() + DegToRad(90.0f) };
+	SetRotation(bullet, heading);
+	// auto light = CreatePointLight(scene, start_pos, 10.0f, color::Red, 0.8f, 2.0f);
+	// SetParent(light, bullet);
+	game.sound.Play("bullet1_sound");
+}
 
 int main() {
 	game.Init("Zombie Game", resolution);
