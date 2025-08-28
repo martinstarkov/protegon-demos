@@ -1,0 +1,6 @@
+{
+  "hitboxes": [
+    { "position": [10, 10], "size": [213, 8] },
+    { "position": [257, 10], "size": [213, 8] }
+  ]
+}
