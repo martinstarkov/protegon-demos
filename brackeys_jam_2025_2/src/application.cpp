@@ -42,10 +42,10 @@ public:
 
 		LoadResources("resources/resources.json");
 
-		CreateRect(*this, { 0, 0 }, { 30, 30 }, color::Red, -1.0f, Origin::TopLeft);
+		/*CreateRect(*this, { 0, 0 }, { 30, 30 }, color::Red, -1.0f, Origin::TopLeft);
 		CreateRect(*this, { resolution.x, 0 }, { 30, 30 }, color::Red, -1.0f, Origin::TopRight);
 		CreateRect(*this, resolution, { 30, 30 }, color::Red, -1.0f, Origin::BottomRight);
-		CreateRect(*this, { 0, resolution.y }, { 30, 30 }, color::Red, -1.0f, Origin::BottomLeft);
+		CreateRect(*this, { 0, resolution.y }, { 30, 30 }, color::Red, -1.0f, Origin::BottomLeft);*/
 
 		TopDownPlayerConfig player_config;
 		player_config.animation_frame_count = { 4, 3 };
@@ -63,6 +63,10 @@ public:
 
 		StartFollow(camera, player, FollowConfig{ .teleport_on_start = true });
 	}
+
+	void Update() {
+		PTGN_LOG(GetAbsolutePosition(player));
+	}
 };
 
 void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_float& dir_norm) {
@@ -73,8 +77,6 @@ void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_floa
 	bullet.Add<Lifetime>(milliseconds{ 1000 }, true);
 	float heading{ dir_norm.Angle() + DegToRad(90.0f) };
 	SetRotation(bullet, heading);
-	// auto light = CreatePointLight(scene, start_pos, 10.0f, color::Red, 0.8f, 2.0f);
-	// SetParent(light, bullet);
 	game.sound.Play("bullet1_sound");
 }
 
