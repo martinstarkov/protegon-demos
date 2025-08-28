@@ -56,7 +56,7 @@ public:
 		camera.SetBounds(-world_size / 2.0f, world_size);
 		physics.SetBounds(-world_size / 2.0f, world_size);
 
-		json walls = game.json.Get("walls");
+		json walls = game.json.Get("walls_json");
 
 		for (json hitbox : walls.at("hitboxes")) {
 			CreateHitbox(hitbox.at("position").get<V2_float>(), hitbox.at("size").get<V2_float>());
