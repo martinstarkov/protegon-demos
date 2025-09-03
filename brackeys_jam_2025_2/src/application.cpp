@@ -15,7 +15,7 @@ constexpr CollisionCategory category_player_projectile{ 4 };
 
 void SetupWindow() {
 	game.window.SetSize(resolution * 4);
-	game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::IntegerScale);
+	game.renderer.SetScalingMode(ScalingMode::IntegerScale);
 	// game.window.SetSetting(WindowSetting::Maximized);
 }
 
@@ -73,7 +73,7 @@ public:
 		LoadResources("resources/resources.json");
 
 		camera.SetBounds(-world_size / 2.0f, world_size);
-		physics.SetBounds(-world_size / 2.0f, world_size);
+		physics.SetBounds(-world_size / 2.0f, world_size, BoundaryBehavior::StopVelocity);
 
 		json walls = game.json.Get("walls_json");
 
@@ -110,10 +110,6 @@ public:
 
 		StartFollow(camera, player, FollowConfig{ .teleport_on_start = true });
 	}
-
-	void Update() {
-		PTGN_LOG(GetAbsolutePosition(player));
-	}
 };
 
 void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_float& dir_norm) {
@@ -130,6 +126,10 @@ void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_floa
 	collider.AddCollidesWith(category_enemy);
 	collider.SetCollisionCategory(category_player_projectile);
 	collider.response = CollisionResponse::Stick;
+	auto light		  = CreatePointLight(
+		   scene, {}, bullet.GetTextureSize().y / 2.0f * 2.0f, color::Red, 1.0f, 2.0f
+	   );
+	AddChild(bullet, light);
 	AddScript<BulletDisappearScript>(bullet);
 }
 
