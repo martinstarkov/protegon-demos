@@ -349,22 +349,22 @@ public:
 		auto sprite = CreateSprite(*this, "title");
 		SetDrawOrigin(sprite, Origin::Center);
 		auto button = CreateMyButton(*this)
-						  .SetTextureKey("main_button")
+						  .SetTextureKey("play_button")
 						  .SetButtonTint(color::White)
 						  .SetButtonTint(color::Gray, ButtonState::Hover)
 						  .SetButtonTint(color::DarkGray, ButtonState::Pressed)
-						  .SetSize(V2_float{ 120, 50 })
+						  .SetSize(V2_float{ 48, 25 })
 						  .OnActivate([]() {
 							  game.scene.Transition<LevelSelect>("main_menu", "level_select");
 						  });
 		SetDrawOrigin(button, Origin::TopLeft);
 		SetPosition(button, V2_float{ 41, 113 } - center);
 		auto button2 = CreateMyButton(*this)
-						   .SetTextureKey("main_button")
+						   .SetTextureKey("instructions_button")
 						   .SetButtonTint(color::White)
 						   .SetButtonTint(color::Gray, ButtonState::Hover)
 						   .SetButtonTint(color::DarkGray, ButtonState::Pressed)
-						   .SetSize(V2_float{ 120, 50 })
+						   .SetSize(V2_float{ 78, 14 })
 						   .OnActivate([]() {
 							   game.scene.Transition<InstructionScene>("main_menu", "instruction");
 						   });
@@ -380,7 +380,7 @@ void LevelSelect::Enter() {
 	for (int i{ 0 }; i < 5; ++i) {
 		auto button =
 			CreateMyButton(*this)
-				.SetText(std::to_string(i + 1), color::Black, {}, "mono_font")
+				.SetText(std::to_string(i + 1), color::White, {}, "mono_font")
 				.SetFontSize(10)
 				.SetTextureKey("square_button")
 				.SetButtonTint(color::White)
@@ -416,17 +416,21 @@ void InstructionScene::Enter() {
 	auto sprite = CreateSprite(*this, "background");
 	SetDrawOrigin(sprite, Origin::Center);
 	TextProperties properties;
-	properties.wrap_after = static_cast<std::uint32_t>(resolution.x * 0.9f);
-	properties.justify	  = TextJustify::Center;
+	properties.wrap_after =
+		static_cast<std::uint32_t>((float)resolution.x * game.renderer.GetScale().x * 0.9f);
+	properties.justify = TextJustify::Left;
 	auto font_key{ "mono_font" };
 	auto t1 = CreateText(
 		*this,
-		"Pick the best habitat for your species\n"
-		"Pick wrong and they will die\n"
-		"Pick right and they will thrive",
-		color::White, 8, font_key, properties
+		"Strange worlds are awaiting our sort-of human explorers looking for a new home world "
+		"after the tragic destruction of their own! They might be a bit different than you or me, "
+		"but they need a planet that fits them just as well as Earth fits us. Help each race of "
+		"intergalactic travelers select from three possible destination planets by carefully "
+		"weighing the planet traits against there own. You'll need a little bit of logic, so put "
+		"on your thinking cap (and maybe your lab coat), and choose wisely!",
+		color::White, 6, font_key, properties
 	);
-	SetPosition(t1, V2_float{ 0, -50 });
+	SetPosition(t1, V2_float{ 0, -20 });
 	auto b1 =
 		CreateMyButton(*this)
 			.SetText("Back", color::Black, {}, font_key)
