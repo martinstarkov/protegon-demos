@@ -360,7 +360,7 @@ public:
 
 		confirm.SetTextureKey("confirm_button")
 			.SetButtonTint(color::White)
-			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::LightGray, ButtonState::Hover)
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 			.SetSize(V2_float{ 47, 14 })
 			.OnActivate([&]() mutable {
