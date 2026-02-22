@@ -14,6 +14,14 @@ constexpr int planet_channel{ 3 };
 std::vector<Entry> levels;
 std::vector<int> unlocked_levels{};
 constexpr int planet_count{ 3 };
+const std::vector<std::string> planet_names = {
+	"KA-7", "Q-19", "ZP-3", "MX-8", "NV-4", "TR-6", "LB-2", "CY-9", "HF-1", "WD-5", "JU-0",
+	"PS-7", "VK-6", "RA-8", "OX-2", "EG-4", "BN-9", "SI-3", "CL-1", "FT-8", "DR-7", "UG-5",
+	"PH-2", "YH-6", "K-42", "A-37", "V-09", "N-73", "R-15", "C-88", "J-60", "M-24", "X-05",
+	"B-91", "D-12", "S-66", "T-31", "P-80", "L-27", "G-54", "IX-7", "UR-3", "AE-9", "VO-1",
+	"QX-6", "ZK-8", "MY-2", "HN-5", "E-03", "O-17", "U-99", "I-26", "Y-40", "W-58", "F-74",
+	"KQ-4", "SR-8", "PL-2", "CZ-7", "GX-1", "RV-6", "TN-9", "BD-3", "LM-5"
+};
 
 class MainMenuScene : public Scene {
 public:
@@ -57,8 +65,13 @@ struct Selection {
 	bool winner{ false };
 };
 
+struct PlanetName {
+	std::string name;
+};
+
 struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 	Sprite planet_popup;
+	Text planet_name;
 	Button exit_button;
 	std::vector<Button> planet_buttons;
 	Text planet_trait_text;
@@ -73,7 +86,7 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 	PlanetScript(
 		Sprite planet_popup, Button exit_button, std::vector<Button> planet_buttons,
 		Text planet_trait_text, Button human, Sprite planet_display, std::vector<Sprite> glows,
-		std::shared_ptr<std::optional<Selection>> selected_level, Button confirm
+		std::shared_ptr<std::optional<Selection>> selected_level, Button confirm, Text planet_name
 	) :
 		planet_popup{ planet_popup },
 		exit_button{ exit_button },
@@ -83,7 +96,8 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 		planet_display{ planet_display },
 		glows{ glows },
 		selected_level{ selected_level },
-		confirm{ confirm } {}
+		confirm{ confirm },
+		planet_name{ planet_name } {}
 
 	void OnButtonActivate() override {
 		for (auto glow : glows) {
@@ -102,10 +116,13 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 			Hide(button);
 		}
 		Show(planet_popup);
+		Show(planet_name);
 		Show(exit_button);
 		exit_button.SetTextureKey("exit_popup_button2");
 		exit_button.Enable();
 		// PTGN_LOG("Chose planet with traits:");
+
+		planet_name.SetContent("Planet " + entity.Get<PlanetName>().name);
 
 		std::string planet_traits_content;
 		for (const auto& trait : entity.Get<Traits>().traits) {
@@ -138,6 +155,7 @@ public:
 	Entry entry;
 
 	Sprite planet_popup;
+	Text planet_name;
 	std::vector<Button> planet_buttons;
 	std::vector<Sprite> glows;
 	Button exit_button; // exit popup
@@ -228,6 +246,14 @@ public:
 		SetPosition(planet_popup, V2_float{ 0, -1 });
 		SetDepth(planet_popup, 3);
 
+		planet_name = CreateText(*this, "Temporary Name", color::White, 9, font_key);
+		SetDrawOrigin(planet_name, Origin::Center);
+		Hide(planet_name);
+		SetPosition(
+			planet_name, V2_float{ 0, -1 } - V2_float{ 183, 137 } / 2.0f + V2_float{ 55, 23 }
+		);
+		SetDepth(planet_name, 4);
+
 		planet_display = CreateSprite(*this, "planet_1");
 		SetDrawOrigin(planet_display, Origin::Center);
 		Hide(planet_display);
@@ -246,12 +272,17 @@ public:
 
 		std::iota(v.begin(), v.end(), 1);
 
-		auto sample = random_sample(v, 3);
+		auto sample = random_sample(v, planet_count);
 
 		PTGN_ASSERT(planet_count == sample.size());
 
+		auto names = random_sample(planet_names, planet_count);
+		PTGN_ASSERT(names.size() == planet_count);
+
 		for (auto i = 0; i < planet_count; i++) {
+			auto name	= names[i];
 			auto button = CreateButton(*this);
+			button.Add<PlanetName>(name);
 			V2_float planet_pos{ -x_offset + i * x_offset, 0.0f };
 			// TODO: Pick randomly from a list of planet textures.
 			auto glow = CreateSprite(*this, "glow");
@@ -283,7 +314,7 @@ public:
 		for (auto button : planet_buttons) {
 			AddScript<PlanetScript>(
 				button, planet_popup, exit_button, planet_buttons, planet_trait_text, human,
-				planet_display, glows, selected_level, confirm
+				planet_display, glows, selected_level, confirm, planet_name
 			);
 		}
 
@@ -323,6 +354,7 @@ public:
 				Show(human);
 				Hide(human_popup);
 				Hide(planet_popup);
+				Hide(planet_name);
 				Hide(planet_display);
 				Hide(confirm);
 				confirm.Disable();
@@ -384,6 +416,7 @@ public:
 					FadeOut(confirm, fade_duration);
 					FadeOut(planet_trait_text, fade_duration);
 					FadeOut(planet_popup, fade_duration);
+					FadeOut(planet_name, fade_duration);
 					After(*this, fade_duration + break_duration, [=](auto t) {
 						TranslateTo(
 							planet_display,
@@ -428,6 +461,7 @@ public:
 					FadeOut(confirm, fade_duration);
 					FadeOut(planet_trait_text, fade_duration);
 					FadeOut(planet_popup, fade_duration);
+					FadeOut(planet_name, fade_duration);
 					After(*this, fade_duration + break_duration, [=](auto t) {
 						TranslateTo(planet_display, V2_float{}, translate_duration);
 					});
@@ -582,15 +616,15 @@ void InstructionScene::Enter() {
 	auto font_key{ "mono_font" };
 	auto t1 = CreateText(
 		*this,
-		"Strange worlds are awaiting our sort-of human explorers looking for a new home world "
-		"after the tragic destruction of their own! They might be a bit different than you or me, "
-		"but they need a planet that fits them just as well as Earth fits us. Help each race of "
-		"intergalactic travelers select from three possible destination planets by carefully "
-		"weighing the planet traits against their own. You'll need a little bit of logic, so put "
-		"on your thinking cap (and maybe your lab coat), and choose wisely!",
+		"Strange worlds await our sort-of human explorers...\n\n"
+		"They are searching for a new home! \n\n"
+		"These species may be a bit different than you or me, but they need a planet that suits "
+		"them just as well as Earth suits us.\n\nHelp each race of intergalactic travelers select "
+		"from three possible destination planets by carefully weighing the worlds' traits against "
+		"their own. \n\nUse your logic and choose wisely!",
 		color::White, 6, font_key, properties
 	);
-	SetPosition(t1, V2_float{ 0, -20 });
+	SetPosition(t1, V2_float{ 0, -12 });
 	auto b1 = CreateMyButton(*this);
 	b1.SetTextureKey("back_button")
 		.SetButtonTint(color::White)
@@ -601,7 +635,7 @@ void InstructionScene::Enter() {
 			b1.Disable();
 			game.scene.Transition<MainMenuScene>("instruction", "main_menu");
 		});
-	SetPosition(b1, V2_float{ 0, 45 });
+	SetPosition(b1, V2_float{ 0, 67 });
 }
 
 class LoadingScene : public Scene {
