@@ -26,5 +26,7 @@
   "square_button": "resources/ui/square_button.png",
   "planet_popup": "resources/ui/planet_popup.png",
   "human_popup": "resources/ui/human_popup.png",
-  "title": "resources/tile/title_screen.png"
+  "title": "resources/tile/title_screen.png",
+  "instructions_button": "resources/ui/instructions_button.png",
+  "play_button": "resources/ui/play_button.png"
 }
