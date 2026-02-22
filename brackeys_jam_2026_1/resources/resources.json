@@ -1,5 +1,6 @@
 {
   "mono_font": "resources/font/NaturalMono-Regular.ttf",
+  "pixel_font": "resources/font/monacottf.otf",
   "high_beep": "resources/audio/high_beep.ogg",
   "low_beep": "resources/audio/low_beep.ogg",
   "music1": "resources/music/composite.ogg",
