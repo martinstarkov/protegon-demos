@@ -70,7 +70,7 @@ struct Planet {
 // ---- HELPERS ----
 template <typename T>
 T random_choice(const std::vector<T>& vec) {
-	std::uniform_int_distribution<> dist(0, vec.size() - 1);
+	std::uniform_int_distribution<> dist(0, (int)vec.size() - 1);
 	return vec[dist(rng)];
 }
 
