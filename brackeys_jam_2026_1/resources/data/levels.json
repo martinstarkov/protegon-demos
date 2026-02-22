@@ -1,0 +1,27 @@
+[
+  {
+    "human_trait_count": 3,
+    "planet_trait_count": 4,
+    "patterns": [[4, 0], [0, 2], [0, 4]]
+  },
+  {
+    "human_trait_count": 4,
+    "planet_trait_count": 1,
+    "patterns": [[3, 0], [2, 2]]
+  },
+  {
+    "human_trait_count": 2,
+    "planet_trait_count": 3,
+    "patterns": [[1, 1]]
+  },
+  {
+    "human_trait_count": 5,
+    "planet_trait_count": 0,
+    "patterns": [[5, 0], [4, 1]]
+  },
+  {
+    "human_trait_count": 1,
+    "planet_trait_count": 4,
+    "patterns": [[0, 3], [1, 2]]
+  }
+]

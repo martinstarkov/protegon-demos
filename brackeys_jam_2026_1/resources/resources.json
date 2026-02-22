@@ -7,6 +7,7 @@
   "background": "resources/tile/space_background.png",
   "glow": "resources/tile/glow.png",
   "traits": "resources/data/traits.json",
+  "levels": "resources/data/levels.json",
   "planet_1": "resources/entity/planet_1.png",
   "planet_2": "resources/entity/planet_2.png",
   "planet_3": "resources/entity/planet_3.png",

@@ -1,3 +1,4 @@
+#include "choice.h"
 #include "math/geometry/circle.h"
 #include "protegon/protegon.h"
 #include "renderer/api/origin.h"
@@ -9,6 +10,8 @@ constexpr V2_float center{ resolution / 2.0f };
 constexpr V2_int world_size{ 320, 180 };
 constexpr int button_channel{ 2 };
 constexpr int planet_channel{ 3 };
+std::vector<Entry> levels;
+constexpr int planet_count{ 3 };
 
 void SetupWindow() {
 	game.window.SetSize(resolution * 4);
@@ -38,11 +41,65 @@ Button CreateMyButton(Scene& scene) {
 	return button;
 }
 
-struct PlanetAudioScript : public Script<PlanetAudioScript, ButtonScript> {
-	PlanetAudioScript() {}
+struct Winner {};
+
+struct Traits {
+	std::vector<Trait> traits;
+};
+
+struct PlanetScript : public Script<PlanetScript, ButtonScript> {
+	Sprite planet_popup;
+	Button exit_button;
+	std::vector<Button> planet_buttons;
+	Text planet_trait_text;
+	Button human;
+	Sprite planet_display;
+	std::vector<Sprite> glows;
+
+	PlanetScript() = default;
+
+	PlanetScript(
+		Sprite planet_popup, Button exit_button, std::vector<Button> planet_buttons,
+		Text planet_trait_text, Button human, Sprite planet_display, std::vector<Sprite> glows
+	) :
+		planet_popup{ planet_popup },
+		exit_button{ exit_button },
+		planet_buttons{ planet_buttons },
+		planet_trait_text{ planet_trait_text },
+		human{ human },
+		planet_display{ planet_display },
+		glows{ glows } {}
 
 	void OnButtonActivate() override {
+		for (auto glow : glows) {
+			Hide(glow);
+		}
+		planet_display.SetTextureKey(Button{ entity }.GetTextureKey());
+		Show(planet_display);
+		Hide(human);
+		human.Disable();
+		Show(planet_trait_text);
 		game.sound.Play("high_beep");
+		for (auto button : planet_buttons) {
+			button.Disable();
+			Hide(button);
+		}
+		Show(planet_popup);
+		exit_button.Enable();
+		// PTGN_LOG("Chose planet with traits:");
+
+		std::string planet_traits_content;
+		for (const auto& trait : entity.Get<Traits>().traits) {
+			planet_traits_content += "- " + trait.description + std::string("\n\n");
+		}
+
+		planet_trait_text.SetContent(planet_traits_content);
+
+		if (entity.Has<Winner>()) {
+			// PTGN_LOG("You picked a winner!");
+		} else {
+			// PTGN_LOG("You picked a loser!");
+		}
 	}
 
 	void OnButtonHoverStart() override {
@@ -57,10 +114,61 @@ struct PlanetAudioScript : public Script<PlanetAudioScript, ButtonScript> {
 class GameScene : public Scene {
 public:
 	int level_{ 0 };
+	Entry entry;
+
+	Sprite planet_popup;
+	std::vector<Button> planet_buttons;
+	std::vector<Sprite> glows;
+	Button exit_button;
+	Button human;
+	Text human_trait_text;
+	Text planet_trait_text;
+	Sprite planet_display;
 
 	GameScene(int level) : level_{ level } {}
 
 	void Enter() override {
+		planet_buttons = {};
+		glows		   = {};
+		if (level_ < levels.size()) {
+			PTGN_LOG("Attempting to enter level which is out of range");
+		}
+		PTGN_ASSERT(level_ < levels.size(), "Attempting to enter level which is out of range");
+
+		entry = levels[level_];
+
+		auto dice = RollRoundDice(game.json.Get("traits"), entry);
+
+		PTGN_ASSERT(dice.planets.size() == planet_count);
+
+		std::string human_trait_text_content;
+		for (const auto& cat : dice.chosen_categories) {
+			PTGN_ASSERT(dice.chosen_human.contains(cat));
+			const auto& trait		  = dice.chosen_human.at(cat);
+			human_trait_text_content += "- " + trait.get<std::string>() + std::string("\n\n");
+		}
+		auto font_key{ "mono_font" };
+
+		TextProperties properties1;
+		properties1.wrap_after = static_cast<std::uint32_t>(140.0f * game.renderer.GetScale().x);
+		properties1.justify	   = TextJustify::Left;
+		human_trait_text =
+			CreateText(*this, human_trait_text_content, color::White, 8, font_key, properties1);
+		SetPosition(human_trait_text, V2_float{ -68, -40 });
+		SetDrawOrigin(human_trait_text, Origin::TopLeft);
+		SetDepth(human_trait_text, 4);
+		Hide(human_trait_text);
+
+		TextProperties properties2;
+		properties2.wrap_after = static_cast<std::uint32_t>(73.0f * game.renderer.GetScale().x);
+		properties2.justify	   = TextJustify::Left;
+		planet_trait_text =
+			CreateText(*this, "Planet Traits", color::White, 6, font_key, properties2);
+		SetPosition(planet_trait_text, V2_float{ 5, -40 });
+		SetDrawOrigin(planet_trait_text, Origin::TopLeft);
+		SetDepth(planet_trait_text, 4);
+		Hide(planet_trait_text);
+
 		input.SetDrawInteractives(true);
 
 		PTGN_LOG("Entering level ", level_);
@@ -70,11 +178,22 @@ public:
 
 		float x_offset{ 92.0f };
 
-		std::vector<Button> planet_buttons;
+		planet_popup = CreateSprite(*this, "planet_popup");
+		SetDrawOrigin(planet_popup, Origin::Center);
+		Hide(planet_popup);
+		SetPosition(planet_popup, V2_float{ 0, -1 });
+		SetDepth(planet_popup, 3);
 
-		for (auto i = 0; i < 3; i++) {
+		planet_display = CreateSprite(*this, "planet_1");
+		SetDrawOrigin(planet_display, Origin::Center);
+		Hide(planet_display);
+		SetPosition(
+			planet_display, V2_float{ 0, -1 } - V2_float{ 183, 137 } / 2.0f + V2_float{ 53, 72 }
+		);
+		SetDepth(planet_display, 4);
+
+		for (auto i = 0; i < planet_count; i++) {
 			auto button = CreateButton(*this);
-			AddScript<PlanetAudioScript>(button);
 			V2_float planet_pos{ -x_offset + i * x_offset, 0.0f };
 			// TODO: Pick randomly from a list of planet textures.
 			auto glow = CreateSprite(*this, "glow");
@@ -93,27 +212,52 @@ public:
 								  ScaleTo(glow, V2_float{ 1.0f }, milliseconds{ 100 });
 								  TintTo(glow, color::White, milliseconds{ 100 });
 							  });
+			glows.push_back(glow);
 			SetPosition(planet, planet_pos);
 			SetDepth(planet, 2);
 			planet_buttons.push_back(planet);
 		}
 
+		exit_button = CreateMyButton(*this);
+
+		human = CreateMyButton(*this);
+
+		for (auto button : planet_buttons) {
+			AddScript<PlanetScript>(
+				button, planet_popup, exit_button, planet_buttons, planet_trait_text, human,
+				planet_display, glows
+			);
+		}
+
+		for (auto i = 0; i < dice.planets.size(); i++) {
+			PTGN_ASSERT(i < planet_buttons.size());
+			if (i == dice.winner_planet_index) {
+				planet_buttons[i].Add<Winner>();
+			}
+			planet_buttons[i].Add<Traits>(dice.planets[i].planet_traits);
+		}
+
 		auto human_popup = CreateSprite(*this, "human_popup");
-		SetDrawOrigin(sprite, Origin::Center);
+		SetDrawOrigin(human_popup, Origin::Center);
 		Hide(human_popup);
 		SetPosition(human_popup, V2_float{ 0, -1 });
 		SetDepth(human_popup, 3);
 
-		auto human = CreateMyButton(*this);
-
-		auto exit_button = CreateMyButton(*this);
 		exit_button.SetSize(V2_float{ 7 } * 2.0f).OnActivate([=]() mutable {
 			for (auto button : planet_buttons) {
 				button.Enable();
+				Show(button);
+			}
+			for (auto glow : glows) {
+				Show(glow);
 			}
 			human.Enable();
+			Hide(human_trait_text);
+			Hide(planet_trait_text);
 			Show(human);
 			Hide(human_popup);
+			Hide(planet_popup);
+			Hide(planet_display);
 			exit_button.Disable();
 		});
 		exit_button.Disable();
@@ -130,6 +274,7 @@ public:
 				for (auto button : planet_buttons) {
 					button.Disable();
 				}
+				Show(human_trait_text);
 				human.Disable();
 				Hide(human);
 				Show(human_popup);
@@ -230,7 +375,13 @@ void InstructionScene::Enter() {
 	properties.wrap_after = static_cast<std::uint32_t>(resolution.x * 0.9f);
 	properties.justify	  = TextJustify::Center;
 	auto font_key{ "mono_font" };
-	auto t1 = CreateText(*this, "Write\nStuff\nHere", color::White, 10, font_key, properties);
+	auto t1 = CreateText(
+		*this,
+		"Pick the best habitat for your species\n"
+		"Pick wrong and they will die\n"
+		"Pick right and they will thrive",
+		color::White, 8, font_key, properties
+	);
 	SetPosition(t1, V2_float{ 0, -50 });
 	auto b1 =
 		CreateMyButton(*this)
@@ -251,6 +402,7 @@ public:
 		game.renderer.SetGameSize(resolution);
 		SetupWindow();
 		LoadResources("resources/resources.json");
+		levels = ParseEntries(game.json.Get("levels"));
 		game.font.SetDefault("mono_font");
 		game.music.SetVolume(15);
 		// game.sound.SetVolume("rockfly", 15);
