@@ -501,10 +501,6 @@ public:
 };
 
 void MainMenuScene::Enter() {
-	game.window.SetSize(resolution * 4);
-	game.renderer.SetScalingMode(ScalingMode::IntegerScale);
-	game.renderer.SetGameSize(resolution);
-
 	auto sprite = CreateSprite(*this, "title");
 	SetDrawOrigin(sprite, Origin::Center);
 	auto button = CreateMyButton(*this);
@@ -611,6 +607,10 @@ void InstructionScene::Enter() {
 class LoadingScene : public Scene {
 public:
 	void Enter() override {
+		game.window.SetSize(resolution * 4);
+		game.renderer.SetScalingMode(ScalingMode::IntegerScale);
+		game.renderer.SetGameSize(resolution);
+
 		LoadResources("resources/resources.json");
 		levels = ParseEntries(game.json.Get("levels"));
 		unlocked_levels.push_back(0);
