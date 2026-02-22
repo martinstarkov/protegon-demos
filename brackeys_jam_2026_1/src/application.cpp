@@ -240,6 +240,16 @@ public:
 		exit_button = CreateMyButton(*this);
 		exit		= CreateMyButton(*this);
 
+		const int planet_texture_count = 11;
+
+		std::vector<int> v(planet_texture_count);
+
+		std::iota(v.begin(), v.end(), 1);
+
+		auto sample = random_sample(v, 3);
+
+		PTGN_ASSERT(planet_count == sample.size());
+
 		for (auto i = 0; i < planet_count; i++) {
 			auto button = CreateButton(*this);
 			V2_float planet_pos{ -x_offset + i * x_offset, 0.0f };
@@ -247,7 +257,9 @@ public:
 			auto glow = CreateSprite(*this, "glow");
 			SetPosition(glow, planet_pos);
 			SetDepth(glow, 1);
-			auto planet = button.SetTextureKey("planet_" + std::to_string(i + 1))
+			auto texture_key{ "planet_" + std::to_string(sample[i]) };
+			PTGN_ASSERT(game.texture.Has(texture_key));
+			auto planet = button.SetTextureKey(texture_key)
 							  .SetButtonTint(color::White)
 							  .SetButtonTint(color::White.WithAlpha(0.95f), ButtonState::Hover)
 							  .SetButtonTint(color::DarkGray, ButtonState::Pressed)
