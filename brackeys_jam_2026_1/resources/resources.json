@@ -1,8 +1,10 @@
 {
-  "player_anim": "resources/entity/player.png",
-  "cursor": "resources/entity/cursor.png",
-  "bullet1": "resources/entity/bullet1.png",
-  "walls_json": "resources/data/walls.json",
-  "bullet1_sound": "resources/audio/bullet1.ogg",
-  "arena": "resources/entity/arena.png"
+  "mono_font": "resources/font/NaturalMono-Regular.ttf",
+  "high_beep": "resources/audio/high_beep.ogg",
+  "low_beep": "resources/audio/low_beep.ogg",
+  "music1": "resources/music/composite.ogg",
+  "music2": "resources/music/distortotron.ogg",
+  "background": "resources/tile/space_background.png",
+  "confirm_button": "resources/ui/button.png",
+  "traits": "resources/data/traits.json"
 }
