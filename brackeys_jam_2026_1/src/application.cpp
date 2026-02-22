@@ -16,14 +16,7 @@ void SetupWindow() {
 
 class GameScene : public Scene {
 public:
-	void Enter() override {
-		SetupWindow();
-		LoadResources("resources/resources.json");
-
-		camera.SetBounds(-world_size / 2.0f, world_size);
-
-		CreateSprite(*this, "sample", { 0, 0 });
-	}
+	void Enter() override {}
 };
 
 class InstructionScene : public Scene {
@@ -42,7 +35,11 @@ struct ButtonAudioScript : public Script<ButtonAudioScript, ButtonScript> {
 	ButtonAudioScript() {}
 
 	void OnButtonActivate() override {
-		game.sound.Play("click");
+		game.sound.Play("high_beep");
+	}
+
+	void OnButtonHover() override {
+		game.sound.Play("low_beep");
 	}
 };
 
@@ -55,39 +52,39 @@ Button CreateMyButton(Scene& scene) {
 class MainMenuScene : public Scene {
 public:
 	void Enter() override {
-		auto sprite = CreateSprite(*this, "main_menu_bg");
-		SetDrawOrigin(sprite, Origin::TopLeft);
+		auto sprite = CreateSprite(*this, "background");
+		SetDrawOrigin(sprite, Origin::Center);
 		auto button = CreateMyButton(*this)
 						  .SetText("Play", color::Black)
-						  .SetFontSize(48)
-						  .SetTextureKey("button")
+						  .SetFontSize(24)
+						  .SetTextureKey("main_button")
 						  .SetButtonTint(color::White)
 						  .SetButtonTint(color::Gray, ButtonState::Hover)
 						  .SetButtonTint(color::DarkGray, ButtonState::Pressed)
-						  .SetSize(V2_float{ 450, 150 })
+						  .SetSize(V2_float{ 100, 50 })
 						  .OnActivate([]() {
 							  game.scene.Transition<LevelSelect>("main_menu", "level_select");
 						  });
-		SetPosition(button, center + V2_float{ -300, 200 });
+		SetPosition(button, V2_float{ -100, 0 });
 		auto button2 = CreateMyButton(*this)
 						   .SetText("Instructions", color::Black)
-						   .SetFontSize(48)
-						   .SetTextureKey("button")
+						   .SetFontSize(24)
+						   .SetTextureKey("main_button")
 						   .SetButtonTint(color::White)
 						   .SetButtonTint(color::Gray, ButtonState::Hover)
 						   .SetButtonTint(color::DarkGray, ButtonState::Pressed)
-						   .SetSize(V2_float{ 450, 150 })
+						   .SetSize(V2_float{ 100, 50 })
 						   .OnActivate([]() {
 							   game.scene.Transition<InstructionScene>("main_menu", "instruction");
 						   });
 
-		SetPosition(button2, center + V2_float{ 300, 200 });
+		SetPosition(button2, V2_float{ 100, 0 });
 	}
 };
 
 void LevelSelect::Enter() {
 	auto sprite = CreateSprite(*this, "level_select_bg");
-	SetDrawOrigin(sprite, Origin::TopLeft);
+	SetDrawOrigin(sprite, Origin::Center);
 	auto b1 =
 		CreateMyButton(*this)
 			.SetText("1", color::Black)
@@ -98,7 +95,7 @@ void LevelSelect::Enter() {
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 			.SetSize(V2_float{ 125 })
 			.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 0); });
-	SetPosition(b1, center + V2_float{ -300, 0 });
+	SetPosition(b1, V2_float{ -300, 0 });
 	auto b2 =
 		CreateMyButton(*this)
 			.SetText("2", color::Black)
@@ -109,7 +106,7 @@ void LevelSelect::Enter() {
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 			.SetSize(V2_float{ 125 })
 			.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 1); });
-	SetPosition(b2, center + V2_float{ 0, 0 });
+	SetPosition(b2, V2_float{ 0, 0 });
 	auto b3 =
 		CreateMyButton(*this)
 			.SetText("3", color::Black)
@@ -120,7 +117,7 @@ void LevelSelect::Enter() {
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 			.SetSize(V2_float{ 125 })
 			.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 2); });
-	SetPosition(b3, center + V2_float{ 300, 0 });
+	SetPosition(b3, V2_float{ 300, 0 });
 	auto b4 = CreateMyButton(*this)
 				  .SetText("Back", color::Black)
 				  .SetFontSize(36)
@@ -132,7 +129,7 @@ void LevelSelect::Enter() {
 				  .OnActivate([]() {
 					  game.scene.Transition<MainMenuScene>("level_select", "main_menu");
 				  });
-	SetPosition(b4, center + V2_float{ 0, 280 });
+	SetPosition(b4, V2_float{ 0, 280 });
 }
 
 void InstructionScene::Update() {
@@ -142,8 +139,8 @@ void InstructionScene::Update() {
 }
 
 void InstructionScene::Enter() {
-	auto sprite = CreateSprite(*this, "instructions_bg");
-	SetDrawOrigin(sprite, Origin::TopLeft);
+	auto sprite = CreateSprite(*this, "background");
+	SetDrawOrigin(sprite, Origin::Center);
 	TextProperties properties;
 	properties.wrap_after = static_cast<std::uint32_t>(resolution.x * 0.9f);
 	properties.justify	  = TextJustify::Center;
@@ -157,7 +154,7 @@ void InstructionScene::Enter() {
 		"when ready.",
 		color::White, 36, font_key, properties
 	);
-	SetPosition(t1, center + V2_float{ 0, -50 });
+	SetPosition(t1, V2_float{ 0, -50 });
 	auto b1 =
 		CreateMyButton(*this)
 			.SetText("Back", color::Black)
@@ -168,12 +165,14 @@ void InstructionScene::Enter() {
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 			.SetSize(V2_float{ 300, 100 })
 			.OnActivate([]() { game.scene.Transition<MainMenuScene>("instruction", "main_menu"); });
-	SetPosition(b1, center + V2_float{ 0, 280 });
+	SetPosition(b1, V2_float{ 0, 280 });
 }
 
 class LoadingScene : public Scene {
 public:
 	void Enter() override {
+		game.renderer.SetGameSize(resolution);
+		SetupWindow();
 		LoadResources("resources/resources.json");
 		game.music.SetVolume(15);
 		// game.sound.SetVolume("rockfly", 15);

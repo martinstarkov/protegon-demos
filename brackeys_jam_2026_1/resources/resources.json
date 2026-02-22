@@ -5,6 +5,9 @@
   "music1": "resources/music/composite.ogg",
   "music2": "resources/music/distortotron.ogg",
   "background": "resources/tile/space_background.png",
-  "confirm_button": "resources/ui/button.png",
+  "confirm_button": "resources/ui/confirm_button.png",
+  "button": "resources/ui/button.png",
+  "main_button": "resources/ui/main_button.png",
+  "square_button": "resources/ui/square_button.png",
   "traits": "resources/data/traits.json"
 }
