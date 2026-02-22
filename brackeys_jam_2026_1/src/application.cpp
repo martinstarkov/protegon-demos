@@ -101,7 +101,7 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 
 		std::string planet_traits_content;
 		for (const auto& trait : entity.Get<Traits>().traits) {
-			planet_traits_content += "- " + trait.description + std::string("\n\n");
+			planet_traits_content += "- " + trait.description + std::string("\n");
 		}
 
 		planet_trait_text.SetContent(planet_traits_content);
@@ -163,7 +163,7 @@ public:
 		for (const auto& cat : dice.chosen_categories) {
 			PTGN_ASSERT(dice.chosen_human.contains(cat));
 			const auto& trait		  = dice.chosen_human.at(cat);
-			human_trait_text_content += "- " + trait.get<std::string>() + std::string("\n\n");
+			human_trait_text_content += "- " + trait.get<std::string>() + std::string("\n");
 		}
 		auto font_key{ "mono_font" };
 
