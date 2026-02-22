@@ -194,11 +194,11 @@ public:
 		auto font_key{ "mono_font" };
 
 		TextProperties properties1;
-		properties1.wrap_after = static_cast<std::uint32_t>(135.0f * game.renderer.GetScale().x);
+		properties1.wrap_after = static_cast<std::uint32_t>(125.0f * game.renderer.GetScale().x);
 		properties1.justify	   = TextJustify::Left;
 		human_trait_text =
 			CreateText(*this, human_trait_text_content, color::White, 7, font_key, properties1);
-		SetPosition(human_trait_text, V2_float{ -80, -46 });
+		SetPosition(human_trait_text, V2_float{ -80, -42 });
 		SetDrawOrigin(human_trait_text, Origin::TopLeft);
 		SetDepth(human_trait_text, 4);
 		Hide(human_trait_text);
