@@ -12,7 +12,7 @@ constexpr V2_int world_size{ 320, 180 };
 constexpr int button_channel{ 2 };
 constexpr int planet_channel{ 3 };
 std::vector<Entry> levels;
-std::vector<int> unlocked_levels;
+std::vector<int> unlocked_levels{ 4 };
 constexpr int planet_count{ 3 };
 
 class MainMenuScene : public Scene {
@@ -194,11 +194,11 @@ public:
 		auto font_key{ "mono_font" };
 
 		TextProperties properties1;
-		properties1.wrap_after = static_cast<std::uint32_t>(150.0f * game.renderer.GetScale().x);
+		properties1.wrap_after = static_cast<std::uint32_t>(135.0f * game.renderer.GetScale().x);
 		properties1.justify	   = TextJustify::Left;
 		human_trait_text =
-			CreateText(*this, human_trait_text_content, color::White, 8, font_key, properties1);
-		SetPosition(human_trait_text, V2_float{ -68, -40 });
+			CreateText(*this, human_trait_text_content, color::White, 7, font_key, properties1);
+		SetPosition(human_trait_text, V2_float{ -80, -46 });
 		SetDrawOrigin(human_trait_text, Origin::TopLeft);
 		SetDepth(human_trait_text, 4);
 		Hide(human_trait_text);
@@ -215,7 +215,7 @@ public:
 
 		// input.SetDrawInteractives(true);
 
-		PTGN_LOG("Entering level ", level_);
+		// PTGN_LOG("Entering level ", level_);
 
 		auto sprite = CreateSprite(*this, "background");
 		SetDrawOrigin(sprite, Origin::Center);
@@ -625,7 +625,7 @@ public:
 };
 
 int main() {
-	game.Init("Strange Worlds", resolution);
+	game.Init("The Last Habitat", resolution);
 	game.scene.Enter<LoadingScene>("loading");
 	return 0;
 }

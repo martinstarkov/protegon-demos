@@ -5,8 +5,8 @@
 std::mt19937 rng(std::random_device{}());
 
 struct Entry {
-	int human_trait_count{};
-	int planet_trait_count{};
+	int human_trait_count{ 0 };
+	int planet_trait_count{ 0 };
 	std::vector<std::pair<int, int>> patterns; // {good_count, bad_count}
 };
 
@@ -161,6 +161,9 @@ Planet generate_planet(
 	// GOOD
 	for (int i = 0; i < good_count; ++i) {
 		if (good_traits.empty()) {
+			PTGN_LOG(
+				"Not enough good traits available! Asked for: ", good_count, " but only had: ", i
+			);
 			break;
 		}
 		auto choice = random_choice(good_traits);
@@ -183,14 +186,14 @@ Planet generate_planet(
 		);
 	}
 
-	int needed_traits = planet_trait_count - (good_count + bad_count);
+	int needed_random_traits = planet_trait_count - (good_count + bad_count);
 
-	PTGN_ASSERT(needed_traits >= 0, "More planet traits demanded than are available");
+	PTGN_ASSERT(needed_random_traits >= 0, "More planet traits demanded than are available");
 
 	// BAD
 	for (int i = 0; i < bad_count; ++i) {
 		if (bad_traits.empty()) {
-			needed_traits += bad_count - i;
+			needed_random_traits += bad_count - i;
 			break;
 		}
 
@@ -206,12 +209,15 @@ Planet generate_planet(
 		);
 	}
 
-	if (leftover_category_count < needed_traits) {
-		std::cout << "Warning: not enough random traits!\n";
+	if (leftover_category_count < needed_random_traits) {
+		PTGN_LOG(
+			"Warning: not enough random traits, requested ", needed_random_traits,
+			" but only have ", leftover_category_count
+		);
 	}
 
 	// RANDOM
-	for (int i = 0; i < needed_traits; ++i) {
+	for (int i = 0; i < needed_random_traits; ++i) {
 		if (random_traits.empty()) {
 			break;
 		}
