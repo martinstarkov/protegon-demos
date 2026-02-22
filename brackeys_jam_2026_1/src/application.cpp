@@ -144,12 +144,26 @@ public:
 	Text human_trait_text;
 	Text planet_trait_text;
 	Sprite planet_display;
+	Sprite win_screen;
+	Sprite lose_screen;
 
 	std::shared_ptr<std::optional<Selection>> selected_level;
 
 	GameScene(int level) : level_{ level } {}
 
 	void Enter() override {
+		win_screen = CreateSprite(*this, "win_screen");
+		SetDrawOrigin(win_screen, Origin::Center);
+		Hide(win_screen);
+		SetPosition(win_screen, V2_float{ 0, 0 });
+		SetDepth(win_screen, 3);
+
+		lose_screen = CreateSprite(*this, "dead_rocket");
+		SetDrawOrigin(lose_screen, Origin::Center);
+		Hide(lose_screen);
+		SetPosition(lose_screen, V2_float{ 0, -33 });
+		SetDepth(lose_screen, 3);
+
 		selected_level	= std::make_shared<std::optional<Selection>>();
 		*selected_level = std::nullopt;
 		planet_buttons	= {};
@@ -326,22 +340,41 @@ public:
 					exit.Disable();
 					confirm.Disable();
 					exit_button.Disable();
+					Hide(exit);
 					milliseconds fade_duration{ 1000 };
 					milliseconds break_duration{ 100 };
 					milliseconds translate_duration{ 1000 };
-					milliseconds break2_duration{ 1000 };
-					milliseconds fade2_duration{ 1000 };
+					milliseconds break2_duration{ 2000 };
+					milliseconds fade2_duration{ 2000 };
 					milliseconds break3_duration{ 200 };
+					milliseconds predid_break{ 100 };
+					milliseconds fade_in_duration{ 500 };
 					FadeOut(confirm, fade_duration);
 					FadeOut(planet_trait_text, fade_duration);
 					FadeOut(planet_popup, fade_duration);
 					After(*this, fade_duration + break_duration, [=](auto t) {
-						TranslateTo(planet_display, {}, translate_duration);
+						TranslateTo(
+							planet_display,
+							V2_float{ -center } + V2_float{ 138, 64 } + V2_float{ 30 },
+							translate_duration
+						);
 					});
 					After(
+						*this, fade_duration + break_duration + translate_duration + predid_break,
+						[=](auto t) {
+							Show(win_screen);
+							SetTint(win_screen, color::Transparent);
+							FadeIn(win_screen, fade_in_duration);
+						}
+					);
+					After(
 						*this,
-						fade_duration + translate_duration + break_duration + break2_duration,
-						[=](auto t) { FadeOut(planet_display, fade2_duration); }
+						fade_duration + break_duration + translate_duration + predid_break +
+							fade_in_duration + break2_duration,
+						[=](auto t) {
+							FadeOut(planet_display, fade2_duration);
+							FadeOut(win_screen, fade2_duration);
+						}
 					);
 					After(
 						*this,
@@ -355,7 +388,52 @@ public:
 						}
 					);
 				} else {
-					game.scene.Transition<LevelSelect>("game", "level_select");
+					exit.Disable();
+					confirm.Disable();
+					exit_button.Disable();
+					Hide(exit);
+					milliseconds fade_duration{ 1000 };
+					milliseconds break_duration{ 100 };
+					milliseconds translate_duration{ 1000 };
+					milliseconds break2_duration{ 2000 };
+					milliseconds fade2_duration{ 2000 };
+					milliseconds break3_duration{ 200 };
+					milliseconds predid_break{ 100 };
+					milliseconds fade_in_duration{ 500 };
+					FadeOut(confirm, fade_duration);
+					FadeOut(planet_trait_text, fade_duration);
+					FadeOut(planet_popup, fade_duration);
+					After(*this, fade_duration + break_duration, [=](auto t) {
+						TranslateTo(planet_display, V2_float{}, translate_duration);
+					});
+					After(
+						*this, fade_duration + break_duration + translate_duration + predid_break,
+						[=](auto t) {
+							Show(lose_screen);
+							SetTint(lose_screen, color::Transparent);
+							FadeIn(lose_screen, fade_in_duration);
+						}
+					);
+					After(
+						*this,
+						fade_duration + break_duration + translate_duration + predid_break +
+							fade_in_duration + break2_duration,
+						[=](auto t) {
+							FadeOut(planet_display, fade2_duration);
+							FadeOut(lose_screen, fade2_duration);
+						}
+					);
+					After(
+						*this,
+						fade_duration + translate_duration + fade2_duration + break_duration +
+							break2_duration + break3_duration,
+						[=](auto t) {
+							game.scene.Transition<LevelSelect>(
+								"game", "level_select", FadeInTransition{ milliseconds{ 1000 } },
+								FadeOutTransition{ milliseconds{ 1000 } }
+							);
+						}
+					);
 				}
 				/*for (auto button : planet_buttons) {
 					button.Disable();
@@ -432,7 +510,7 @@ void LevelSelect::Enter() {
 				.SetButtonTint(color::White)
 				.SetButtonTint(color::Gray, ButtonState::Hover)
 				.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-				.SetSize(V2_float{ 40 })
+				.SetSize(V2_float{ 32 })
 				.OnActivate([i]() { game.scene.Transition<GameScene>("level_select", "game", i); });
 		SetPosition(button, V2_float{ -120 + i * 60, -20 });
 	}
