@@ -4,5 +4,6 @@
   "low_beep": "resources/audio/low_beep.ogg",
   "music1": "resources/music/composite.ogg",
   "music2": "resources/music/distortotron.ogg",
+  "background": "resources/tile/space_background.png",
   "traits": "resources/data/traits.json"
 }
