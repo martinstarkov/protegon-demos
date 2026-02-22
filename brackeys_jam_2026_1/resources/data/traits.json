@@ -171,7 +171,7 @@
     "category_7": {
       "low gravity adapted": {
         "good": ["low gravity", "very low gravity"],
-        "bad": ["high gravity", "extreme ggravitational pull"]
+        "bad": ["high gravity", "extreme gravitational pull"]
       },
       "high gravity adapted": {
         "good": ["high gravity", "very high gravity"],

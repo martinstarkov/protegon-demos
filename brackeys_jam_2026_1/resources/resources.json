@@ -25,6 +25,7 @@
   "main_button": "resources/ui/main_button.png",
   "square_button": "resources/ui/square_button.png",
   "exit_popup_button": "resources/ui/exit_popup_button.png",
+  "exit_popup_button2": "resources/ui/exit_popup_button2.png",
   "square_button_disabled": "resources/ui/square_button_disabled.png",
   "exit_button": "resources/ui/exit_button.png",
   "planet_popup": "resources/ui/planet_popup.png",
