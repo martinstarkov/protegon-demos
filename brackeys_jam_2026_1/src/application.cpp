@@ -8,35 +8,13 @@ constexpr V2_int resolution{ 320, 180 };
 constexpr V2_float center{ resolution / 2.0f };
 constexpr V2_int world_size{ 320, 180 };
 constexpr int button_channel{ 2 };
+constexpr int planet_channel{ 3 };
 
 void SetupWindow() {
 	game.window.SetSize(resolution * 4);
 	game.renderer.SetScalingMode(ScalingMode::IntegerScale);
 	// game.window.SetSetting(WindowSetting::Maximized);
 }
-
-class GameScene : public Scene {
-public:
-	int level_{ 0 };
-
-	GameScene(int level) : level_{ level } {}
-
-	void Enter() override {
-		PTGN_LOG("Entering level ", level_);
-	}
-};
-
-class InstructionScene : public Scene {
-public:
-	void Enter() override;
-
-	void Update() override;
-};
-
-class LevelSelect : public Scene {
-public:
-	void Enter() override;
-};
 
 struct ButtonAudioScript : public Script<ButtonAudioScript, ButtonScript> {
 	ButtonAudioScript() {}
@@ -59,6 +37,102 @@ Button CreateMyButton(Scene& scene) {
 	AddScript<ButtonAudioScript>(button);
 	return button;
 }
+
+struct PlanetAudioScript : public Script<PlanetAudioScript, ButtonScript> {
+	PlanetAudioScript() {}
+
+	void OnButtonActivate() override {
+		game.sound.Play("high_beep");
+	}
+
+	void OnButtonHoverStart() override {
+		game.sound.Play("low_beep", planet_channel);
+	}
+
+	void OnButtonHoverStop() override {
+		game.sound.Stop(planet_channel);
+	}
+};
+
+class GameScene : public Scene {
+public:
+	int level_{ 0 };
+
+	GameScene(int level) : level_{ level } {}
+
+	void Enter() override {
+		PTGN_LOG("Entering level ", level_);
+
+		auto sprite = CreateSprite(*this, "background");
+		SetDrawOrigin(sprite, Origin::Center);
+
+		float x_offset{ 92.0f };
+
+		std::vector<Button> planet_buttons;
+
+		for (auto i = 0; i < 3; i++) {
+			auto button = CreateButton(*this);
+			AddScript<PlanetAudioScript>(button);
+			V2_float planet_pos{ -x_offset + i * x_offset, 0.0f };
+			// TODO: Pick randomly from a list of planet textures.
+			auto glow = CreateSprite(*this, "glow");
+			SetPosition(glow, planet_pos);
+			SetDepth(glow, 1);
+			auto planet = button.SetTextureKey("planet_" + std::to_string(i + 1))
+							  .SetButtonTint(color::White)
+							  .SetButtonTint(color::White.WithAlpha(0.95f), ButtonState::Hover)
+							  .SetButtonTint(color::DarkGray, ButtonState::Pressed)
+							  .SetSize(V2_float{ 60, 60 })
+							  .OnHoverStart([=]() {
+								  ScaleTo(glow, V2_float{ 1.1f }, milliseconds{ 100 });
+								  TintTo(glow, Color{ 0, 177, 182, 255 }, milliseconds{ 100 });
+							  })
+							  .OnHoverStop([=]() {
+								  ScaleTo(glow, V2_float{ 1.0f }, milliseconds{ 100 });
+								  TintTo(glow, color::White, milliseconds{ 100 });
+							  });
+			SetPosition(planet, planet_pos);
+			SetDepth(planet, 2);
+			planet_buttons.push_back(planet);
+		}
+
+		auto human_popup = CreateSprite(*this, "human_popup");
+		SetDrawOrigin(sprite, Origin::Center);
+		Hide(human_popup);
+		SetPosition(human_popup, V2_float{ 0, -5 });
+		SetDepth(human_popup, 3);
+
+		auto human = CreateMyButton(*this);
+		human.SetText("Human Traits", color::Black, {}, "mono_font")
+			.SetFontSize(14)
+			.SetTextureKey("human_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 120, 25 })
+			.OnActivate([=]() mutable {
+				for (auto button : planet_buttons) {
+					button.Disable();
+				}
+				human.Disable();
+				Hide(human);
+				Show(human_popup);
+			});
+		SetPosition(human, V2_float{ 0, 65 });
+	}
+};
+
+class InstructionScene : public Scene {
+public:
+	void Enter() override;
+
+	void Update() override;
+};
+
+class LevelSelect : public Scene {
+public:
+	void Enter() override;
+};
 
 class MainMenuScene : public Scene {
 public:

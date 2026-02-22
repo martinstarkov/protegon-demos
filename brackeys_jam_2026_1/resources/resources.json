@@ -20,6 +20,7 @@
   "planet_11": "resources/entity/planet_11.png",
   "confirm_button": "resources/ui/confirm_button.png",
   "back_button": "resources/ui/back_button.png",
+  "human_button": "resources/ui/human_button.png",
   "main_button": "resources/ui/main_button.png",
   "square_button": "resources/ui/square_button.png",
   "planet_popup": "resources/ui/planet_popup.png",
