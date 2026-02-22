@@ -47,6 +47,10 @@ struct Traits {
 	std::vector<Trait> traits;
 };
 
+struct Selection {
+	bool winner{ false };
+};
+
 struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 	Sprite planet_popup;
 	Button exit_button;
@@ -55,12 +59,15 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 	Button human;
 	Sprite planet_display;
 	std::vector<Sprite> glows;
+	std::shared_ptr<std::optional<Selection>> selected_level;
+	Button confirm;
 
 	PlanetScript() = default;
 
 	PlanetScript(
 		Sprite planet_popup, Button exit_button, std::vector<Button> planet_buttons,
-		Text planet_trait_text, Button human, Sprite planet_display, std::vector<Sprite> glows
+		Text planet_trait_text, Button human, Sprite planet_display, std::vector<Sprite> glows,
+		std::shared_ptr<std::optional<Selection>> selected_level, Button confirm
 	) :
 		planet_popup{ planet_popup },
 		exit_button{ exit_button },
@@ -68,12 +75,16 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 		planet_trait_text{ planet_trait_text },
 		human{ human },
 		planet_display{ planet_display },
-		glows{ glows } {}
+		glows{ glows },
+		selected_level{ selected_level },
+		confirm{ confirm } {}
 
 	void OnButtonActivate() override {
 		for (auto glow : glows) {
 			Hide(glow);
 		}
+		Show(confirm);
+		confirm.Enable();
 		planet_display.SetTextureKey(Button{ entity }.GetTextureKey());
 		Show(planet_display);
 		Hide(human);
@@ -96,8 +107,10 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 		planet_trait_text.SetContent(planet_traits_content);
 
 		if (entity.Has<Winner>()) {
+			*selected_level = Selection{ true };
 			// PTGN_LOG("You picked a winner!");
 		} else {
+			*selected_level = Selection{ false };
 			// PTGN_LOG("You picked a loser!");
 		}
 	}
@@ -121,15 +134,20 @@ public:
 	std::vector<Sprite> glows;
 	Button exit_button;
 	Button human;
+	Button confirm;
 	Text human_trait_text;
 	Text planet_trait_text;
 	Sprite planet_display;
 
+	std::shared_ptr<std::optional<Selection>> selected_level;
+
 	GameScene(int level) : level_{ level } {}
 
 	void Enter() override {
-		planet_buttons = {};
-		glows		   = {};
+		selected_level	= std::make_shared<std::optional<Selection>>();
+		*selected_level = std::nullopt;
+		planet_buttons	= {};
+		glows			= {};
 		if (level_ < levels.size()) {
 			PTGN_LOG("Attempting to enter level which is out of range");
 		}
@@ -218,6 +236,7 @@ public:
 			planet_buttons.push_back(planet);
 		}
 
+		confirm		= CreateMyButton(*this);
 		exit_button = CreateMyButton(*this);
 
 		human = CreateMyButton(*this);
@@ -225,7 +244,7 @@ public:
 		for (auto button : planet_buttons) {
 			AddScript<PlanetScript>(
 				button, planet_popup, exit_button, planet_buttons, planet_trait_text, human,
-				planet_display, glows
+				planet_display, glows, selected_level, confirm
 			);
 		}
 
@@ -250,7 +269,9 @@ public:
 			}
 			for (auto glow : glows) {
 				Show(glow);
+				SetTint(glow, color::White);
 			}
+			*selected_level = std::nullopt;
 			human.Enable();
 			Hide(human_trait_text);
 			Hide(planet_trait_text);
@@ -258,6 +279,8 @@ public:
 			Hide(human_popup);
 			Hide(planet_popup);
 			Hide(planet_display);
+			Hide(confirm);
+			confirm.Disable();
 			exit_button.Disable();
 		});
 		exit_button.Disable();
@@ -281,6 +304,30 @@ public:
 				exit_button.Enable();
 			});
 		SetPosition(human, V2_float{ -38, 84 });
+
+		confirm.SetTextureKey("confirm_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 47, 14 })
+			.OnActivate([=]() mutable {
+				PTGN_ASSERT(selected_level->has_value(), "Cannot confirm without selection");
+				PTGN_LOG("Confirmed: ", (*selected_level)->winner ? "Winner" : "Loser");
+				/*for (auto button : planet_buttons) {
+					button.Disable();
+				}
+				Show(human_trait_text);
+				human.Disable();
+				Hide(human);
+				Show(human_popup);
+				exit_button.Enable();*/
+			});
+		SetPosition(
+			confirm, V2_float{ 0, -1 } - V2_float{ 183, 137 } / 2.0f + V2_float{ 144, 117 }
+		);
+		SetDepth(confirm, 4);
+		Hide(confirm);
+		confirm.Disable();
 	}
 };
 
