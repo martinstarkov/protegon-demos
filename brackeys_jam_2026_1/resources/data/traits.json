@@ -16,8 +16,17 @@
     },
     "category_2": {
       "carnivore": {
-        "good": ["lots of animals", "native mammals"],
-        "bad": ["no animal life", "poisonous animal life", "lifeless"]
+        "good": [
+          "lots of animals",
+          "native mammals",
+          "animal dominated biosphere"
+        ],
+        "bad": [
+          "no animal life",
+          "poisonous animal life",
+          "lifeless",
+          "devoid of animal life"
+        ]
       },
       "herbivore": {
         "good": [
@@ -25,7 +34,7 @@
           "rich in vegetation",
           "plant dominated biosphere"
         ],
-        "bad": ["no vegetation", "lifeless"]
+        "bad": ["no vegetation", "lifeless", "low levels of vegetation"]
       },
       "photosynthesizer": {
         "good": [
@@ -34,7 +43,7 @@
           "no plant life",
           "abundant sunlight"
         ],
-        "bad": ["dark"]
+        "bad": ["dark", "no sunlight"]
       },
       "omnivore": {
         "good": [
@@ -43,7 +52,7 @@
           "abundant plant life",
           "rich in vegetation"
         ],
-        "bad": ["lifeless"]
+        "bad": ["lifeless", "little to no biosphere"]
       }
     },
     "category_3": {
@@ -59,7 +68,7 @@
         ],
         "bad": ["no atmosphere", "no oxygen", "high oxygen levels"]
       },
-      "multi breathing aparatus technology": {
+      "multi-breathing technology": {
         "good": [
           "breathable atmosphere",
           "no atmosphere",
@@ -69,7 +78,7 @@
           "thin atmosphere",
           "average oxygen levels"
         ],
-        "bad": []
+        "bad": [""]
       }
     },
     "category_4": {
@@ -123,7 +132,7 @@
       },
       "low water needs": {
         "good": ["desert surface", "low water presence on surface"],
-        "bad": ["no dry land"]
+        "bad": ["no dry land", "waterlogged surface"]
       }
     },
     "category_6": {
@@ -161,12 +170,82 @@
     },
     "category_7": {
       "low gravity adapted": {
-        "good": ["low gravity"],
-        "bad": ["high gravity"]
+        "good": ["low gravity", "very low gravity"],
+        "bad": ["high gravity", "extreme ggravitational pull"]
       },
       "high gravity adapted": {
-        "good": ["high gravity"],
-        "bad": ["low gravity"]
+        "good": ["high gravity", "very high gravity"],
+        "bad": ["low gravity", "near weighless conditions"]
+      }
+    },
+    "category_8": {
+      "adept at climbing": {
+        "good": ["mountainous terrain", "steep terrain"],
+        "bad": ["flat terrain", "wide open plains"]
+      },
+      "poor climbing skills": {
+        "good": ["wide open plains", "flat terrain", "gentle hills"],
+        "bad": [
+          "mountainous terrain",
+          "high altitude changes on surface",
+          "steep terrain"
+        ]
+      }
+    },
+    "category_9": {
+      "mining civilization": {
+        "good": [
+          "many rocky deposits",
+          "abundant ore deposits",
+          "rich metallic resources"
+        ],
+        "bad": ["little to no mineral deposits", "wooded and sandy"]
+      },
+      "wood based civilization": {
+        "good": ["adundance of timber", "large timber forests"],
+        "bad": ["no wooded vegetation", "rocky with no dense forests"]
+      },
+      "cloth weaving civilization": {
+        "good": [
+          "adundance of sheep",
+          "abundance of cotton",
+          "many fiborous plants and thick animal coats"
+        ],
+        "bad": [
+          "no native wool or cotton substitute",
+          "rocky with no fiborous plant or animal matter"
+        ]
+      }
+    },
+    "category_10": {
+      "coal and oil powered technology": {
+        "good": [
+          "vast oil deposits",
+          "presence of coal near surface",
+          "oil rich land"
+        ],
+        "bad": ["difficult to reach oil reserves", "weak oil and coal veins"]
+      },
+      "wind powered technology": {
+        "good": [
+          "windy surface and lower atmosphere",
+          "generally high wind speeds",
+          "consistent wind gusting near coast"
+        ],
+        "bad": [
+          "stagnant air",
+          "high geographic wind insulation",
+          "low average wind speeds"
+        ]
+      },
+      "geothermal technology": {
+        "good": [
+          "significant amount of tectonic plates",
+          "porous rock formations",
+          "thin surface crust",
+          "large molten mantle"
+        ],
+        "bad": ["thick average crust", "low mantle activity"]
       }
     }
   }
