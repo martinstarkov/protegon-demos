@@ -61,6 +61,8 @@ public:
 	GameScene(int level) : level_{ level } {}
 
 	void Enter() override {
+		input.SetDrawInteractives(true);
+
 		PTGN_LOG("Entering level ", level_);
 
 		auto sprite = CreateSprite(*this, "background");
@@ -99,17 +101,31 @@ public:
 		auto human_popup = CreateSprite(*this, "human_popup");
 		SetDrawOrigin(sprite, Origin::Center);
 		Hide(human_popup);
-		SetPosition(human_popup, V2_float{ 0, -5 });
+		SetPosition(human_popup, V2_float{ 0, -1 });
 		SetDepth(human_popup, 3);
 
 		auto human = CreateMyButton(*this);
-		human.SetText("Human Traits", color::Black, {}, "mono_font")
-			.SetFontSize(14)
+
+		auto exit_button = CreateMyButton(*this);
+		exit_button.SetSize(V2_float{ 7 } * 2.0f).OnActivate([=]() mutable {
+			for (auto button : planet_buttons) {
+				button.Enable();
+			}
+			human.Enable();
+			Show(human);
+			Hide(human_popup);
+			exit_button.Disable();
+		});
+		exit_button.Disable();
+		SetPosition(exit_button, V2_float{ -58, -62 });
+
+		human.SetText("Species Traits", color::Black, {}, "mono_font")
+			.SetFontSize(6)
 			.SetTextureKey("human_button")
 			.SetButtonTint(color::White)
 			.SetButtonTint(color::Gray, ButtonState::Hover)
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-			.SetSize(V2_float{ 120, 25 })
+			.SetSize(V2_float{ 80, 13 })
 			.OnActivate([=]() mutable {
 				for (auto button : planet_buttons) {
 					button.Disable();
@@ -117,8 +133,9 @@ public:
 				human.Disable();
 				Hide(human);
 				Show(human_popup);
+				exit_button.Enable();
 			});
-		SetPosition(human, V2_float{ 0, 65 });
+		SetPosition(human, V2_float{ -38, 84 });
 	}
 };
 
