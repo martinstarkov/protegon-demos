@@ -5,13 +5,8 @@
 using namespace ptgn;
 
 constexpr V2_int resolution{ 320, 180 };
-constexpr V2_int world_size{ 480, 360 };
-
-constexpr CollisionCategory category_player{ 0 };
-constexpr CollisionCategory category_wall{ 1 };
-constexpr CollisionCategory category_enemy{ 2 };
-constexpr CollisionCategory category_enemy_projectile{ 3 };
-constexpr CollisionCategory category_player_projectile{ 4 };
+constexpr V2_float center{ resolution / 2.0f };
+constexpr V2_int world_size{ 320, 180 };
 
 void SetupWindow() {
 	game.window.SetSize(resolution * 4);
@@ -19,122 +14,176 @@ void SetupWindow() {
 	// game.window.SetSetting(WindowSetting::Maximized);
 }
 
-struct FollowMouseScript : public Script<FollowMouseScript> {
-	void OnUpdate() override {
-		SetPosition(entity, entity.GetScene().input.GetMousePosition());
-	}
-};
-
-void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_float& dir_norm);
-
-struct BulletDisappearScript : public Script<BulletDisappearScript, CollisionScript> {
-	void OnCollision([[maybe_unused]] Collision collision) {
-		entity.Destroy();
-	}
-};
-
-struct ShootMouseBulletScript : public Script<ShootMouseBulletScript, GlobalMouseScript> {
-	void OnMouseDown(Mouse mouse_button) {
-		if (mouse_button == Mouse::Left) {
-			auto mouse{ GetChild(entity, "mouse") };
-			auto mouse_pos{ GetAbsolutePosition(mouse) };
-			auto entity_pos{ GetAbsolutePosition(GetChild(entity, "body")) };
-			auto dir{ mouse_pos - entity_pos };
-			auto dir_norm{ dir.Normalized() };
-			CreateStraightBullet(entity.GetScene(), entity_pos, dir_norm);
-		}
-	}
-};
-
 class GameScene : public Scene {
 public:
-	Entity player;
-	Entity mouse;
-
-	void CreateHitbox(const V2_float& top_left, const V2_float& size) {
-		auto hitbox{ CreateEntity() };
-		SetPosition(hitbox, top_left - world_size / 2.0f);
-		SetDrawOrigin(hitbox, Origin::TopLeft);
-		auto& collider = hitbox.Add<Collider>(Rect{ size });
-		collider.SetCollisionCategory(category_wall);
-		collider.AddCollidesWith(category_player);
-		collider.AddCollidesWith(category_player_projectile);
-		collider.AddCollidesWith(category_enemy_projectile);
-		collider.AddCollidesWith(category_enemy);
-		hitbox.Add<RigidBody>().immovable = true;
-	}
-
 	void Enter() override {
-		SetColliderVisibility(true);
-
 		SetupWindow();
-		SetBackgroundColor(color::LightBlue);
-
 		LoadResources("resources/resources.json");
 
 		camera.SetBounds(-world_size / 2.0f, world_size);
-		physics.SetBounds(-world_size / 2.0f, world_size, BoundaryBehavior::StopVelocity);
 
-		json walls = game.json.Get("walls_json");
-
-		for (json hitbox : walls.at("hitboxes")) {
-			CreateHitbox(hitbox.at("position").get<V2_float>(), hitbox.at("size").get<V2_float>());
-		}
-		CreateSprite(*this, "arena", { 0, 0 });
-
-		CreateRect(*this, -world_size / 2.0f, { 30, 30 }, color::Blue, -1.0f, Origin::TopLeft);
-		CreateRect(*this, { 0, 0 }, { 30, 30 }, color::Red, -1.0f, Origin::TopLeft);
-		CreateRect(*this, { resolution.x, 0 }, { 30, 30 }, color::Red, -1.0f, Origin::TopRight);
-		CreateRect(*this, resolution, { 30, 30 }, color::Red, -1.0f, Origin::BottomRight);
-		CreateRect(*this, { 0, resolution.y }, { 30, 30 }, color::Red, -1.0f, Origin::BottomLeft);
-
-		TopDownPlayerConfig player_config;
-		player_config.animation_frame_count = { 4, 3 };
-		player_config.animation_frame_size	= { 16, 17 };
-		player_config.animation_duration	= milliseconds{ 500 };
-		player_config.body_hitbox_offset	= { 0, 4 };
-
-		mouse = CreateSprite(*this, "cursor", {});
-		AddScript<FollowMouseScript>(mouse);
-
-		player = CreateTopDownPlayer(*this, { 0, 0 }, player_config);
-		auto& player_collider{ GetChild(player, "body").Get<Collider>() };
-		player_collider.SetCollisionCategory(category_player);
-		player_collider.AddCollidesWith(category_wall);
-		player_collider.AddCollidesWith(category_enemy);
-		// player.Get<RigidBody>().immovable = true;
-		AddScript<ShootMouseBulletScript>(player);
-
-		AddChild(player, mouse, "mouse");
-		IgnoreParentTransform(mouse, true);
-
-		StartFollow(camera, player, FollowConfig{ .teleport_on_start = true });
+		CreateSprite(*this, "sample", { 0, 0 });
 	}
 };
 
-void CreateStraightBullet(Scene& scene, const V2_float& start_pos, const V2_float& dir_norm) {
-	Sprite bullet = CreateSprite(scene, "bullet1", start_pos);
-	auto& rb	  = bullet.Add<RigidBody>();
-	float bullet_speed{ 500.0f };
-	rb.velocity = dir_norm * bullet_speed;
-	bullet.Add<Lifetime>(milliseconds{ 1000 }, true);
-	float heading{ dir_norm.Angle() + DegToRad(90.0f) };
-	SetRotation(bullet, heading);
-	game.sound.Play("bullet1_sound");
-	auto& collider = bullet.Add<Collider>(Circle{ bullet.GetTextureSize().y / 2.0f });
-	collider.AddCollidesWith(category_wall);
-	collider.AddCollidesWith(category_enemy);
-	collider.SetCollisionCategory(category_player_projectile);
-	collider.response = CollisionResponse::Stick;
-	auto light		  = CreatePointLight(
-		   scene, {}, bullet.GetTextureSize().y / 2.0f * 2.0f, color::Red, 1.0f, 2.0f
-	   );
-	AddChild(bullet, light);
-	AddScript<BulletDisappearScript>(bullet);
+class InstructionScene : public Scene {
+public:
+	void Enter() override;
+
+	void Update() override;
+};
+
+class LevelSelect : public Scene {
+public:
+	void Enter() override;
+};
+
+struct ButtonAudioScript : public Script<ButtonAudioScript, ButtonScript> {
+	ButtonAudioScript() {}
+
+	void OnButtonActivate() override {
+		game.sound.Play("click");
+	}
+};
+
+Button CreateMyButton(Scene& scene) {
+	auto button = CreateButton(scene);
+	AddScript<ButtonAudioScript>(button);
+	return button;
 }
 
+class MainMenuScene : public Scene {
+public:
+	void Enter() override {
+		auto sprite = CreateSprite(*this, "main_menu_bg");
+		SetDrawOrigin(sprite, Origin::TopLeft);
+		auto button = CreateMyButton(*this)
+						  .SetText("Play", color::Black)
+						  .SetFontSize(48)
+						  .SetTextureKey("button")
+						  .SetButtonTint(color::White)
+						  .SetButtonTint(color::Gray, ButtonState::Hover)
+						  .SetButtonTint(color::DarkGray, ButtonState::Pressed)
+						  .SetSize(V2_float{ 450, 150 })
+						  .OnActivate([]() {
+							  game.scene.Transition<LevelSelect>("main_menu", "level_select");
+						  });
+		SetPosition(button, center + V2_float{ -300, 200 });
+		auto button2 = CreateMyButton(*this)
+						   .SetText("Instructions", color::Black)
+						   .SetFontSize(48)
+						   .SetTextureKey("button")
+						   .SetButtonTint(color::White)
+						   .SetButtonTint(color::Gray, ButtonState::Hover)
+						   .SetButtonTint(color::DarkGray, ButtonState::Pressed)
+						   .SetSize(V2_float{ 450, 150 })
+						   .OnActivate([]() {
+							   game.scene.Transition<InstructionScene>("main_menu", "instruction");
+						   });
+
+		SetPosition(button2, center + V2_float{ 300, 200 });
+	}
+};
+
+void LevelSelect::Enter() {
+	auto sprite = CreateSprite(*this, "level_select_bg");
+	SetDrawOrigin(sprite, Origin::TopLeft);
+	auto b1 =
+		CreateMyButton(*this)
+			.SetText("1", color::Black)
+			.SetFontSize(48)
+			.SetTextureKey("square_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 125 })
+			.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 0); });
+	SetPosition(b1, center + V2_float{ -300, 0 });
+	auto b2 =
+		CreateMyButton(*this)
+			.SetText("2", color::Black)
+			.SetFontSize(48)
+			.SetTextureKey("square_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 125 })
+			.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 1); });
+	SetPosition(b2, center + V2_float{ 0, 0 });
+	auto b3 =
+		CreateMyButton(*this)
+			.SetText("3", color::Black)
+			.SetFontSize(48)
+			.SetTextureKey("square_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 125 })
+			.OnActivate([]() { game.scene.Transition<GameScene>("level_select", "game", {}, 2); });
+	SetPosition(b3, center + V2_float{ 300, 0 });
+	auto b4 = CreateMyButton(*this)
+				  .SetText("Back", color::Black)
+				  .SetFontSize(36)
+				  .SetTextureKey("button")
+				  .SetButtonTint(color::White)
+				  .SetButtonTint(color::Gray, ButtonState::Hover)
+				  .SetButtonTint(color::DarkGray, ButtonState::Pressed)
+				  .SetSize(V2_float{ 300, 100 })
+				  .OnActivate([]() {
+					  game.scene.Transition<MainMenuScene>("level_select", "main_menu");
+				  });
+	SetPosition(b4, center + V2_float{ 0, 280 });
+}
+
+void InstructionScene::Update() {
+	if (game.input.KeyDown(Key::Escape)) {
+		game.scene.Transition<InstructionScene>("instruction", "main_menu");
+	}
+}
+
+void InstructionScene::Enter() {
+	auto sprite = CreateSprite(*this, "instructions_bg");
+	SetDrawOrigin(sprite, Origin::TopLeft);
+	TextProperties properties;
+	properties.wrap_after = static_cast<std::uint32_t>(resolution.x * 0.9f);
+	properties.justify	  = TextJustify::Center;
+	ResourceHandle font_key{ "text_font" };
+	auto t1 = CreateText(
+		*this,
+		"You are God, forging the foundations of existence.\n\n In your hands are disks "
+		"representing a point in a cycle.\n\n Your goal is to place them in the correct order, "
+		"forming stable cycles that define the laws and rhythms of the universe.\n\n Ring the "
+		"bell "
+		"when ready.",
+		color::White, 36, font_key, properties
+	);
+	SetPosition(t1, center + V2_float{ 0, -50 });
+	auto b1 =
+		CreateMyButton(*this)
+			.SetText("Back", color::Black)
+			.SetFontSize(36)
+			.SetTextureKey("button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 300, 100 })
+			.OnActivate([]() { game.scene.Transition<MainMenuScene>("instruction", "main_menu"); });
+	SetPosition(b1, center + V2_float{ 0, 280 });
+}
+
+class LoadingScene : public Scene {
+public:
+	void Enter() override {
+		LoadResources("resources/resources.json");
+		game.music.SetVolume(15);
+		// game.sound.SetVolume("rockfly", 15);
+		// game.music.Play("elevator_music", -1);
+		game.scene.Transition<MainMenuScene>("loading", "main_menu");
+	}
+};
+
 int main() {
-	game.Init("Zombie Game", resolution);
-	game.scene.Enter<GameScene>("game");
+	game.Init("Strange Worlds", resolution);
+	game.scene.Enter<LoadingScene>("loading");
 	return 0;
 }
