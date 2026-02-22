@@ -1,4 +1,5 @@
 #include "choice.h"
+#include "core/script_sequence.h"
 #include "math/geometry/circle.h"
 #include "protegon/protegon.h"
 #include "renderer/api/origin.h"
@@ -136,8 +137,9 @@ public:
 	Sprite planet_popup;
 	std::vector<Button> planet_buttons;
 	std::vector<Sprite> glows;
-	Button exit_button;
+	Button exit_button; // exit popup
 	Button human;
+	Button exit;		// exit scene
 	Button confirm;
 	Text human_trait_text;
 	Text planet_trait_text;
@@ -191,7 +193,7 @@ public:
 		SetDepth(planet_trait_text, 4);
 		Hide(planet_trait_text);
 
-		input.SetDrawInteractives(true);
+		// input.SetDrawInteractives(true);
 
 		PTGN_LOG("Entering level ", level_);
 
@@ -242,6 +244,7 @@ public:
 
 		confirm		= CreateMyButton(*this);
 		exit_button = CreateMyButton(*this);
+		exit		= CreateMyButton(*this);
 
 		human = CreateMyButton(*this);
 
@@ -316,11 +319,41 @@ public:
 			.SetButtonTint(color::Gray, ButtonState::Hover)
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 			.SetSize(V2_float{ 47, 14 })
-			.OnActivate([=]() mutable {
+			.OnActivate([&]() mutable {
 				PTGN_ASSERT(selected_level->has_value(), "Cannot confirm without selection");
 				// PTGN_LOG("Confirmed: ", (*selected_level)->winner ? "Winner" : "Loser");
 				if ((*selected_level)->winner) {
-					game.scene.Transition<LevelSelect>("game", "level_select");
+					exit.Disable();
+					confirm.Disable();
+					exit_button.Disable();
+					milliseconds fade_duration{ 1000 };
+					milliseconds break_duration{ 100 };
+					milliseconds translate_duration{ 1000 };
+					milliseconds break2_duration{ 1000 };
+					milliseconds fade2_duration{ 1000 };
+					milliseconds break3_duration{ 200 };
+					FadeOut(confirm, fade_duration);
+					FadeOut(planet_trait_text, fade_duration);
+					FadeOut(planet_popup, fade_duration);
+					After(*this, fade_duration + break_duration, [=](auto t) {
+						TranslateTo(planet_display, {}, translate_duration);
+					});
+					After(
+						*this,
+						fade_duration + translate_duration + break_duration + break2_duration,
+						[=](auto t) { FadeOut(planet_display, fade2_duration); }
+					);
+					After(
+						*this,
+						fade_duration + translate_duration + fade2_duration + break_duration +
+							break2_duration + break3_duration,
+						[=](auto t) {
+							game.scene.Transition<LevelSelect>(
+								"game", "level_select", FadeInTransition{ milliseconds{ 1000 } },
+								FadeOutTransition{ milliseconds{ 1000 } }
+							);
+						}
+					);
 				} else {
 					game.scene.Transition<LevelSelect>("game", "level_select");
 				}
@@ -338,14 +371,12 @@ public:
 		Hide(confirm);
 		confirm.Disable();
 
-		auto exit =
-			CreateMyButton(*this)
-				.SetTextureKey("exit_button")
-				.SetButtonTint(color::White)
-				.SetButtonTint(color::Gray, ButtonState::Hover)
-				.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-				.SetSize(V2_float{ 23, 13 })
-				.OnActivate([]() { game.scene.Transition<LevelSelect>("game", "level_select"); });
+		exit.SetTextureKey("exit_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 23, 13 })
+			.OnActivate([]() { game.scene.Transition<LevelSelect>("game", "level_select"); });
 		SetDrawOrigin(exit, Origin::BottomRight);
 		SetPosition(exit, center - V2_float{ 3 });
 	}
