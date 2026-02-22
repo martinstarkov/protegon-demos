@@ -6,7 +6,6 @@
   "music2": "resources/music/distortotron.ogg",
   "background": "resources/tile/space_background.png",
   "glow": "resources/tile/glow.png",
-  "confirm_button": "resources/ui/button.png",
   "traits": "resources/data/traits.json",
   "planet_1": "resources/entity/planet_1.png",
   "planet_2": "resources/entity/planet_2.png",
@@ -18,5 +17,9 @@
   "planet_8": "resources/entity/planet_8.png",
   "planet_9": "resources/entity/planet_9.png",
   "planet_10": "resources/entity/planet_10.png",
-  "planet_11": "resources/entity/planet_11.png"
+  "planet_11": "resources/entity/planet_11.png",
+  "confirm_button": "resources/ui/confirm_button.png",
+  "button": "resources/ui/button.png",
+  "main_button": "resources/ui/main_button.png",
+  "square_button": "resources/ui/square_button.png"
 }
