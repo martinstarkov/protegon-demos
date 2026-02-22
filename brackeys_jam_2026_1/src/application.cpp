@@ -12,7 +12,7 @@ constexpr V2_int world_size{ 320, 180 };
 constexpr int button_channel{ 2 };
 constexpr int planet_channel{ 3 };
 std::vector<Entry> levels;
-std::vector<int> unlocked_levels{ 4 };
+std::vector<int> unlocked_levels{};
 constexpr int planet_count{ 3 };
 
 class MainMenuScene : public Scene {
@@ -194,11 +194,11 @@ public:
 		auto font_key{ "mono_font" };
 
 		TextProperties properties1;
-		properties1.wrap_after = static_cast<std::uint32_t>(135.0f * game.renderer.GetScale().x);
+		properties1.wrap_after = static_cast<std::uint32_t>(125.0f * game.renderer.GetScale().x);
 		properties1.justify	   = TextJustify::Left;
 		human_trait_text =
 			CreateText(*this, human_trait_text_content, color::White, 7, font_key, properties1);
-		SetPosition(human_trait_text, V2_float{ -80, -46 });
+		SetPosition(human_trait_text, V2_float{ -80, -42 });
 		SetDrawOrigin(human_trait_text, Origin::TopLeft);
 		SetDepth(human_trait_text, 4);
 		Hide(human_trait_text);
@@ -360,7 +360,7 @@ public:
 
 		confirm.SetTextureKey("confirm_button")
 			.SetButtonTint(color::White)
-			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::LightGray, ButtonState::Hover)
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 			.SetSize(V2_float{ 47, 14 })
 			.OnActivate([&]() mutable {
