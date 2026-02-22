@@ -12,7 +12,7 @@ constexpr V2_int world_size{ 320, 180 };
 constexpr int button_channel{ 2 };
 constexpr int planet_channel{ 3 };
 std::vector<Entry> levels;
-std::vector<int> unlocked_levels{ 4 };
+std::vector<int> unlocked_levels{};
 constexpr int planet_count{ 3 };
 
 class MainMenuScene : public Scene {
