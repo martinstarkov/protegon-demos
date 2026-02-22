@@ -5,6 +5,7 @@
   "music1_music": "resources/music/composite.ogg",
   "music2_music": "resources/music/distortotron.ogg",
   "background": "resources/tile/space_background.png",
+  "background2": "resources/tile/space_background2.png",
   "glow": "resources/tile/glow.png",
   "traits": "resources/data/traits.json",
   "levels": "resources/data/levels.json",

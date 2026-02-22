@@ -13,7 +13,16 @@ constexpr int button_channel{ 2 };
 constexpr int planet_channel{ 3 };
 std::vector<Entry> levels;
 std::vector<int> unlocked_levels{};
+
+struct Selection {
+	bool winner{ false };
+	std::string name;
+	TextureHandle picture_key;
+};
+
+std::vector<Selection> wins{};
 constexpr int planet_count{ 3 };
+
 const std::vector<std::string> planet_names = {
 	"KA-7", "Q-19", "ZP-3", "MX-8", "NV-4", "TR-6", "LB-2", "CY-9", "HF-1", "WD-5", "JU-0",
 	"PS-7", "VK-6", "RA-8", "OX-2", "EG-4", "BN-9", "SI-3", "CL-1", "FT-8", "DR-7", "UG-5",
@@ -61,12 +70,64 @@ struct Traits {
 	std::vector<Trait> traits;
 };
 
-struct Selection {
-	bool winner{ false };
-};
-
 struct PlanetName {
 	std::string name;
+};
+
+class WinScene : public Scene {
+public:
+	void Enter() override {
+		auto sprite = CreateSprite(*this, "background2");
+		SetDrawOrigin(sprite, Origin::Center);
+
+		TextProperties properties;
+		properties.justify = TextJustify::Center;
+		auto font_key{ "mono_font" };
+		auto t1 = CreateText(
+			*this, "You won!\nThanks for playing!", color::White, 16, font_key, properties
+		);
+		SetPosition(t1, V2_float{ 0, -38 });
+
+		std::array<V2_float, 5> positions{ V2_float{ -120, 10 }, V2_float{ -60, 10 },
+										   V2_float{ 0, 10 }, V2_float{ 60, 10 },
+										   V2_float{ 120, 10 } };
+
+		for (auto i = 0; i < wins.size(); i++) {
+			auto planet{ CreateSprite(*this, wins[i].picture_key) };
+			SetDrawOrigin(planet, Origin::Center);
+			V2_float scale{ 0.5f };
+			SetScale(planet, scale);
+			PTGN_ASSERT(i < positions.size(), "More wins than positions to display them in");
+			SetPosition(planet, positions[i]);
+			SetDepth(planet, 2);
+
+			auto glow = CreateSprite(*this, "glow");
+			SetScale(glow, scale);
+			SetPosition(glow, positions[i]);
+			SetDepth(glow, 1);
+
+			auto text{ CreateText(*this, wins[i].name, color::White, 8, font_key) };
+			auto size = V2_float{ 60, 60 } * scale;
+			SetPosition(text, positions[i] + V2_float{ 0, size.y - 3 });
+			SetDepth(text, 2);
+			SetDrawOrigin(text, Origin::Center);
+		}
+
+		auto b1 = CreateMyButton(*this);
+		b1.SetTextureKey("back_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 48, 25 })
+			.OnActivate([b1]() mutable {
+				b1.Disable();
+				unlocked_levels.clear();
+				unlocked_levels.push_back(0);
+				wins.clear();
+				game.scene.Transition<MainMenuScene>("win_scene", "main_menu");
+			});
+		SetPosition(b1, V2_float{ 0, 67 });
+	}
 };
 
 struct PlanetScript : public Script<PlanetScript, ButtonScript> {
@@ -122,7 +183,9 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 		exit_button.Enable();
 		// PTGN_LOG("Chose planet with traits:");
 
-		planet_name.SetContent("Planet " + entity.Get<PlanetName>().name);
+		auto name{ "Planet " + entity.Get<PlanetName>().name };
+
+		planet_name.SetContent(name);
 
 		std::string planet_traits_content;
 		for (const auto& trait : entity.Get<Traits>().traits) {
@@ -132,10 +195,10 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 		planet_trait_text.SetContent(planet_traits_content);
 
 		if (entity.Has<Winner>()) {
-			*selected_level = Selection{ true };
+			*selected_level = Selection{ true, name, Button{ entity }.GetTextureKey() };
 			// PTGN_LOG("You picked a winner!");
 		} else {
-			*selected_level = Selection{ false };
+			*selected_level = Selection{ false, name, Button{ entity }.GetTextureKey() };
 			// PTGN_LOG("You picked a loser!");
 		}
 	}
@@ -445,8 +508,15 @@ public:
 						*this,
 						fade_duration + break_duration + translate_duration + predid_break +
 							fade_in_duration + break2_duration + fade2_duration + break3_duration,
-						[=](auto t) { game.scene.Transition<LevelSelect>("game", "level_select"); }
+						[=](auto t) {
+							if (level_ == levels.size() - 1) {
+								game.scene.Transition<WinScene>("game", "win_scene");
+							} else {
+								game.scene.Transition<LevelSelect>("game", "level_select");
+							}
+						}
 					);
+					wins.push_back(*(*selected_level));
 					unlocked_levels.push_back(level_ + 1);
 				} else {
 					milliseconds fade_duration{ 1000 };
@@ -618,9 +688,12 @@ void InstructionScene::Enter() {
 		*this,
 		"Strange worlds await our sort-of human explorers...\n\n"
 		"They are searching for a new home! \n\n"
-		"These species may be a bit different than you or me, but they need a planet that suits "
-		"them just as well as Earth suits us.\n\nHelp each race of intergalactic travelers select "
-		"from three possible destination planets by carefully weighing the worlds' traits against "
+		"These species may be a bit different than you or me, but they need a planet that "
+		"suits "
+		"them just as well as Earth suits us.\n\nHelp each race of intergalactic travelers "
+		"select "
+		"from three possible destination planets by carefully weighing the worlds' traits "
+		"against "
 		"their own. \n\nUse your logic and choose wisely!",
 		color::White, 6, font_key, properties
 	);
