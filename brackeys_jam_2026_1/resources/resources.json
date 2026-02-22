@@ -22,5 +22,6 @@
   "button": "resources/ui/button.png",
   "main_button": "resources/ui/main_button.png",
   "square_button": "resources/ui/square_button.png",
-  "planet_popup": "resources/ui/planet_popup.png"
+  "planet_popup": "resources/ui/planet_popup.png",
+  "human_popup": "resources/ui/human_popup.png"
 }
