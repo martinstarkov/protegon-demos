@@ -29,5 +29,7 @@
   "human_popup": "resources/ui/human_popup.png",
   "title": "resources/tile/title_screen.png",
   "instructions_button": "resources/ui/instructions_button.png",
-  "play_button": "resources/ui/play_button.png"
+  "play_button": "resources/ui/play_button.png",
+  "win_screen": "resources/tile/final_screen.png",
+  "death_screen": "resources/tile/death_screen.png"
 }
