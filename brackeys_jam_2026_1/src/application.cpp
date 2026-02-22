@@ -12,6 +12,7 @@ constexpr V2_int world_size{ 320, 180 };
 constexpr int button_channel{ 2 };
 constexpr int planet_channel{ 3 };
 std::vector<Entry> levels;
+std::vector<int> unlocked_levels;
 constexpr int planet_count{ 3 };
 
 class MainMenuScene : public Scene {
@@ -101,6 +102,8 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 			Hide(button);
 		}
 		Show(planet_popup);
+		Show(exit_button);
+		SetTint(exit_button, Color{ 0, 58, 60, 255 });
 		exit_button.Enable();
 		// PTGN_LOG("Chose planet with traits:");
 
@@ -146,12 +149,18 @@ public:
 	Sprite planet_display;
 	Sprite win_screen;
 	Sprite lose_screen;
+	Text game_over;
 
 	std::shared_ptr<std::optional<Selection>> selected_level;
 
 	GameScene(int level) : level_{ level } {}
 
 	void Enter() override {
+		game_over = CreateText(*this, "GAME OVER", color::Red, 36, "mono_font");
+		SetDrawOrigin(game_over, Origin::Center);
+		Hide(game_over);
+		SetDepth(game_over, 6);
+
 		win_screen = CreateSprite(*this, "win_screen");
 		SetDrawOrigin(win_screen, Origin::Center);
 		Hide(win_screen);
@@ -162,15 +171,12 @@ public:
 		SetDrawOrigin(lose_screen, Origin::Center);
 		Hide(lose_screen);
 		SetPosition(lose_screen, V2_float{ 0, -33 });
-		SetDepth(lose_screen, 3);
+		SetDepth(lose_screen, 5);
 
 		selected_level	= std::make_shared<std::optional<Selection>>();
 		*selected_level = std::nullopt;
 		planet_buttons	= {};
 		glows			= {};
-		if (level_ < levels.size()) {
-			PTGN_LOG("Attempting to enter level which is out of range");
-		}
 		PTGN_ASSERT(level_ < levels.size(), "Attempting to enter level which is out of range");
 
 		entry = levels[level_];
@@ -230,6 +236,10 @@ public:
 		);
 		SetDepth(planet_display, 4);
 
+		confirm		= CreateMyButton(*this);
+		exit_button = CreateMyButton(*this);
+		exit		= CreateMyButton(*this);
+
 		for (auto i = 0; i < planet_count; i++) {
 			auto button = CreateButton(*this);
 			V2_float planet_pos{ -x_offset + i * x_offset, 0.0f };
@@ -256,10 +266,6 @@ public:
 			planet_buttons.push_back(planet);
 		}
 
-		confirm		= CreateMyButton(*this);
-		exit_button = CreateMyButton(*this);
-		exit		= CreateMyButton(*this);
-
 		human = CreateMyButton(*this);
 
 		for (auto button : planet_buttons) {
@@ -283,29 +289,39 @@ public:
 		SetPosition(human_popup, V2_float{ 0, -1 });
 		SetDepth(human_popup, 3);
 
-		exit_button.SetSize(V2_float{ 7 } * 2.0f).OnActivate([=]() mutable {
-			for (auto button : planet_buttons) {
-				button.Enable();
-				Show(button);
-			}
-			for (auto glow : glows) {
-				Show(glow);
-				SetTint(glow, color::White);
-			}
-			*selected_level = std::nullopt;
-			human.Enable();
-			Hide(human_trait_text);
-			Hide(planet_trait_text);
-			Show(human);
-			Hide(human_popup);
-			Hide(planet_popup);
-			Hide(planet_display);
-			Hide(confirm);
-			confirm.Disable();
-			exit_button.Disable();
-		});
+		SetDepth(exit_button, 4);
+		exit_button.SetTextureKey("exit_popup_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 23, 9 })
+			.OnActivate([=]() mutable {
+				for (auto button : planet_buttons) {
+					button.Enable();
+					Show(button);
+				}
+				for (auto glow : glows) {
+					Show(glow);
+					SetTint(glow, color::White);
+				}
+				*selected_level = std::nullopt;
+				human.Enable();
+				Hide(human_trait_text);
+				Hide(planet_trait_text);
+				Show(human);
+				Hide(human_popup);
+				Hide(planet_popup);
+				Hide(planet_display);
+				Hide(confirm);
+				confirm.Disable();
+				Hide(exit_button);
+				exit_button.Disable();
+			});
+		Hide(exit_button);
 		exit_button.Disable();
-		SetPosition(exit_button, V2_float{ -58, -62 });
+		SetPosition(
+			exit_button, V2_float{ 0, -1 } - V2_float{ 183, 137 } / 2.0f + V2_float{ 56, 7 }
+		);
 
 		TextProperties human_text_properties;
 		human_text_properties.style = FontStyle::Bold;
@@ -320,10 +336,12 @@ public:
 				for (auto button : planet_buttons) {
 					button.Disable();
 				}
+				SetTint(exit_button, Color{ 0, 61, 9, 255 });
 				Show(human_trait_text);
 				human.Disable();
 				Hide(human);
 				Show(human_popup);
+				Show(exit_button);
 				exit_button.Enable();
 			});
 		SetPosition(human, V2_float{ -38, 84 });
@@ -336,11 +354,13 @@ public:
 			.OnActivate([&]() mutable {
 				PTGN_ASSERT(selected_level->has_value(), "Cannot confirm without selection");
 				// PTGN_LOG("Confirmed: ", (*selected_level)->winner ? "Winner" : "Loser");
+				human.Disable();
+				exit.Disable();
+				confirm.Disable();
+				exit_button.Disable();
+				Hide(exit_button);
+				Hide(exit);
 				if ((*selected_level)->winner) {
-					exit.Disable();
-					confirm.Disable();
-					exit_button.Disable();
-					Hide(exit);
 					milliseconds fade_duration{ 1000 };
 					milliseconds break_duration{ 100 };
 					milliseconds translate_duration{ 1000 };
@@ -378,25 +398,18 @@ public:
 					);
 					After(
 						*this,
-						fade_duration + translate_duration + fade2_duration + break_duration +
-							break2_duration + break3_duration,
-						[=](auto t) {
-							game.scene.Transition<LevelSelect>(
-								"game", "level_select", FadeInTransition{ milliseconds{ 1000 } },
-								FadeOutTransition{ milliseconds{ 1000 } }
-							);
-						}
+						fade_duration + break_duration + translate_duration + predid_break +
+							fade_in_duration + break2_duration + fade2_duration + break3_duration,
+						[=](auto t) { game.scene.Transition<LevelSelect>("game", "level_select"); }
 					);
+					unlocked_levels.push_back(level_ + 1);
 				} else {
-					exit.Disable();
-					confirm.Disable();
-					exit_button.Disable();
-					Hide(exit);
 					milliseconds fade_duration{ 1000 };
 					milliseconds break_duration{ 100 };
 					milliseconds translate_duration{ 1000 };
 					milliseconds break2_duration{ 2000 };
 					milliseconds fade2_duration{ 2000 };
+					milliseconds fade_game_over_duration{ 2000 };
 					milliseconds break3_duration{ 200 };
 					milliseconds predid_break{ 100 };
 					milliseconds fade_in_duration{ 500 };
@@ -417,32 +430,37 @@ public:
 					After(
 						*this,
 						fade_duration + break_duration + translate_duration + predid_break +
-							fade_in_duration + break2_duration,
+							fade_in_duration,
 						[=](auto t) {
-							FadeOut(planet_display, fade2_duration);
-							FadeOut(lose_screen, fade2_duration);
+							Show(game_over);
+							SetTint(game_over, color::Transparent);
+							SetScale(game_over, V2_float{ 0.01f });
+							FadeIn(game_over, fade_game_over_duration);
+							ScaleTo(
+								game_over, V2_float{ 1.2f }, fade_game_over_duration,
+								AsymmetricalEase::InQuad
+							);
+							/*game.sound.Play("lose_sound");*/
 						}
 					);
 					After(
 						*this,
-						fade_duration + translate_duration + fade2_duration + break_duration +
-							break2_duration + break3_duration,
+						fade_duration + break_duration + translate_duration + predid_break +
+							fade_in_duration + fade_game_over_duration + break2_duration,
 						[=](auto t) {
-							game.scene.Transition<LevelSelect>(
-								"game", "level_select", FadeInTransition{ milliseconds{ 1000 } },
-								FadeOutTransition{ milliseconds{ 1000 } }
-							);
+							FadeOut(planet_display, fade2_duration);
+							FadeOut(lose_screen, fade2_duration);
+							FadeOut(game_over, fade2_duration);
 						}
 					);
+					After(
+						*this,
+						fade_duration + break_duration + translate_duration + predid_break +
+							fade_in_duration + fade_game_over_duration + break2_duration +
+							fade2_duration + milliseconds{ 100 },
+						[=](auto t) { game.scene.Transition<LevelSelect>("game", "level_select"); }
+					);
 				}
-				/*for (auto button : planet_buttons) {
-					button.Disable();
-				}
-				Show(human_trait_text);
-				human.Disable();
-				Hide(human);
-				Show(human_popup);
-				exit_button.Enable();*/
 			});
 		SetPosition(confirm, V2_float{ 0, -1 } - V2_float{ 183, 137 } / 2.0f + V2_float{ 52, 121 });
 		SetDepth(confirm, 4);
@@ -454,7 +472,10 @@ public:
 			.SetButtonTint(color::Gray, ButtonState::Hover)
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
 			.SetSize(V2_float{ 23, 13 })
-			.OnActivate([]() { game.scene.Transition<LevelSelect>("game", "level_select"); });
+			.OnActivate([exit_game_scene = exit]() mutable {
+				exit_game_scene.Disable();
+				game.scene.Transition<LevelSelect>("game", "level_select");
+			});
 		SetDrawOrigin(exit, Origin::BottomRight);
 		SetPosition(exit, center - V2_float{ 3 });
 	}
@@ -474,25 +495,28 @@ void MainMenuScene::Enter() {
 
 	auto sprite = CreateSprite(*this, "title");
 	SetDrawOrigin(sprite, Origin::Center);
-	auto button =
-		CreateMyButton(*this)
-			.SetTextureKey("play_button")
-			.SetButtonTint(color::White)
-			.SetButtonTint(color::Gray, ButtonState::Hover)
-			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-			.SetSize(V2_float{ 48, 25 })
-			.OnActivate([]() { game.scene.Transition<LevelSelect>("main_menu", "level_select"); });
+	auto button = CreateMyButton(*this);
+	button.SetTextureKey("play_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+		.SetSize(V2_float{ 48, 25 })
+		.OnActivate([button]() mutable {
+			button.Disable();
+			game.scene.Transition<LevelSelect>("main_menu", "level_select");
+		});
 	SetDrawOrigin(button, Origin::TopLeft);
 	SetPosition(button, V2_float{ 41, 113 } - center);
-	auto button2 = CreateMyButton(*this)
-					   .SetTextureKey("instructions_button")
-					   .SetButtonTint(color::White)
-					   .SetButtonTint(color::Gray, ButtonState::Hover)
-					   .SetButtonTint(color::DarkGray, ButtonState::Pressed)
-					   .SetSize(V2_float{ 78, 14 })
-					   .OnActivate([]() {
-						   game.scene.Transition<InstructionScene>("main_menu", "instruction");
-					   });
+	auto button2 = CreateMyButton(*this);
+	button2.SetTextureKey("instructions_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+		.SetSize(V2_float{ 78, 14 })
+		.OnActivate([button2]() mutable {
+			button2.Disable();
+			game.scene.Transition<InstructionScene>("main_menu", "instruction");
+		});
 	SetDrawOrigin(button2, Origin::TopLeft);
 	SetPosition(button2, V2_float{ 136, 130 } - center);
 }
@@ -502,28 +526,35 @@ void LevelSelect::Enter() {
 	SetDrawOrigin(sprite, Origin::Center);
 
 	for (int i{ 0 }; i < 5; ++i) {
-		auto button =
-			CreateMyButton(*this)
-				.SetText(std::to_string(i + 1), color::White, {}, "mono_font")
-				.SetFontSize(10)
-				.SetTextureKey("square_button")
-				.SetButtonTint(color::White)
-				.SetButtonTint(color::Gray, ButtonState::Hover)
-				.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-				.SetSize(V2_float{ 32 })
-				.OnActivate([i]() { game.scene.Transition<GameScene>("level_select", "game", i); });
+		auto button = CreateMyButton(*this);
+		button.SetTextureKey("square_button")
+			.SetDisabledTextureKey("square_button_disabled")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 32 })
+			.OnActivate([i, button]() mutable {
+				game.scene.Transition<GameScene>("level_select", "game", i);
+			});
 		SetPosition(button, V2_float{ -120 + i * 60, -20 });
+
+		if (!VectorContains(unlocked_levels, i)) {
+			button.Disable();
+		} else {
+			button.SetText(std::to_string(i + 1), color::White, {}, "mono_font").SetFontSize(10);
+		}
 	}
 
-	auto back = CreateMyButton(*this)
-					.SetTextureKey("back_button")
-					.SetButtonTint(color::White)
-					.SetButtonTint(color::Gray, ButtonState::Hover)
-					.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-					.SetSize(V2_float{ 48, 25 })
-					.OnActivate([]() {
-						game.scene.Transition<MainMenuScene>("level_select", "main_menu");
-					});
+	auto back = CreateMyButton(*this);
+	back.SetTextureKey("back_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+		.SetSize(V2_float{ 48, 25 })
+		.OnActivate([back]() mutable {
+			back.Disable();
+			game.scene.Transition<MainMenuScene>("level_select", "main_menu");
+		});
 	SetPosition(back, V2_float{ 0, 45 });
 }
 
@@ -552,14 +583,16 @@ void InstructionScene::Enter() {
 		color::White, 6, font_key, properties
 	);
 	SetPosition(t1, V2_float{ 0, -20 });
-	auto b1 =
-		CreateMyButton(*this)
-			.SetTextureKey("back_button")
-			.SetButtonTint(color::White)
-			.SetButtonTint(color::Gray, ButtonState::Hover)
-			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-			.SetSize(V2_float{ 48, 25 })
-			.OnActivate([]() { game.scene.Transition<MainMenuScene>("instruction", "main_menu"); });
+	auto b1 = CreateMyButton(*this);
+	b1.SetTextureKey("back_button")
+		.SetButtonTint(color::White)
+		.SetButtonTint(color::Gray, ButtonState::Hover)
+		.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+		.SetSize(V2_float{ 48, 25 })
+		.OnActivate([b1]() mutable {
+			b1.Disable();
+			game.scene.Transition<MainMenuScene>("instruction", "main_menu");
+		});
 	SetPosition(b1, V2_float{ 0, 45 });
 }
 
@@ -568,6 +601,7 @@ public:
 	void Enter() override {
 		LoadResources("resources/resources.json");
 		levels = ParseEntries(game.json.Get("levels"));
+		unlocked_levels.push_back(0);
 		game.font.SetDefault("mono_font");
 		game.music.SetVolume(2);
 		game.sound.SetVolume("low_beep", 15);
