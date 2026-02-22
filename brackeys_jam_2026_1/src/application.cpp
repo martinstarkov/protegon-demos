@@ -13,6 +13,16 @@ constexpr int planet_channel{ 3 };
 std::vector<Entry> levels;
 constexpr int planet_count{ 3 };
 
+class MainMenuScene : public Scene {
+public:
+	void Enter() override;
+};
+
+class LevelSelect : public Scene {
+public:
+	void Enter() override;
+};
+
 void SetupWindow() {
 	game.window.SetSize(resolution * 4);
 	game.renderer.SetScalingMode(ScalingMode::IntegerScale);
@@ -168,7 +178,7 @@ public:
 		auto font_key{ "mono_font" };
 
 		TextProperties properties1;
-		properties1.wrap_after = static_cast<std::uint32_t>(140.0f * game.renderer.GetScale().x);
+		properties1.wrap_after = static_cast<std::uint32_t>(150.0f * game.renderer.GetScale().x);
 		properties1.justify	   = TextJustify::Left;
 		human_trait_text =
 			CreateText(*this, human_trait_text_content, color::White, 8, font_key, properties1);
@@ -178,10 +188,10 @@ public:
 		Hide(human_trait_text);
 
 		TextProperties properties2;
-		properties2.wrap_after = static_cast<std::uint32_t>(73.0f * game.renderer.GetScale().x);
+		properties2.wrap_after = static_cast<std::uint32_t>(80.0f * game.renderer.GetScale().x);
 		properties2.justify	   = TextJustify::Left;
 		planet_trait_text =
-			CreateText(*this, "Planet Traits", color::White, 6, font_key, properties2);
+			CreateText(*this, "Planet Traits", color::White, 5, font_key, properties2);
 		SetPosition(planet_trait_text, V2_float{ 5, -40 });
 		SetDrawOrigin(planet_trait_text, Origin::TopLeft);
 		SetDepth(planet_trait_text, 4);
@@ -312,7 +322,12 @@ public:
 			.SetSize(V2_float{ 47, 14 })
 			.OnActivate([=]() mutable {
 				PTGN_ASSERT(selected_level->has_value(), "Cannot confirm without selection");
-				PTGN_LOG("Confirmed: ", (*selected_level)->winner ? "Winner" : "Loser");
+				// PTGN_LOG("Confirmed: ", (*selected_level)->winner ? "Winner" : "Loser");
+				if ((*selected_level)->winner) {
+					game.scene.Transition<LevelSelect>("game", "level_select");
+				} else {
+					game.scene.Transition<LevelSelect>("game", "level_select");
+				}
 				/*for (auto button : planet_buttons) {
 					button.Disable();
 				}
@@ -322,9 +337,7 @@ public:
 				Show(human_popup);
 				exit_button.Enable();*/
 			});
-		SetPosition(
-			confirm, V2_float{ 0, -1 } - V2_float{ 183, 137 } / 2.0f + V2_float{ 144, 117 }
-		);
+		SetPosition(confirm, V2_float{ 0, -1 } - V2_float{ 183, 137 } / 2.0f + V2_float{ 52, 121 });
 		SetDepth(confirm, 4);
 		Hide(confirm);
 		confirm.Disable();
@@ -338,40 +351,31 @@ public:
 	void Update() override;
 };
 
-class LevelSelect : public Scene {
-public:
-	void Enter() override;
-};
-
-class MainMenuScene : public Scene {
-public:
-	void Enter() override {
-		auto sprite = CreateSprite(*this, "title");
-		SetDrawOrigin(sprite, Origin::Center);
-		auto button = CreateMyButton(*this)
-						  .SetTextureKey("play_button")
-						  .SetButtonTint(color::White)
-						  .SetButtonTint(color::Gray, ButtonState::Hover)
-						  .SetButtonTint(color::DarkGray, ButtonState::Pressed)
-						  .SetSize(V2_float{ 48, 25 })
-						  .OnActivate([]() {
-							  game.scene.Transition<LevelSelect>("main_menu", "level_select");
-						  });
-		SetDrawOrigin(button, Origin::TopLeft);
-		SetPosition(button, V2_float{ 41, 113 } - center);
-		auto button2 = CreateMyButton(*this)
-						   .SetTextureKey("instructions_button")
-						   .SetButtonTint(color::White)
-						   .SetButtonTint(color::Gray, ButtonState::Hover)
-						   .SetButtonTint(color::DarkGray, ButtonState::Pressed)
-						   .SetSize(V2_float{ 78, 14 })
-						   .OnActivate([]() {
-							   game.scene.Transition<InstructionScene>("main_menu", "instruction");
-						   });
-		SetDrawOrigin(button2, Origin::TopLeft);
-		SetPosition(button2, V2_float{ 136, 130 } - center);
-	}
-};
+void MainMenuScene::Enter() {
+	auto sprite = CreateSprite(*this, "title");
+	SetDrawOrigin(sprite, Origin::Center);
+	auto button =
+		CreateMyButton(*this)
+			.SetTextureKey("play_button")
+			.SetButtonTint(color::White)
+			.SetButtonTint(color::Gray, ButtonState::Hover)
+			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+			.SetSize(V2_float{ 48, 25 })
+			.OnActivate([]() { game.scene.Transition<LevelSelect>("main_menu", "level_select"); });
+	SetDrawOrigin(button, Origin::TopLeft);
+	SetPosition(button, V2_float{ 41, 113 } - center);
+	auto button2 = CreateMyButton(*this)
+					   .SetTextureKey("instructions_button")
+					   .SetButtonTint(color::White)
+					   .SetButtonTint(color::Gray, ButtonState::Hover)
+					   .SetButtonTint(color::DarkGray, ButtonState::Pressed)
+					   .SetSize(V2_float{ 78, 14 })
+					   .OnActivate([]() {
+						   game.scene.Transition<InstructionScene>("main_menu", "instruction");
+					   });
+	SetDrawOrigin(button2, Origin::TopLeft);
+	SetPosition(button2, V2_float{ 136, 130 } - center);
+}
 
 void LevelSelect::Enter() {
 	auto sprite = CreateSprite(*this, "background");
