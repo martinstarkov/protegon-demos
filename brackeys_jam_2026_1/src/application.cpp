@@ -346,11 +346,9 @@ public:
 class MainMenuScene : public Scene {
 public:
 	void Enter() override {
-		auto sprite = CreateSprite(*this, "background");
+		auto sprite = CreateSprite(*this, "title");
 		SetDrawOrigin(sprite, Origin::Center);
 		auto button = CreateMyButton(*this)
-						  .SetText("Play", color::Black, {}, "mono_font")
-						  .SetFontSize(14)
 						  .SetTextureKey("main_button")
 						  .SetButtonTint(color::White)
 						  .SetButtonTint(color::Gray, ButtonState::Hover)
@@ -359,10 +357,9 @@ public:
 						  .OnActivate([]() {
 							  game.scene.Transition<LevelSelect>("main_menu", "level_select");
 						  });
-		SetPosition(button, V2_float{ -70, 0 });
+		SetDrawOrigin(button, Origin::TopLeft);
+		SetPosition(button, V2_float{ 41, 113 } - center);
 		auto button2 = CreateMyButton(*this)
-						   .SetText("Instructions", color::Black, {}, "mono_font")
-						   .SetFontSize(14)
 						   .SetTextureKey("main_button")
 						   .SetButtonTint(color::White)
 						   .SetButtonTint(color::Gray, ButtonState::Hover)
@@ -371,8 +368,8 @@ public:
 						   .OnActivate([]() {
 							   game.scene.Transition<InstructionScene>("main_menu", "instruction");
 						   });
-
-		SetPosition(button2, V2_float{ 70, 0 });
+		SetDrawOrigin(button2, Origin::TopLeft);
+		SetPosition(button2, V2_float{ 136, 130 } - center);
 	}
 };
 
