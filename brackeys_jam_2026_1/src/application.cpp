@@ -103,7 +103,7 @@ struct PlanetScript : public Script<PlanetScript, ButtonScript> {
 		}
 		Show(planet_popup);
 		Show(exit_button);
-		SetTint(exit_button, Color{ 0, 58, 60, 255 });
+		exit_button.SetTextureKey("exit_popup_button2");
 		exit_button.Enable();
 		// PTGN_LOG("Chose planet with traits:");
 
@@ -336,7 +336,7 @@ public:
 				for (auto button : planet_buttons) {
 					button.Disable();
 				}
-				SetTint(exit_button, Color{ 0, 61, 9, 255 });
+				exit_button.SetTextureKey("exit_popup_button");
 				Show(human_trait_text);
 				human.Disable();
 				Hide(human);
