@@ -23,12 +23,6 @@ public:
 	void Enter() override;
 };
 
-void SetupWindow() {
-	game.window.SetSize(resolution * 4);
-	game.renderer.SetScalingMode(ScalingMode::IntegerScale);
-	// game.window.SetSetting(WindowSetting::Maximized);
-}
-
 struct ButtonAudioScript : public Script<ButtonAudioScript, ButtonScript> {
 	ButtonAudioScript() {}
 
@@ -296,7 +290,9 @@ public:
 		exit_button.Disable();
 		SetPosition(exit_button, V2_float{ -58, -62 });
 
-		human.SetText("Species Traits", color::Black, {}, "mono_font")
+		TextProperties human_text_properties;
+		human_text_properties.style = FontStyle::Bold;
+		human.SetText("Species Traits", color::White, {}, "mono_font", human_text_properties)
 			.SetFontSize(6)
 			.SetTextureKey("human_button")
 			.SetButtonTint(color::White)
@@ -341,6 +337,17 @@ public:
 		SetDepth(confirm, 4);
 		Hide(confirm);
 		confirm.Disable();
+
+		auto exit =
+			CreateMyButton(*this)
+				.SetTextureKey("exit_button")
+				.SetButtonTint(color::White)
+				.SetButtonTint(color::Gray, ButtonState::Hover)
+				.SetButtonTint(color::DarkGray, ButtonState::Pressed)
+				.SetSize(V2_float{ 23, 13 })
+				.OnActivate([]() { game.scene.Transition<LevelSelect>("game", "level_select"); });
+		SetDrawOrigin(exit, Origin::BottomRight);
+		SetPosition(exit, center - V2_float{ 3 });
 	}
 };
 
@@ -352,6 +359,10 @@ public:
 };
 
 void MainMenuScene::Enter() {
+	game.window.SetSize(resolution * 4);
+	game.renderer.SetScalingMode(ScalingMode::IntegerScale);
+	game.renderer.SetGameSize(resolution);
+
 	auto sprite = CreateSprite(*this, "title");
 	SetDrawOrigin(sprite, Origin::Center);
 	auto button =
@@ -396,17 +407,14 @@ void LevelSelect::Enter() {
 	}
 
 	auto back = CreateMyButton(*this)
-					.SetText("Back", color::Black, {}, "mono_font")
-					.SetFontSize(14)
 					.SetTextureKey("back_button")
 					.SetButtonTint(color::White)
 					.SetButtonTint(color::Gray, ButtonState::Hover)
 					.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-					.SetSize(V2_float{ 120, 50 })
+					.SetSize(V2_float{ 48, 25 })
 					.OnActivate([]() {
 						game.scene.Transition<MainMenuScene>("level_select", "main_menu");
 					});
-
 	SetPosition(back, V2_float{ 0, 45 });
 }
 
@@ -430,20 +438,18 @@ void InstructionScene::Enter() {
 		"after the tragic destruction of their own! They might be a bit different than you or me, "
 		"but they need a planet that fits them just as well as Earth fits us. Help each race of "
 		"intergalactic travelers select from three possible destination planets by carefully "
-		"weighing the planet traits against there own. You'll need a little bit of logic, so put "
+		"weighing the planet traits against their own. You'll need a little bit of logic, so put "
 		"on your thinking cap (and maybe your lab coat), and choose wisely!",
 		color::White, 6, font_key, properties
 	);
 	SetPosition(t1, V2_float{ 0, -20 });
 	auto b1 =
 		CreateMyButton(*this)
-			.SetText("Back", color::Black, {}, font_key)
-			.SetFontSize(14)
 			.SetTextureKey("back_button")
 			.SetButtonTint(color::White)
 			.SetButtonTint(color::Gray, ButtonState::Hover)
 			.SetButtonTint(color::DarkGray, ButtonState::Pressed)
-			.SetSize(V2_float{ 120, 50 })
+			.SetSize(V2_float{ 48, 25 })
 			.OnActivate([]() { game.scene.Transition<MainMenuScene>("instruction", "main_menu"); });
 	SetPosition(b1, V2_float{ 0, 45 });
 }
@@ -451,13 +457,13 @@ void InstructionScene::Enter() {
 class LoadingScene : public Scene {
 public:
 	void Enter() override {
-		game.renderer.SetGameSize(resolution);
-		SetupWindow();
 		LoadResources("resources/resources.json");
 		levels = ParseEntries(game.json.Get("levels"));
 		game.font.SetDefault("mono_font");
-		game.music.SetVolume(15);
-		// game.sound.SetVolume("rockfly", 15);
+		game.music.SetVolume(2);
+		game.sound.SetVolume("low_beep", 15);
+		game.sound.SetVolume("high_beep", 15);
+		game.music.Play("music1_music", -1);
 		// game.music.Play("elevator_music", -1);
 		game.scene.Transition<MainMenuScene>("loading", "main_menu");
 	}
