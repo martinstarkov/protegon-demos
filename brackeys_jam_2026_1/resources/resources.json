@@ -21,5 +21,6 @@
   "confirm_button": "resources/ui/confirm_button.png",
   "button": "resources/ui/button.png",
   "main_button": "resources/ui/main_button.png",
-  "square_button": "resources/ui/square_button.png"
+  "square_button": "resources/ui/square_button.png",
+  "planet_popup": "resources/ui/planet_popup.png"
 }
