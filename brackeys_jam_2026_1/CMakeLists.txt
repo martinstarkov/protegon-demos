@@ -5,7 +5,7 @@ project(brackeys_jam_2026_1)
 set(PROTEGON_DEMOS OFF CACHE BOOL "")
 set(PROTEGON_TESTS OFF CACHE BOOL "")
 
-add_subdirectory(../../protegon binary_dir)
+add_subdirectory(../../protegon_test binary_dir)
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
