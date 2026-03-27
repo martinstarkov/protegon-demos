@@ -1,0 +1,16 @@
+{
+    "locations": [
+        {
+            "name": "police",
+            "position": [27, 72],
+            "hitbox_position": [-5, -5],
+            "hitbox_size": [43, 31]
+        },
+        {
+            "name": "bank",
+            "position": [134, 27],
+            "hitbox_position": [-5, -5],
+            "hitbox_size": [45, 31]
+        }
+    ]
+}
