@@ -145,7 +145,7 @@ public:
 	}
 
 	std::string RandomChoice() const {
-		auto next_choice = RandomNumber(0ULL, entities.size() - 1);
+		auto next_choice = RandomNumber(static_cast<std::size_t>(0), entities.size() - 1);
 		PTGN_ASSERT(next_choice < entities.size());
 		return entities[next_choice];
 	}
@@ -190,7 +190,7 @@ public:
 	}
 
 	void IncrementScore() {
-		score += standard_score * std::max(1ULL, combo);
+		score += standard_score * std::max(static_cast<std::size_t>(1), combo);
 		score_text.SetContent("Score: " + ToString(score));
 	}
 
