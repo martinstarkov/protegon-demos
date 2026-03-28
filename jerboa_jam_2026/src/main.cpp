@@ -242,7 +242,8 @@ public:
 		FadeIn(preview_first, 100ms, Ease::Linear, true, true);
 		preview_second.SetTexture(next_next_choice);
 
-		ctx().audio.Play("yay", 0.5f, 0, RandomNumber(0.5f, 1.2f));
+		ctx().audio.Play("cannon", 0.3f, 0, RandomNumber(0.8f, 1.2f));
+		ctx().audio.Play("yay", 0.3f, 0, RandomNumber(0.5f, 1.2f));
 
 		auto entity = CreateSprite(*this, choice, cannon_firing_point);
 
@@ -280,9 +281,9 @@ public:
 					if (VectorContains(location.Get<Location>().entities, choice)) {
 						IncrementCombo();
 						IncrementScore();
-						ctx().audio.Play("success", 0.5f, 0, RandomNumber(0.5f, 1.2f));
+						ctx().audio.Play("success", 0.3f, 0, RandomNumber(0.5f, 1.2f));
 					} else {
-						ctx().audio.Play("ow", 0.5f, 0, RandomNumber(0.5f, 1.2f));
+						ctx().audio.Play("ow", 0.3f, 0, RandomNumber(0.5f, 1.2f));
 						ResetCombo();
 					}
 				} else {
@@ -314,7 +315,6 @@ public:
 			{ .texture = "exit_button", .sound_hover = "hover", .sound_press = "press" }
 		);
 		exit_button.OnPress([exit_button]() mutable {
-			exit_button.Disable();
 			exit_button.GetScene().ctx().scene.Switch<MainMenuScene>(
 				"main_menu", FadeTransition{ 200ms }
 			);
