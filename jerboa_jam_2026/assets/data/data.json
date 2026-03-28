@@ -13,7 +13,7 @@
   ],
   "locations": [
     {
-      "entities": ["cop"],
+      "entities": ["cop", "police_test"],
       "hitbox_position": [27, 76],
       "hitbox_size": [44, 21]
     },
@@ -23,7 +23,7 @@
       "hitbox_size": [38, 38]
     },
     {
-      "entities": ["nurse"],
+      "entities": ["nurse", "nurse_test"],
       "hitbox_position": [180, 71],
       "hitbox_size": [36, 54]
     },
