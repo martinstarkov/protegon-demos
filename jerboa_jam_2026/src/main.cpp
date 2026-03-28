@@ -1,28 +1,44 @@
 
+#include <chrono>
+#include <cmath>
+#include <deque>
 #include <format>
+#include <functional>
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "app/application.h"
+#include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
+#include "core/math/geometry/arc.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "core/time/timer.h"
 #include "core/util/span.h"
+#include "core/util/string.h"
 #include "nlohmann/json.hpp"
 #include "platform/input/events.h"
+#include "platform/input/mouse.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/gradient.h"
+#include "runtime/animation/tween.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
@@ -30,6 +46,7 @@
 #include "runtime/scripting/script_sequence.h"
 #include "runtime/scripting/scripts.h"
 #include "runtime/ui/interactive.h"
+#include "serialization/json/fwd.h"
 
 using namespace ptgn;
 
@@ -38,22 +55,6 @@ constexpr V2_float game_size{ 320, 180 };
 struct Location {
 	std::string name;
 	std::vector<std::string> entities;
-};
-
-class LocationScript : public Script {
-public:
-	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<MousePressedOver>([this](auto& e) {
-			if (e.button != Mouse::Left) {
-				return;
-			}
-			auto& location{ entity.Get<Location>() };
-			PTGN_LOG(
-				"Player clicked location: ", location.name,
-				", correct entities: ", location.entities
-			);
-		});
-	}
 };
 
 V2_float ArcPosition(V2_float start, V2_float end, float t) {
@@ -85,12 +86,28 @@ public:
 
 	Text remaining_text;
 
+	Text combo_text;
+	Text score_text;
+	Entity combo_arc;
+	Sprite combo_meter;
+
+	struct ArcTween {};
+
+	Timer combo_decay_timer;
+
+	std::size_t combo{ 0 };
+	std::size_t score{ 0 };
+	std::size_t standard_score{ 1 };
+
+	static constexpr float combo_decay_exponential_constant = 0.1f; // Higher -> Faster decay.
+	static constexpr milliseconds standard_combo_duration	= 3000ms;
+	static constexpr float arc_start_angle{ DegToRad(252.0f) };
+	static constexpr float arc_end_angle{ DegToRad(153.0f) };
+	static constexpr float arc_radius{ 19.0f };
+
 	static constexpr milliseconds level_duration{ 10s };
-	static constexpr V2_float cannon_firing_point{ V2_float{ 283, 151 } - game_size / 2.0f };
-	static constexpr V2_float preview_first_pos{ V2_float{ 157, 157 } - game_size / 2.0f };
-	static constexpr V2_float preview_second_pos{ V2_float{ 117, 157 } - game_size / 2.0f };
-	static constexpr float standard_distance		= 280.0f;
-	static constexpr milliseconds standard_duration = 1000ms;
+	static constexpr float standard_flight_distance		   = 280.0f;
+	static constexpr milliseconds standard_flight_duration = 1000ms;
 
 	void CreateLocation(
 		const std::string& name, const std::vector<std::string>& location_entities,
@@ -99,7 +116,6 @@ public:
 		auto location = CreateSprite(*this, name, position, Origin::TopLeft);
 		location.Add<Location>(name, location_entities);
 		SetInteractiveRect(location, hitbox_position, hitbox_size, Origin::TopLeft, name);
-		AddScript<LocationScript>(location);
 	}
 
 	std::string RandomChoice() const {
@@ -108,16 +124,83 @@ public:
 		return entities[next_choice];
 	}
 
+	Entity FindLocationAt(V2_float pos) {
+		for (auto [e, loc] : EntitiesWith<Location>()) {
+			if (SceneInput::Overlap(pos, e)) {
+				return e;
+			}
+		}
+		return {};
+	}
+
+	Gradient combo_gradient{
+		"linear-gradient(90deg,rgba(252, 223, 0, 1) 0%, rgba(255, 170, 0, 1) 22%, rgba(255, 43, "
+		"43, 1) 39%, rgba(255, 0, 195, 1) 42%, rgba(191, 0, 255, 1) 65%, rgba(77, 54, 255, 1) 88%, "
+		"rgba(255, 255, 255, 1) 100%);"
+	};
+
+	void ResetComboTimer() {
+		combo_decay_timer.Start();
+		if (combo == 0) {
+			GetTween<ArcTween>(combo_arc).Clear();
+			combo_arc.Get<Arc>().start_angle = arc_start_angle;
+			SetTint(combo_meter, color::White);
+			SetTint(combo_arc, color::White);
+			return;
+		}
+		auto tint{ combo_gradient.Sample(static_cast<float>(combo) / 25.0f) };
+		SetTint(combo_meter, tint);
+		SetTint(combo_arc, tint);
+		auto combo_decay{ GetComboDecayDuration() };
+		auto arc_tween = GetTween<ArcTween>(combo_arc);
+		arc_tween.Clear();
+		arc_tween.During(combo_decay)
+			.OnProgress([this](Entity e, float progress) {
+				auto& arc_shape{ GetParent(e).Get<Arc>() };
+
+				arc_shape.start_angle = Lerp(arc_start_angle, arc_end_angle, progress);
+			})
+			.Start();
+	}
+
+	void IncrementScore() {
+		score += standard_score * std::max(1ULL, combo);
+		score_text.SetContent("Score: " + ToString(score));
+	}
+
+	void IncrementCombo() {
+		combo++;
+		combo_text.SetContent(ToString(combo));
+		ResetComboTimer();
+	}
+
+	void DecrementCombo() {
+		ResetComboTimer();
+		if (combo == 0) {
+			return;
+		}
+		combo--;
+		combo_text.SetContent(ToString(combo));
+		if (combo == 0) {
+			ResetComboTimer();
+		}
+	}
+
+	void ResetCombo() {
+		combo = 0;
+		combo_text.SetContent(ToString(combo));
+		ResetComboTimer();
+	}
+
 	void ShootEntity() {
 		auto mouse_pos{ ctx().input.GetMousePosition() };
-		auto dist_to_cannon = cannon_firing_point - mouse_pos;
-		// PTGN_LOG("Mouse pos: ", mouse_pos, ", cannon: ", cannon_firing_point);
-		// PTGN_LOG("dist_to_cannon: ", dist_to_cannon);
-		// PTGN_LOG("dist_to_cannon.Magnitude(): ", dist_to_cannon.Magnitude());
-		// PTGN_LOG("distance_ratio: ", distance_ratio);
-		float distance_ratio = dist_to_cannon.Magnitude() / standard_distance;
+
+		constexpr V2_float cannon_firing_point{ V2_float{ 283, 151 } - game_size / 2.0f };
+
+		auto dist_to_cannon	 = cannon_firing_point - mouse_pos;
+		float distance_ratio = dist_to_cannon.Magnitude() / standard_flight_distance;
 		milliseconds flight_duration{
-			static_cast<std::size_t>(standard_duration.count() * distance_ratio)
+			static_cast<std::size_t>(standard_flight_duration.count() * distance_ratio)
 		};
 		std::string choice = next_entity.front();
 		next_entity.pop_front();
@@ -129,10 +212,10 @@ public:
 		std::string next_next_choice = next_entity.back();
 
 		preview_first.SetTexture(next_choice);
+		FadeIn(preview_first, 100ms, Ease::Linear, true, true);
 		preview_second.SetTexture(next_next_choice);
 
-		V2_float start{ cannon_firing_point };
-		auto entity = CreateSprite(*this, choice, start);
+		auto entity = CreateSprite(*this, choice, cannon_firing_point);
 
 		V2_float end{ mouse_pos };
 
@@ -143,17 +226,30 @@ public:
 
 		GetTween<EntityArcPath>(entity)
 			.During(flight_duration)
-			.OnProgress([angle, direction, start, end, distance_ratio](Entity e, float t) {
+			.OnProgress([angle, direction, cannon_firing_point, end,
+						 distance_ratio](Entity e, float t) {
 				auto parent{ GetParent(e) };
 				if (direction == 0) {
 					SetRotation(parent, angle);
 				} else {
-					SetRotation(parent, direction * t * 3.0f * distance_ratio * DegToRad(360.0f));
+					SetRotation(
+						parent,
+						static_cast<float>(direction) * t * 3.0f * distance_ratio * DegToRad(360.0f)
+					);
 				}
-				SetPosition(parent, ArcPosition(start, end, t));
+				SetPosition(parent, ArcPosition(cannon_firing_point, end, t));
 			})
-			.OnComplete([this](Entity e) {
+			.OnComplete([this, choice](Entity e) {
 				auto parent{ GetParent(e) };
+
+				if (auto location = FindLocationAt(GetWorldPosition(parent));
+					location && VectorContains(location.Get<Location>().entities, choice)) {
+					IncrementCombo();
+					IncrementScore();
+				} else {
+					ResetCombo();
+				}
+
 				FadeOut(parent, 200ms).OnComplete([](Entity e) { GetParent(e).Destroy(); });
 			})
 			.Start();
@@ -177,8 +273,10 @@ public:
 
 		PTGN_ASSERT(next_entity.size() == 2);
 
-		preview_first  = CreateSprite(*this, next_entity.front(), preview_first_pos);
-		preview_second = CreateSprite(*this, next_entity.back(), preview_second_pos);
+		preview_first =
+			CreateSprite(*this, next_entity.front(), V2_float{ 157, 157 } - game_size / 2.0f);
+		preview_second =
+			CreateSprite(*this, next_entity.back(), V2_float{ 117, 157 } - game_size / 2.0f);
 		SetScale(preview_second, 0.5f);
 
 		cursor = CreateSprite(*this, "cursor", ctx().input.GetMousePosition());
@@ -216,13 +314,44 @@ public:
 			.Start();
 
 		remaining_text = CreateText(*this, FormatDuration(level_duration), color::Black, 24);
-		SetPosition(remaining_text, V2_float{ 156, 12 } - game_size / 2.0f);
+		SetPosition(remaining_text, V2_float{ 155, 12 } - game_size / 2.0f);
+
+		score_text = CreateText(*this, "Score: 0", color::Black, 12, {});
+		SetPosition(score_text, V2_float{ 242, 11 } - game_size / 2.0f);
+		SetDrawOrigin(score_text, Origin::CenterLeft);
+
+		V2_float combo_meter_pos{ V2_float{ 6, 6 } - game_size / 2.0f };
+		auto arc_meter = CreateSprite(*this, "combo_meter_arc", combo_meter_pos, Origin::TopLeft);
+
+		combo_arc = CreateArc(
+			*this, *GetTextureSize(arc_meter) / 2.0f, arc_radius, arc_start_angle, arc_end_angle,
+			false, color::Red
+		);
+		SetParent(combo_arc, arc_meter);
+		combo_meter = CreateSprite(*this, "combo_meter", combo_meter_pos, Origin::TopLeft);
+
+		combo_text = CreateText(*this, "0", color::Black, 18);
+		SetPosition(combo_text, V2_float{ 29, 26 } - game_size / 2.0f);
+
+		ResetComboTimer();
+	}
+
+	milliseconds GetComboDecayDuration() const {
+		milliseconds combo_decay_duration{ static_cast<std::size_t>(
+			standard_combo_duration.count() * 1.0f /
+			std::exp(static_cast<float>(combo) * combo_decay_exponential_constant)
+		) };
+		return combo_decay_duration;
 	}
 
 	void OnUpdate() override {
 		auto mouse_pos{ ctx().input.GetMousePosition() };
 		// PTGN_LOG("Mouse pos: ", mouse_pos);
 		SetPosition(cursor, mouse_pos);
+
+		if (auto decay{ GetComboDecayDuration() }; combo_decay_timer.Completed(decay)) {
+			DecrementCombo();
+		}
 	}
 
 	void OnExit() override {
@@ -230,7 +359,7 @@ public:
 	}
 
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<MousePressed>([this](MousePressed& e) {
+		d.Dispatch<MousePressed>([this](const MousePressed& e) {
 			if (e.button != Mouse::Left) {
 				return;
 			}
