@@ -55,7 +55,6 @@ using namespace ptgn;
 constexpr V2_float game_size{ 320, 180 };
 
 struct Location {
-	std::string name;
 	std::vector<std::string> entities;
 };
 
@@ -135,12 +134,14 @@ public:
 	static constexpr milliseconds standard_flight_duration = 1000ms;
 
 	void CreateLocation(
-		const std::string& name, const std::vector<std::string>& location_entities,
-		V2_float position, V2_float hitbox_position, V2_float hitbox_size
+		const std::vector<std::string>& location_entities, V2_float hitbox_position,
+		V2_float hitbox_size
 	) {
-		auto location = CreateSprite(*this, name, position, Origin::TopLeft);
-		location.Add<Location>(name, location_entities);
-		SetInteractiveRect(location, hitbox_position, hitbox_size, Origin::TopLeft, name);
+		auto location = CreateEntity();
+		location.Add<Location>(location_entities);
+		SetInteractiveRect(
+			location, hitbox_position - game_size / 2.0f, hitbox_size, Origin::TopLeft
+		);
 	}
 
 	std::string RandomChoice() const {
@@ -270,11 +271,15 @@ public:
 			.OnComplete([this, choice](Entity e) {
 				auto parent{ GetParent(e) };
 
-				if (auto location = FindLocationAt(GetWorldPosition(parent));
-					location && VectorContains(location.Get<Location>().entities, choice)) {
-					IncrementCombo();
-					IncrementScore();
-					ctx().audio.Play("success", 0.5f, 0, RandomNumber(0.5f, 1.2f));
+				if (auto location = FindLocationAt(GetWorldPosition(parent)); location) {
+					if (VectorContains(location.Get<Location>().entities, choice)) {
+						IncrementCombo();
+						IncrementScore();
+						ctx().audio.Play("success", 0.5f, 0, RandomNumber(0.5f, 1.2f));
+					} else {
+						ctx().audio.Play("ow", 0.5f, 0, RandomNumber(0.5f, 1.2f));
+						ResetCombo();
+					}
 				} else {
 					ResetCombo();
 				}
@@ -285,6 +290,7 @@ public:
 	}
 
 	void OnEnter() override {
+		SetBackgroundColor({ 118, 164, 87, 255 });
 		// ctx().window.SetOSCursorVisibility(false);
 		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
@@ -324,15 +330,12 @@ public:
 		//	PTGN_LOG("Entities: ", entities);
 
 		for (const auto& location : data.at("locations")) {
-			std::string name = location.at("name");
 			PTGN_ASSERT(location.at("entities").is_array(), "Entities must be array");
 			std::vector<std::string> location_entities =
 				location.at("entities").get<std::vector<std::string>>();
-			V2_float position		  = location.at("position");
-			position				 -= game_size / 2.0f;
-			V2_float hitbox_position  = location.at("hitbox_position");
-			V2_float hitbox_size	  = location.at("hitbox_size");
-			CreateLocation(name, location_entities, position, hitbox_position, hitbox_size);
+			V2_float hitbox_position = location.at("hitbox_position");
+			V2_float hitbox_size	 = location.at("hitbox_size");
+			CreateLocation(location_entities, hitbox_position, hitbox_size);
 		}
 
 		CreateScriptSequence(*this)
