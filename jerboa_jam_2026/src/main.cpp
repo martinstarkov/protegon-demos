@@ -297,8 +297,8 @@ public:
 
 	void OnEnter() override {
 		SetBackgroundColor({ 118, 164, 87, 255 });
-		// ctx().window.SetOSCursorVisibility(false);
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().window.SetOSCursorVisibility(false);
+		// ctx().input.SetSettings({ .debug_draw_enabled = true });
 
 		std::reference_wrapper<json> data_ref = ctx().asset.GetJson("data").value();
 		const auto& data					  = data_ref.get();
