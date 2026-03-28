@@ -253,6 +253,11 @@ public:
 		auto direction{ RandomNumber(-1, 1) };
 		auto angle{ DegToRad(RandomNumber(0.0f, 360.0f)) };
 
+		ScaleTo(entity, V2_float{ 1.1f }, flight_duration / 2)
+			.OnComplete([flight_duration](auto e) {
+				ScaleTo(GetParent(e), V2_float{ 0.3f }, flight_duration / 2);
+			});
+
 		GetTween<EntityArcPath>(entity)
 			.During(flight_duration)
 			.OnProgress([angle, direction, cannon_firing_point, end,
