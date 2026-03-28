@@ -129,7 +129,7 @@ public:
 	static constexpr float arc_end_angle{ DegToRad(153.0f) };
 	static constexpr float arc_radius{ 19.0f };
 
-	static constexpr milliseconds level_duration{ 10s };
+	static constexpr milliseconds level_duration{ 2min };
 	static constexpr float standard_flight_distance		   = 280.0f;
 	static constexpr milliseconds standard_flight_duration = 1000ms;
 
