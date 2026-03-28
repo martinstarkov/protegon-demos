@@ -43,8 +43,10 @@
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_transitions.h"
 #include "runtime/scripting/script_sequence.h"
 #include "runtime/scripting/scripts.h"
+#include "runtime/ui/button.h"
 #include "runtime/ui/interactive.h"
 #include "serialization/json/fwd.h"
 
@@ -72,6 +74,29 @@ std::string FormatDuration(milliseconds ms) {
 	auto second		   = total_seconds - minute;
 	return std::format("{}:{:02}", minute.count(), second.count());
 }
+
+Button CreateMenuButton(Scene& scene, V2_float pos, V2_float size, std::string_view content) {
+	return CreateButton(
+		scene, pos, size,
+		{ .content			  = std::string(content),
+		  .text_color		  = color::Gray,
+		  .text_color_hover	  = color::Gold,
+		  .text_outline_width = 1,
+		  .sound_hover		  = "hover",
+		  .sound_press		  = "press",
+		  .scale			  = ScaleButtonConfig{} }
+	);
+}
+
+class MainMenuScene : public Scene {
+public:
+	void OnEnter() override;
+};
+
+class InstructionScene : public Scene {
+public:
+	void OnEnter() override;
+};
 
 class GameScene : public Scene {
 public:
@@ -202,6 +227,7 @@ public:
 		milliseconds flight_duration{
 			static_cast<std::size_t>(standard_flight_duration.count() * distance_ratio)
 		};
+		PTGN_ASSERT(next_entity.size() > 0);
 		std::string choice = next_entity.front();
 		next_entity.pop_front();
 		next_entity.push_back(RandomChoice());
@@ -214,6 +240,8 @@ public:
 		preview_first.SetTexture(next_choice);
 		FadeIn(preview_first, 100ms, Ease::Linear, true, true);
 		preview_second.SetTexture(next_next_choice);
+
+		ctx().audio.Play("yay", 0.5f, 0, RandomNumber(0.5f, 1.2f));
 
 		auto entity = CreateSprite(*this, choice, cannon_firing_point);
 
@@ -246,6 +274,7 @@ public:
 					location && VectorContains(location.Get<Location>().entities, choice)) {
 					IncrementCombo();
 					IncrementScore();
+					ctx().audio.Play("success", 0.5f, 0, RandomNumber(0.5f, 1.2f));
 				} else {
 					ResetCombo();
 				}
@@ -257,8 +286,6 @@ public:
 
 	void OnEnter() override {
 		// ctx().window.SetOSCursorVisibility(false);
-		ctx().asset.LoadDirectory("assets");
-		ctx().renderer.SetGameSize(game_size);
 		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
 		std::reference_wrapper<json> data_ref = ctx().asset.GetJson("data").value();
@@ -271,6 +298,18 @@ public:
 
 		CreateSprite(*this, "bg");
 
+		auto exit_button = CreateButton(
+			*this, V2_float{ -game_size.x, game_size.y } / 2.0f, { 16, 16 },
+			{ .texture = "exit_button", .sound_hover = "hover", .sound_press = "press" }
+		);
+		exit_button.OnPress([exit_button]() mutable {
+			exit_button.Disable();
+			exit_button.GetScene().ctx().scene.Switch<MainMenuScene>(
+				"main_menu", FadeTransition{ 200ms }
+			);
+		});
+		SetDrawOrigin(exit_button, Origin::BottomLeft);
+
 		PTGN_ASSERT(next_entity.size() == 2);
 
 		preview_first =
@@ -282,7 +321,7 @@ public:
 		cursor = CreateSprite(*this, "cursor", ctx().input.GetMousePosition());
 		SetDepth(cursor, 1000);
 
-		PTGN_LOG("Entities: ", entities);
+		//	PTGN_LOG("Entities: ", entities);
 
 		for (const auto& location : data.at("locations")) {
 			std::string name = location.at("name");
@@ -310,7 +349,7 @@ public:
 					remaining_text.SetContent(remaining_time_text);
 				}
 			)
-			.Then([]() { PTGN_LOG("You lost"); })
+			.Then([]() { /* PTGN_LOG("You lost");*/ })
 			.Start();
 
 		remaining_text = CreateText(*this, FormatDuration(level_duration), color::Black, 24);
@@ -368,7 +407,56 @@ public:
 	}
 };
 
+void MainMenuScene::OnEnter() {
+	ctx().input.SetSettings({ .debug_draw_enabled = true });
+	ctx().asset.LoadDirectory("assets");
+	ctx().renderer.SetGameSize(game_size);
+
+	CreateSprite(*this, "menu_bg");
+
+	auto play = CreateMenuButton(*this, { -70, 45 }, V2_float{ 50, 25 }, "Play");
+	play.OnPress([play]() mutable {
+		play.Disable();
+		play.GetScene().ctx().scene.Switch<GameScene>("game", FadeTransition{ 500ms });
+	});
+
+	auto instructions = CreateMenuButton(*this, { 70, 45 }, V2_float{ 100, 25 }, "Instructions");
+	instructions.OnPress([instructions]() mutable {
+		instructions.Disable();
+		instructions.GetScene().ctx().scene.Switch<InstructionScene>(
+			"instructions", FadeTransition{ 200ms }
+		);
+	});
+}
+
+void InstructionScene::OnEnter() {
+	ctx().input.SetSettings({ .debug_draw_enabled = true });
+	CreateSprite(*this, "instructions_bg");
+	TextProperties properties;
+	properties.wrap_after = static_cast<std::uint32_t>(game_size.x * 0.9f);
+	properties.justify	  = TextJustify::Left;
+	auto t1				  = CreateText(
+		  *this,
+		  "Strange citizens await their daily commute... though not quite in the usual way.\n\n"
+					  "They're late for work, and you're in charge of getting them there!\n\n"
+					  "Load up the cannon and launch each character toward their rightful place: rats to the "
+					  "sewers, nurses to hospitals, mechanics to the autoshop, you know the drill.\n\n"
+					  "But don't just fire wildly, aim carefully and match each passenger to where they "
+					  "belong.\n\n"
+					  "Chain together perfect landings to build combos and rack up a skyhigh score.\n\n"
+					  "Precision is key. Timing is everything. Workplace satisfaction has never been so "
+					  "explosive!",
+		  color::White, 6, {}, properties
+	  );
+	SetPosition(t1, V2_float{ 0, -12 });
+	auto back = CreateMenuButton(*this, { 0, 55 }, V2_float{ 50, 25 }, "Back");
+	back.OnPress([back]() mutable {
+		back.Disable();
+		back.GetScene().ctx().scene.Switch<MainMenuScene>("main_menu", FadeTransition{ 200ms });
+	});
+}
+
 int main(int, char**) {
 	Application app{ "Go To Town", game_size * 2 };
-	app.StartWith<GameScene>();
+	app.StartWith<MainMenuScene>();
 }
