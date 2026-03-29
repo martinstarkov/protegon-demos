@@ -163,7 +163,19 @@ public:
 	std::string RandomChoice() const {
 		auto next_choice = RandomNumber(static_cast<std::size_t>(0), entities.size() - 1);
 		PTGN_ASSERT(next_choice < entities.size());
-		return entities[next_choice];
+
+		auto choice = entities[next_choice];
+
+		if (choice == "robber") {
+			return choice;
+		}
+
+		auto dei = RandomNumber(1, 3);
+
+		if (dei == 1) {
+			return choice + "2";
+		}
+		return choice + "1";
 	}
 
 	Entity FindLocationAt(V2_float pos) {
