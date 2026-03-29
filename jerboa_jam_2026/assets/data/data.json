@@ -11,7 +11,8 @@
     "nurse_test",
     "police_test",
     "firefighter_test",
-    "teacher"
+    "teacher",
+    "florist 2"
   ],
   "locations": [
     {
@@ -35,7 +36,7 @@
       "hitbox_size": [74, 30]
     },
     {
-      "entities": ["florist"],
+      "entities": ["florist", "florist 2"],
       "hitbox_position": [34, 137],
       "hitbox_size": [43, 26]
     },
