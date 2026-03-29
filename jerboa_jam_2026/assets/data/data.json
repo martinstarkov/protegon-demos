@@ -21,7 +21,10 @@
     "teacher2",
     "rat2",
     "mayor2",
-    "dog"
+    "dog1",
+    "dog2",
+    "squirrel1",
+    "squirrel2"
   ],
   "locations": [
     {
@@ -102,12 +105,12 @@
         "bro2"
       ],
       "hitbox_position": [
-        202,
-        40
+        200,
+        29
       ],
       "hitbox_size": [
-        28,
-        25
+        39,
+        37
       ]
     },
     {
@@ -144,12 +147,54 @@
         "rat2"
       ],
       "hitbox_position": [
-        43,
-        112
+        38,
+        107
       ],
       "hitbox_size": [
-        24,
-        18
+        38,
+        23
+      ]
+    },
+    {
+      "entities": [
+        "squirrel1",
+        "squirrel2"
+      ],
+      "hitbox_position": [
+        221,
+        70
+      ],
+      "hitbox_size": [
+        40,
+        50
+      ]
+    },
+    {
+      "entities": [
+        "mayor1",
+        "mayor2"
+      ],
+      "hitbox_position": [
+        93,
+        53
+      ],
+      "hitbox_size": [
+        69,
+        44
+      ]
+    },
+    {
+      "entities": [
+        "dog1",
+        "dog2"
+      ],
+      "hitbox_position": [
+        51,
+        15
+      ],
+      "hitbox_size": [
+        39,
+        33
       ]
     }
   ]
