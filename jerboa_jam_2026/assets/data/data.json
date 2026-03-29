@@ -8,7 +8,8 @@
     "florist",
     "bro",
     "teacher",
-    "robber"
+    "robber",
+    "rat"
   ],
   "locations": [
     {
@@ -50,6 +51,11 @@
       "entities": ["firefighter"],
       "hitbox_position": [261, 88],
       "hitbox_size": [36, 36]
+    },
+    {
+      "entities": ["rat"],
+      "hitbox_position": [43, 112],
+      "hitbox_size": [24, 18]
     }
   ]
 }
