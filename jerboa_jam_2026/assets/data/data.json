@@ -5,38 +5,34 @@
     "nurse",
     "firefighter",
     "mechanic",
-    "student",
     "florist",
     "bro",
-    "nurse_test",
-    "police_test",
-    "firefighter_test",
     "teacher",
-    "florist 2"
+    "robber"
   ],
   "locations": [
     {
-      "entities": ["cop", "police_test"],
+      "entities": ["cop", "robber"],
       "hitbox_position": [27, 76],
       "hitbox_size": [44, 21]
     },
     {
-      "entities": ["banker"],
+      "entities": ["banker", "robber"],
       "hitbox_position": [95, 9],
       "hitbox_size": [38, 38]
     },
     {
-      "entities": ["nurse", "nurse_test"],
+      "entities": ["nurse"],
       "hitbox_position": [180, 71],
       "hitbox_size": [36, 54]
     },
     {
-      "entities": ["student", "teacher"],
+      "entities": ["teacher"],
       "hitbox_position": [89, 104],
       "hitbox_size": [74, 30]
     },
     {
-      "entities": ["florist", "florist 2"],
+      "entities": ["florist"],
       "hitbox_position": [34, 137],
       "hitbox_size": [43, 26]
     },
@@ -51,7 +47,7 @@
       "hitbox_size": [49, 42]
     },
     {
-      "entities": ["firefighter", "firefighter_test"],
+      "entities": ["firefighter"],
       "hitbox_position": [261, 88],
       "hitbox_size": [36, 36]
     }
