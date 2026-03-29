@@ -285,25 +285,47 @@ public:
 			.OnComplete([this, choice](Entity e) {
 				auto parent{ GetParent(e) };
 
+				const auto is_woman = [&choice]() {
+					return choice == "teacher" || choice == "florist" || choice == "nurse" ||
+						   choice == "mech";
+				};
+
 				if (auto location = FindLocationAt(GetWorldPosition(parent)); location) {
 					if (VectorContains(location.Get<Location>().entities, choice)) {
 						IncrementCombo();
 						IncrementScore();
 						if (choice == "rat") {
 							ctx().audio.Play("rat", 0.7f, 0, RandomNumber(1.2f, 1.7f));
-						} else if (choice == "robber" &&
-								   VectorContains(
-									   location.Get<Location>().entities, std::string("cop")
-								   )) {
-							ctx().audio.Play("ow", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+						} else if (choice == "banker") {
+							ctx().audio.Play("banker", 0.7f, 0, RandomNumber(0.95f, 1.2f));
+						} else if (choice == "robber") {
+							if (VectorContains(
+									location.Get<Location>().entities, std::string("cop")
+								)) {
+								ctx().audio.Play("man_ow", 0.3f, 0, RandomNumber(0.8f, 1.2f));
+							} else {
+								ctx().audio.Play("robber", 0.2f, 0, RandomNumber(0.8f, 1.2f));
+							}
+						} else if (choice == "firefighter") {
+							ctx().audio.Play("firefighter", 1.2f, 0, RandomNumber(0.9f, 1.2f));
+						} else if (choice == "cop") {
+							ctx().audio.Play("cop", 0.7f, 0, RandomNumber(0.9f, 1.1f));
+						} else if (choice == "teacher") {
+							ctx().audio.Play("teacher", 0.8f, 0, RandomNumber(0.9f, 1.2f));
+						} else if (choice == "nurse") {
+							ctx().audio.Play("nurse", 0.8f, 0, RandomNumber(0.98f, 1.15f));
+						} else if (is_woman()) {
+							ctx().audio.Play("woman_yay", 0.3f, 0, RandomNumber(0.7f, 1.0f));
 						} else {
-							ctx().audio.Play("success", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+							ctx().audio.Play("man_yay", 0.3f, 0, RandomNumber(0.8f, 1.2f));
 						}
 					} else {
 						if (choice == "rat") {
 							ctx().audio.Play("rat", 0.7f, 0, RandomNumber(0.2f, 0.3f));
+						} else if (is_woman()) {
+							ctx().audio.Play("woman_ugh", 0.7f, 0, RandomNumber(0.9f, 1.1f));
 						} else {
-							ctx().audio.Play("ow", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+							ctx().audio.Play("man_ugh", 0.7f, 0, RandomNumber(0.95f, 1.05f));
 						}
 						ResetCombo();
 					}
@@ -449,20 +471,20 @@ public:
 };
 
 void MainMenuScene::OnEnter() {
-	ctx().input.SetSettings({ .debug_draw_enabled = true });
+	//	ctx().input.SetSettings({ .debug_draw_enabled = true });
 	ctx().asset.LoadDirectory("assets");
 	ctx().font.SetDefault("Early GameBoy");
 	ctx().renderer.SetGameSize(game_size);
 
 	CreateSprite(*this, "menu_bg");
 
-	auto play = CreateMenuButton(*this, { -70, 45 }, V2_float{ 50, 25 }, "Play");
+	auto play = CreateMenuButton(*this, { -70, 55 }, V2_float{ 50, 25 }, "Play");
 	play.OnPress([play]() mutable {
 		play.Disable();
 		play.GetScene().ctx().scene.Switch<GameScene>("game", FadeTransition{ 500ms });
 	});
 
-	auto instructions = CreateMenuButton(*this, { 70, 45 }, V2_float{ 100, 25 }, "Instructions");
+	auto instructions = CreateMenuButton(*this, { 70, 55 }, V2_float{ 100, 25 }, "Instructions");
 	instructions.OnPress([instructions]() mutable {
 		instructions.Disable();
 		instructions.GetScene().ctx().scene.Switch<InstructionScene>(
@@ -472,23 +494,20 @@ void MainMenuScene::OnEnter() {
 }
 
 void InstructionScene::OnEnter() {
-	ctx().input.SetSettings({ .debug_draw_enabled = true });
+	// ctx().input.SetSettings({ .debug_draw_enabled = true });
 	CreateSprite(*this, "instructions_bg");
 	TextProperties properties;
 	properties.wrap_after = static_cast<std::uint32_t>(game_size.x * 0.9f);
 	properties.justify	  = TextJustify::Left;
 	auto t1				  = CreateText(
 		  *this,
-		  "Strange citizens await their daily commute... though not quite in the usual way.\n\n"
+		  "Citizens await their daily commute... though not quite in the usual way.\n\n"
 					  "They're late for work, and you're in charge of getting them there!\n\n"
-					  "Load up the cannon and launch each character toward their rightful place: rats to the "
+					  "Launch them to their rightful place: rats to the "
 					  "sewers, nurses to hospitals, mechanics to the autoshop, you know the drill.\n\n"
-					  "But don't just fire wildly, aim carefully and match each passenger to where they "
-					  "belong.\n\n"
-					  "Chain together perfect landings to build combos and rack up a skyhigh score.\n\n"
-					  "Precision is key. Timing is everything. Workplace satisfaction has never been so "
-					  "explosive!",
-		  color::White, 6, {}, properties
+					  "Chain together perfect placements to build combos and rack up a skyhigh score.\n\n"
+					  "Workplace satisfaction has never been so explosive!",
+		  color::White, 6, "retro_gaming", properties
 	  );
 	SetPosition(t1, V2_float{ 0, -12 });
 	auto back = CreateMenuButton(*this, { 0, 55 }, V2_float{ 50, 25 }, "Back");
@@ -499,6 +518,6 @@ void InstructionScene::OnEnter() {
 }
 
 int main(int, char**) {
-	Application app{ "Go To Town", game_size };
+	Application app{ "Go To Town", game_size * 3 };
 	app.StartWith<MainMenuScene>();
 }
