@@ -333,7 +333,10 @@ public:
 							ctx().audio.Play("banker", 0.7f, 0, RandomNumber(0.95f, 1.2f));
 						} else if (IsVariant(choice, "robber")) {
 							if (VectorContains(
-									location.Get<Location>().entities, std::string("cop")
+									location.Get<Location>().entities, std::string("cop1")
+								) ||
+								VectorContains(
+									location.Get<Location>().entities, std::string("cop2")
 								)) {
 								ctx().audio.Play("man_ow", 0.3f, 0, RandomNumber(0.8f, 1.2f));
 							} else {
