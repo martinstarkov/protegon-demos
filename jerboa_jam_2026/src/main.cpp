@@ -367,12 +367,12 @@ public:
 		SetPosition(score_text, V2_float{ 242, 11 } - game_size / 2.0f);
 		SetDrawOrigin(score_text, Origin::CenterLeft);
 
-		V2_float combo_meter_pos{ V2_float{ 6, 6 } - game_size / 2.0f };
-		auto arc_meter = CreateSprite(*this, "combo_meter_arc", combo_meter_pos, Origin::TopLeft);
+		V2_float combo_meter_pos{ V2_float{ 2, 2 } - game_size / 2.0f };
+		auto arc_meter = CreateSprite(*this, "combo_meter_bg", combo_meter_pos, Origin::TopLeft);
 
 		combo_arc = CreateArc(
-			*this, *GetTextureSize(arc_meter) / 2.0f, arc_radius, arc_start_angle, arc_end_angle,
-			false, color::Red
+			*this, *GetTextureSize(arc_meter) / 2.0f + V2_float{ 2, 1 }, arc_radius,
+			arc_start_angle, arc_end_angle, false, color::Red
 		);
 		SetParent(combo_arc, arc_meter);
 		combo_meter = CreateSprite(*this, "combo_meter", combo_meter_pos, Origin::TopLeft);
