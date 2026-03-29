@@ -328,7 +328,7 @@ public:
 						IncrementCombo();
 						IncrementScore();
 						if (IsVariant(choice, "rat")) {
-							ctx().audio.Play("rat", 0.7f, 0, RandomNumber(1.2f, 1.7f));
+							ctx().audio.Play("rat", 0.9f, 0, RandomNumber(1.2f, 1.7f));
 						} else if (IsVariant(choice, "banker")) {
 							ctx().audio.Play("banker", 0.7f, 0, RandomNumber(0.95f, 1.2f));
 						} else if (IsVariant(choice, "robber")) {
@@ -346,11 +346,13 @@ public:
 						} else if (IsVariant(choice, "teacher")) {
 							ctx().audio.Play("teacher", 0.8f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (IsVariant(choice, "florist")) {
-							ctx().audio.Play("florist", 0.6f, 0, RandomNumber(0.9f, 1.2f));
+							ctx().audio.Play("florist", 0.5f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (IsVariant(choice, "nurse")) {
 							ctx().audio.Play("nurse", 0.9f, 0, RandomNumber(0.98f, 1.15f));
 						} else if (IsVariant(choice, "dog")) {
-							ctx().audio.Play("dog", 0.6f, 0, RandomNumber(0.9f, 1.2f));
+							ctx().audio.Play("dog", 0.5f, 0, RandomNumber(0.9f, 1.2f));
+						} else if (IsVariant(choice, "squirrel")) {
+							ctx().audio.Play("squirrel", 0.7f, 0, RandomNumber(0.95f, 1.2f));
 						} else if (is_woman()) {
 							ctx().audio.Play("woman_yay", 0.3f, 0, RandomNumber(0.7f, 1.0f));
 						} else {
@@ -358,7 +360,11 @@ public:
 						}
 					} else {
 						if (IsVariant(choice, "rat")) {
-							ctx().audio.Play("rat", 0.7f, 0, RandomNumber(0.2f, 0.3f));
+							ctx().audio.Play("rat", 0.9f, 0, RandomNumber(0.2f, 0.3f));
+						} else if (IsVariant(choice, "dog")) {
+							ctx().audio.Play("dog_ow", 0.7f, 0, RandomNumber(1.0f, 1.2f));
+						} else if (IsVariant(choice, "squirrel")) {
+							ctx().audio.Play("squirrel_ow", 0.6f, 0, RandomNumber(1.0f, 1.2f));
 						} else if (is_woman()) {
 							ctx().audio.Play("woman_ugh", 0.7f, 0, RandomNumber(0.9f, 1.1f));
 						} else {
