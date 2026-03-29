@@ -9,7 +9,8 @@
     "florist",
     "bro",
     "nurse_test",
-    "police_test"
+    "police_test",
+    "firefighter_test"
   ],
   "locations": [
     {
@@ -48,7 +49,7 @@
       "hitbox_size": [49, 42]
     },
     {
-      "entities": ["firefighter"],
+      "entities": ["firefighter", "firefighter_test"],
       "hitbox_position": [261, 88],
       "hitbox_size": [36, 36]
     }
