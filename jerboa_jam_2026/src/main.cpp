@@ -350,7 +350,7 @@ public:
 						} else if (IsVariant(choice, "nurse")) {
 							ctx().audio.Play("nurse", 0.9f, 0, RandomNumber(0.98f, 1.15f));
 						} else if (IsVariant(choice, "dog")) {
-							ctx().audio.Play("dog", 0.7f, 0, RandomNumber(0.9f, 1.2f));
+							ctx().audio.Play("dog", 0.6f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (is_woman()) {
 							ctx().audio.Play("woman_yay", 0.3f, 0, RandomNumber(0.7f, 1.0f));
 						} else {
