@@ -345,21 +345,27 @@ public:
 						} else if (IsVariant(choice, "firefighter")) {
 							ctx().audio.Play("firefighter", 1.2f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (IsVariant(choice, "cop")) {
-							ctx().audio.Play("cop", 0.7f, 0, RandomNumber(0.9f, 1.1f));
+							if (FlipCoin()) {
+								ctx().audio.Play("cop2", 0.8f, 0, RandomNumber(0.9f, 1.1f));
+							} else {
+								ctx().audio.Play("cop", 0.8f, 0, RandomNumber(0.9f, 1.1f));
+							}
 						} else if (IsVariant(choice, "teacher")) {
 							ctx().audio.Play("teacher", 0.8f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (IsVariant(choice, "florist")) {
-							ctx().audio.Play("florist", 0.5f, 0, RandomNumber(0.9f, 1.2f));
+							ctx().audio.Play("florist", 0.4f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (IsVariant(choice, "nurse")) {
-							ctx().audio.Play("nurse", 0.9f, 0, RandomNumber(0.98f, 1.15f));
+							ctx().audio.Play("nurse", 0.8f, 0, RandomNumber(0.98f, 1.15f));
+						} else if (IsVariant(choice, "mayor")) {
+							ctx().audio.Play("mayor", 1.1f, 0, RandomNumber(1.0f, 1.1f));
 						} else if (IsVariant(choice, "dog")) {
-							ctx().audio.Play("dog", 0.5f, 0, RandomNumber(0.9f, 1.2f));
+							ctx().audio.Play("dog", 0.4f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (IsVariant(choice, "squirrel")) {
 							ctx().audio.Play("squirrel", 0.7f, 0, RandomNumber(0.95f, 1.2f));
 						} else if (is_woman()) {
 							ctx().audio.Play("woman_yay", 0.3f, 0, RandomNumber(0.7f, 1.0f));
 						} else {
-							ctx().audio.Play("man_yay", 0.3f, 0, RandomNumber(0.8f, 1.2f));
+							ctx().audio.Play("man_yay", 0.2f, 0, RandomNumber(0.8f, 1.0f));
 						}
 					} else {
 						if (IsVariant(choice, "rat")) {
@@ -405,11 +411,15 @@ public:
 			*this, "Welcome\nto\nTown", { 225, 215, 5, 255 }, 4, {},
 			TextProperties{ .justify = TextJustify::Center }
 		);
-		SetPosition(welcome_text, V2_float{ 239, 163 } - game_size / 2.0f);
+		SetPosition(welcome_text, V2_float{ 241, 163 } - game_size / 2.0f);
 
 		auto exit_button = CreateButton(
 			*this, V2_float{ -game_size.x, game_size.y } / 2.0f, { 16, 16 },
-			{ .texture = "exit_button", .sound_hover = "hover", .sound_press = "press" }
+			{ .texture		 = "exit_button",
+			  .texture_hover = "exit_button_hover",
+			  .texture_press = "exit_button_hover",
+			  .sound_hover	 = "hover",
+			  .sound_press	 = "press" }
 		);
 		exit_button.OnPress([exit_button]() mutable {
 			exit_button.GetScene().ctx().scene.Switch<MainMenuScene>(
@@ -564,6 +574,7 @@ void ScoreScene::OnEnter() {
 		{
 			.texture	   = "replay",
 			.texture_hover = "replay_hover",
+			.texture_press = "replay_hover",
 			.sound_hover   = "hover",
 			.sound_press   = "press",
 		}
@@ -579,7 +590,7 @@ void MainMenuScene::OnEnter() {
 	// ctx().input.SetSettings({ .debug_draw_enabled = true });
 	ctx().asset.LoadDirectory("assets");
 	ctx().font.SetDefault("Early GameBoy");
-	ctx().audio.Play("music", 0.15f, -1, 1.0f, true, false);
+	ctx().audio.Play("music", 0.10f, -1, 1.0f, true, false);
 	ctx().renderer.SetGameSize(game_size);
 
 	CreateSprite(*this, "menu_bg");
@@ -591,7 +602,7 @@ void MainMenuScene::OnEnter() {
 		}
 	});
 
-	auto instructions = CreateMenuButton(*this, { 70, 55 }, V2_float{ 120, 25 }, "Instructions");
+	auto instructions = CreateMenuButton(*this, { 80, 55 }, V2_float{ 50, 25 }, "Help");
 	instructions.OnPress([instructions]() mutable {
 		if (instructions.GetScene().ctx().scene.Switch<InstructionScene>(
 				"instructions", FadeTransition{ 200ms }
@@ -604,16 +615,15 @@ void MainMenuScene::OnEnter() {
 void InstructionScene::OnEnter() {
 	// PTGN_LOG("Entering instructions scene");
 	// ctx().input.SetSettings({ .debug_draw_enabled = true });
-	CreateSprite(*this, "instructions_bg");
+	SetBackgroundColor({ 118, 164, 87, 255 });
 	TextProperties properties;
 	properties.wrap_after = static_cast<std::uint32_t>(game_size.x * 0.9f);
 	properties.justify	  = TextJustify::Left;
 	auto t1				  = CreateText(
 		  *this,
 		  "Citizens await their daily commute... though not quite in the usual way.\n\n"
-					  "They're late for work, and you're in charge of getting them there!\n\n"
-					  "Launch them to their rightful place: rats to the "
-					  "sewers, nurses to hospitals, mechanics to the autoshop, you know the drill.\n\n"
+					  "Launch them to their rightful place: nurses to hospitals, rats to "
+					  "sewers, mechanics to the autoshop, you know the drill.\n\n"
 					  "Chain together perfect placements to build combos and rack up a skyhigh score.\n\n"
 					  "Workplace satisfaction has never been so explosive!",
 		  color::White, 6, "retro_gaming", properties
