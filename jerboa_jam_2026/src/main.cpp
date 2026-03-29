@@ -330,9 +330,9 @@ public:
 						} else if (choice == "teacher") {
 							ctx().audio.Play("teacher", 0.8f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (choice == "florist") {
-							ctx().audio.Play("florist", 0.8f, 0, RandomNumber(0.9f, 1.2f));
+							ctx().audio.Play("florist", 0.6f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (choice == "nurse") {
-							ctx().audio.Play("nurse", 0.8f, 0, RandomNumber(0.98f, 1.15f));
+							ctx().audio.Play("nurse", 0.9f, 0, RandomNumber(0.98f, 1.15f));
 						} else if (is_woman()) {
 							ctx().audio.Play("woman_yay", 0.3f, 0, RandomNumber(0.7f, 1.0f));
 						} else {
@@ -546,6 +546,7 @@ void MainMenuScene::OnEnter() {
 	// ctx().input.SetSettings({ .debug_draw_enabled = true });
 	ctx().asset.LoadDirectory("assets");
 	ctx().font.SetDefault("Early GameBoy");
+	ctx().audio.Play("music", 0.15f, -1, 1.0f, true, false);
 	ctx().renderer.SetGameSize(game_size);
 
 	CreateSprite(*this, "menu_bg");
