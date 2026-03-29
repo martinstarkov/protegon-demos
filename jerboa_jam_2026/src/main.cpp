@@ -123,6 +123,8 @@ public:
 
 	Text remaining_text;
 
+	Animation cannon;
+
 	Text combo_text;
 	Text score_text;
 	Entity combo_arc;
@@ -143,7 +145,7 @@ public:
 	static constexpr float arc_end_angle{ DegToRad(156.0f) };
 	static constexpr float arc_radius{ 23.0f };
 
-	static constexpr milliseconds level_duration{ 1s };
+	static constexpr milliseconds level_duration{ 1min };
 	static constexpr float standard_flight_distance		   = 280.0f;
 	static constexpr milliseconds standard_flight_duration = 1000ms;
 
@@ -236,6 +238,8 @@ public:
 	void ShootEntity() {
 		auto mouse_pos{ ctx().input.GetMousePosition() };
 
+		cannon.Start();
+
 		constexpr V2_float cannon_firing_point{ V2_float{ 283, 151 } - game_size / 2.0f };
 
 		auto dist_to_cannon	 = cannon_firing_point - mouse_pos;
@@ -257,7 +261,7 @@ public:
 		FadeIn(preview_first, 100ms, Ease::Linear, true, true);
 		preview_second.SetTexture(next_next_choice);
 
-		ctx().audio.Play("cannon", 0.3f, 0, RandomNumber(0.8f, 1.2f));
+		ctx().audio.Play("cannon", 0.2f, 0, RandomNumber(0.8f, 1.2f));
 
 		// if (choice == "rat") {
 		//	ctx().audio.Play("rat", 0.3f, 0, RandomNumber(0.5f, 1.2f));
@@ -390,6 +394,7 @@ public:
 		SetScale(preview_second, 0.5f);
 
 		cursor = CreateSprite(*this, "cursor", ctx().input.GetMousePosition());
+		SetUI(cursor);
 		SetDepth(cursor, 1000);
 
 		//	PTGN_LOG("Entities: ", entities);
@@ -456,7 +461,10 @@ public:
 		SetParent(combo_text, arc_meter);
 		SetPosition(combo_text, combo_meter_size + combo_meter_center_offset + V2_float{ 1, 0 });
 
-		auto cannon = CreateSprite(*this, "cannon", game_size / 2.0f, Origin::BottomRight);
+		cannon = CreateAnimation(
+			*this, "cannon", game_size / 2.0f, AnimationConfig{ 3, 100ms, V2_int{ 49, 39 }, 1 }
+		);
+		SetDrawOrigin(cannon, Origin::BottomRight);
 		SetDepth(cannon, 1);
 
 		ResetComboTimer();
