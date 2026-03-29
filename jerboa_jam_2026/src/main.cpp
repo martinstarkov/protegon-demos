@@ -283,7 +283,16 @@ public:
 					if (VectorContains(location.Get<Location>().entities, choice)) {
 						IncrementCombo();
 						IncrementScore();
-						ctx().audio.Play("success", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+						if (choice == "rat") {
+							ctx().audio.Play("rat", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+						} else if (choice == "robber" &&
+								   VectorContains(
+									   location.Get<Location>().entities, std::string("cop")
+								   )) {
+							ctx().audio.Play("ow", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+						} else {
+							ctx().audio.Play("success", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+						}
 					} else {
 						ctx().audio.Play("ow", 0.3f, 0, RandomNumber(0.5f, 1.2f));
 						ResetCombo();
