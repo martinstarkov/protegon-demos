@@ -31,6 +31,7 @@
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/asset/font_system.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -324,9 +325,9 @@ public:
 		PTGN_ASSERT(next_entity.size() == 2);
 
 		preview_first =
-			CreateSprite(*this, next_entity.front(), V2_float{ 157, 157 } - game_size / 2.0f);
+			CreateSprite(*this, next_entity.front(), V2_float{ 159, 159 } - game_size / 2.0f);
 		preview_second =
-			CreateSprite(*this, next_entity.back(), V2_float{ 117, 157 } - game_size / 2.0f);
+			CreateSprite(*this, next_entity.back(), V2_float{ 120, 160 } - game_size / 2.0f);
 		SetScale(preview_second, 0.5f);
 
 		cursor = CreateSprite(*this, "cursor", ctx().input.GetMousePosition());
@@ -384,6 +385,9 @@ public:
 		SetParent(combo_text, arc_meter);
 		SetPosition(combo_text, combo_meter_size + combo_meter_center_offset);
 
+		auto cannon = CreateSprite(*this, "cannon", game_size / 2.0f, Origin::BottomRight);
+		SetDepth(cannon, 1);
+
 		ResetComboTimer();
 	}
 
@@ -422,6 +426,7 @@ public:
 void MainMenuScene::OnEnter() {
 	ctx().input.SetSettings({ .debug_draw_enabled = true });
 	ctx().asset.LoadDirectory("assets");
+	ctx().font.SetDefault("Early GameBoy");
 	ctx().renderer.SetGameSize(game_size);
 
 	CreateSprite(*this, "menu_bg");
@@ -469,6 +474,6 @@ void InstructionScene::OnEnter() {
 }
 
 int main(int, char**) {
-	Application app{ "Go To Town", game_size * 2 };
+	Application app{ "Go To Town", game_size };
 	app.StartWith<MainMenuScene>();
 }
