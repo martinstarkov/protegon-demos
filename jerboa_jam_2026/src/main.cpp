@@ -235,6 +235,10 @@ public:
 		ResetComboTimer();
 	}
 
+	bool IsVariant(const std::string& choice, const std::string& type) const {
+		return choice == type || choice == type + "1" || choice == type + "2";
+	}
+
 	void ShootEntity() {
 		auto mouse_pos{ ctx().input.GetMousePosition() };
 
@@ -302,20 +306,20 @@ public:
 			.OnComplete([this, choice](Entity e) {
 				auto parent{ GetParent(e) };
 
-				const auto is_woman = [&choice]() {
-					return choice == "teacher" || choice == "florist" || choice == "nurse" ||
-						   choice == "mech";
+				const auto is_woman = [&choice, this]() {
+					return IsVariant(choice, "teacher") || IsVariant(choice, "florist") ||
+						   IsVariant(choice, "nurse") || IsVariant(choice, "mech");
 				};
 
 				if (auto location = FindLocationAt(GetWorldPosition(parent)); location) {
 					if (VectorContains(location.Get<Location>().entities, choice)) {
 						IncrementCombo();
 						IncrementScore();
-						if (choice == "rat") {
+						if (IsVariant(choice, "rat")) {
 							ctx().audio.Play("rat", 0.7f, 0, RandomNumber(1.2f, 1.7f));
-						} else if (choice == "banker") {
+						} else if (IsVariant(choice, "banker")) {
 							ctx().audio.Play("banker", 0.7f, 0, RandomNumber(0.95f, 1.2f));
-						} else if (choice == "robber") {
+						} else if (IsVariant(choice, "robber")) {
 							if (VectorContains(
 									location.Get<Location>().entities, std::string("cop")
 								)) {
@@ -323,15 +327,15 @@ public:
 							} else {
 								ctx().audio.Play("robber", 0.2f, 0, RandomNumber(0.8f, 1.2f));
 							}
-						} else if (choice == "firefighter") {
+						} else if (IsVariant(choice, "firefighter")) {
 							ctx().audio.Play("firefighter", 1.2f, 0, RandomNumber(0.9f, 1.2f));
-						} else if (choice == "cop") {
+						} else if (IsVariant(choice, "cop")) {
 							ctx().audio.Play("cop", 0.7f, 0, RandomNumber(0.9f, 1.1f));
-						} else if (choice == "teacher") {
+						} else if (IsVariant(choice, "teacher")) {
 							ctx().audio.Play("teacher", 0.8f, 0, RandomNumber(0.9f, 1.2f));
-						} else if (choice == "florist") {
+						} else if (IsVariant(choice, "florist")) {
 							ctx().audio.Play("florist", 0.6f, 0, RandomNumber(0.9f, 1.2f));
-						} else if (choice == "nurse") {
+						} else if (IsVariant(choice, "nurse")) {
 							ctx().audio.Play("nurse", 0.9f, 0, RandomNumber(0.98f, 1.15f));
 						} else if (is_woman()) {
 							ctx().audio.Play("woman_yay", 0.3f, 0, RandomNumber(0.7f, 1.0f));
@@ -339,7 +343,7 @@ public:
 							ctx().audio.Play("man_yay", 0.3f, 0, RandomNumber(0.8f, 1.2f));
 						}
 					} else {
-						if (choice == "rat") {
+						if (IsVariant(choice, "rat")) {
 							ctx().audio.Play("rat", 0.7f, 0, RandomNumber(0.2f, 0.3f));
 						} else if (is_woman()) {
 							ctx().audio.Play("woman_ugh", 0.7f, 0, RandomNumber(0.9f, 1.1f));

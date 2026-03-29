@@ -1,62 +1,155 @@
 {
   "entities": [
-    "cop",
-    "banker",
-    "nurse",
-    "firefighter",
-    "mech",
-    "florist",
-    "bro",
-    "teacher",
     "robber",
-    "rat",
-    "mayor"
+    "cop1",
+    "banker1",
+    "nurse1",
+    "firefighter1",
+    "mech1",
+    "florist1",
+    "bro1",
+    "teacher1",
+    "rat1",
+    "mayor1",
+    "cop2",
+    "banker2",
+    "nurse2",
+    "firefighter2",
+    "mech2",
+    "florist2",
+    "bro2",
+    "teacher2",
+    "rat2",
+    "mayor2"
   ],
   "locations": [
     {
-      "entities": ["cop", "robber"],
-      "hitbox_position": [27, 76],
-      "hitbox_size": [44, 21]
+      "entities": [
+        "cop1",
+        "cop2",
+        "robber"
+      ],
+      "hitbox_position": [
+        27,
+        76
+      ],
+      "hitbox_size": [
+        44,
+        21
+      ]
     },
     {
-      "entities": ["banker", "robber"],
-      "hitbox_position": [95, 9],
-      "hitbox_size": [38, 38]
+      "entities": [
+        "banker1",
+        "banker2",
+        "robber"
+      ],
+      "hitbox_position": [
+        95,
+        9
+      ],
+      "hitbox_size": [
+        38,
+        38
+      ]
     },
     {
-      "entities": ["nurse"],
-      "hitbox_position": [180, 71],
-      "hitbox_size": [36, 54]
+      "entities": [
+        "nurse1",
+        "nurse2"
+      ],
+      "hitbox_position": [
+        180,
+        71
+      ],
+      "hitbox_size": [
+        36,
+        54
+      ]
     },
     {
-      "entities": ["teacher"],
-      "hitbox_position": [89, 104],
-      "hitbox_size": [74, 30]
+      "entities": [
+        "teacher1",
+        "teacher2"
+      ],
+      "hitbox_position": [
+        89,
+        104
+      ],
+      "hitbox_size": [
+        74,
+        30
+      ]
     },
     {
-      "entities": ["florist"],
-      "hitbox_position": [34, 137],
-      "hitbox_size": [43, 26]
+      "entities": [
+        "florist1",
+        "florist2"
+      ],
+      "hitbox_position": [
+        34,
+        137
+      ],
+      "hitbox_size": [
+        43,
+        26
+      ]
     },
     {
-      "entities": ["bro"],
-      "hitbox_position": [202, 40],
-      "hitbox_size": [28, 25]
+      "entities": [
+        "bro1",
+        "bro2"
+      ],
+      "hitbox_position": [
+        202,
+        40
+      ],
+      "hitbox_size": [
+        28,
+        25
+      ]
     },
     {
-      "entities": ["mech"],
-      "hitbox_position": [257, 25],
-      "hitbox_size": [49, 42]
+      "entities": [
+        "mech1",
+        "mech2"
+      ],
+      "hitbox_position": [
+        257,
+        25
+      ],
+      "hitbox_size": [
+        49,
+        42
+      ]
     },
     {
-      "entities": ["firefighter"],
-      "hitbox_position": [261, 88],
-      "hitbox_size": [36, 36]
+      "entities": [
+        "firefighter1",
+        "firefighter2"
+      ],
+      "hitbox_position": [
+        261,
+        88
+      ],
+      "hitbox_size": [
+        36,
+        36
+      ]
     },
     {
-      "entities": ["rat"],
-      "hitbox_position": [43, 112],
-      "hitbox_size": [24, 18]
+      "entities": [
+        "rat1",
+        "rat2"
+      ],
+      "hitbox_position": [
+        43,
+        112
+      ],
+      "hitbox_size": [
+        24,
+        18
+      ]
     }
   ]
 }
