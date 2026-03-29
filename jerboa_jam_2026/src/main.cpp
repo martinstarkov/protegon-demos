@@ -362,11 +362,11 @@ public:
 			.Then([]() { /* PTGN_LOG("You lost");*/ })
 			.Start();
 
-		remaining_text = CreateText(*this, FormatDuration(level_duration), color::Black, 10);
+		remaining_text = CreateText(*this, FormatDuration(level_duration), color::White, 10);
 		SetPosition(remaining_text, V2_float{ 162, 12 } - game_size / 2.0f);
 
-		auto score_label = CreateText(*this, "Score:", color::Black, 8, {});
-		score_text		 = CreateText(*this, "0", color::Black, 8, {});
+		auto score_label = CreateText(*this, "Score:", color::White, 8, {});
+		score_text		 = CreateText(*this, "0", color::White, 8, {});
 		SetPosition(score_label, V2_float{ 234, 11 } - game_size / 2.0f);
 		SetDrawOrigin(score_label, Origin::CenterLeft);
 		SetPosition(score_text, V2_float{ 314, 11 } - game_size / 2.0f);
