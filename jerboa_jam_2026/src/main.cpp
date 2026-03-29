@@ -176,7 +176,7 @@ public:
 			SetTint(combo_arc, color::White);
 			return;
 		}
-		auto tint{ combo_gradient.Sample(static_cast<float>(combo) / 20.0f) };
+		auto tint{ combo_gradient.Sample(static_cast<float>(combo) / 25.0f) };
 		SetTint(combo_meter, tint);
 		SetTint(combo_arc, tint);
 		auto combo_decay{ GetComboDecayDuration() };
@@ -245,7 +245,13 @@ public:
 		preview_second.SetTexture(next_next_choice);
 
 		ctx().audio.Play("cannon", 0.3f, 0, RandomNumber(0.8f, 1.2f));
-		ctx().audio.Play("yay", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+
+		// if (choice == "rat") {
+		//	ctx().audio.Play("rat", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+		// } else {
+		//
+		// }
+		ctx().audio.Play("fall", 0.01f, 0, RandomNumber(2.0f, 3.0f));
 
 		auto entity = CreateSprite(*this, choice, cannon_firing_point);
 
@@ -284,7 +290,7 @@ public:
 						IncrementCombo();
 						IncrementScore();
 						if (choice == "rat") {
-							ctx().audio.Play("rat", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+							ctx().audio.Play("rat", 0.7f, 0, RandomNumber(1.2f, 1.7f));
 						} else if (choice == "robber" &&
 								   VectorContains(
 									   location.Get<Location>().entities, std::string("cop")
@@ -294,11 +300,15 @@ public:
 							ctx().audio.Play("success", 0.3f, 0, RandomNumber(0.5f, 1.2f));
 						}
 					} else {
-						ctx().audio.Play("ow", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+						if (choice == "rat") {
+							ctx().audio.Play("rat", 0.7f, 0, RandomNumber(0.2f, 0.3f));
+						} else {
+							ctx().audio.Play("ow", 0.3f, 0, RandomNumber(0.5f, 1.2f));
+						}
 						ResetCombo();
 					}
 				} else {
-					ResetCombo();
+					DecrementCombo();
 				}
 
 				FadeOut(parent, 200ms).OnComplete([](Entity e) { GetParent(e).Destroy(); });
