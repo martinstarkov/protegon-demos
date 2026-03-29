@@ -125,9 +125,9 @@ public:
 
 	static constexpr float combo_decay_exponential_constant = 0.1f; // Higher -> Faster decay.
 	static constexpr milliseconds standard_combo_duration	= 3000ms;
-	static constexpr float arc_start_angle{ DegToRad(252.0f) };
-	static constexpr float arc_end_angle{ DegToRad(153.0f) };
-	static constexpr float arc_radius{ 19.0f };
+	static constexpr float arc_start_angle{ DegToRad(248.0f) };
+	static constexpr float arc_end_angle{ DegToRad(156.0f) };
+	static constexpr float arc_radius{ 23.0f };
 
 	static constexpr milliseconds level_duration{ 2min };
 	static constexpr float standard_flight_distance		   = 280.0f;
@@ -370,15 +370,19 @@ public:
 		V2_float combo_meter_pos{ V2_float{ 2, 2 } - game_size / 2.0f };
 		auto arc_meter = CreateSprite(*this, "combo_meter_bg", combo_meter_pos, Origin::TopLeft);
 
+		auto combo_meter_size{ *GetTextureSize(arc_meter) / 2.0f };
+		V2_float combo_meter_center_offset{ 4, 4 };
+
 		combo_arc = CreateArc(
-			*this, *GetTextureSize(arc_meter) / 2.0f + V2_float{ 2, 1 }, arc_radius,
+			*this, combo_meter_size + combo_meter_center_offset - V2_float{ 1, 1 }, arc_radius,
 			arc_start_angle, arc_end_angle, false, color::Red
 		);
 		SetParent(combo_arc, arc_meter);
 		combo_meter = CreateSprite(*this, "combo_meter", combo_meter_pos, Origin::TopLeft);
 
 		combo_text = CreateText(*this, "0", color::Black, 18);
-		SetPosition(combo_text, V2_float{ 29, 26 } - game_size / 2.0f);
+		SetParent(combo_text, arc_meter);
+		SetPosition(combo_text, combo_meter_size + combo_meter_center_offset);
 
 		ResetComboTimer();
 	}
