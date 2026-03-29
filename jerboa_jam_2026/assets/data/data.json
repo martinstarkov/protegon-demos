@@ -4,7 +4,7 @@
     "banker",
     "nurse",
     "firefighter",
-    "mechanic",
+    "mech",
     "florist",
     "bro",
     "teacher",
@@ -42,7 +42,7 @@
       "hitbox_size": [28, 25]
     },
     {
-      "entities": ["mechanic"],
+      "entities": ["mech"],
       "hitbox_position": [257, 25],
       "hitbox_size": [49, 42]
     },
