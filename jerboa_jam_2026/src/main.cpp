@@ -401,6 +401,12 @@ public:
 
 		CreateSprite(*this, "bg");
 
+		auto welcome_text = CreateText(
+			*this, "Welcome\nto\nTown", { 225, 215, 5, 255 }, 4, {},
+			TextProperties{ .justify = TextJustify::Center }
+		);
+		SetPosition(welcome_text, V2_float{ 239, 163 } - game_size / 2.0f);
+
 		auto exit_button = CreateButton(
 			*this, V2_float{ -game_size.x, game_size.y } / 2.0f, { 16, 16 },
 			{ .texture = "exit_button", .sound_hover = "hover", .sound_press = "press" }
