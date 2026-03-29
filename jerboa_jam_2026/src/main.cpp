@@ -279,11 +279,6 @@ public:
 
 		ctx().audio.Play("cannon", 0.2f, 0, RandomNumber(0.8f, 1.2f));
 
-		// if (choice == "rat") {
-		//	ctx().audio.Play("rat", 0.3f, 0, RandomNumber(0.5f, 1.2f));
-		// } else {
-		//
-		// }
 		ctx().audio.Play("fall", 0.01f, 0, RandomNumber(2.0f, 3.0f));
 
 		auto entity = CreateSprite(*this, choice, cannon_firing_point);
@@ -395,7 +390,6 @@ public:
 	void OnEnter() override {
 		SetBackgroundColor({ 118, 164, 87, 255 });
 		ctx().window.SetOSCursorVisibility(false);
-		// ctx().input.SetSettings({ .debug_draw_enabled = true });
 
 		std::reference_wrapper<json> data_ref = ctx().asset.GetJson("data").value();
 		const auto& data					  = data_ref.get();
@@ -439,8 +433,6 @@ public:
 		cursor = CreateSprite(*this, "cursor", ctx().input.GetMousePosition());
 		SetUI(cursor);
 		SetDepth(cursor, 1000);
-
-		//	PTGN_LOG("Entities: ", entities);
 
 		for (const auto& location : data.at("locations")) {
 			PTGN_ASSERT(location.at("entities").is_array(), "Entities must be array");
@@ -523,7 +515,6 @@ public:
 
 	void OnUpdate() override {
 		auto mouse_pos{ ctx().input.GetMousePosition() };
-		// PTGN_LOG("Mouse pos: ", mouse_pos);
 		SetPosition(cursor, mouse_pos);
 
 		if (auto decay{ GetComboDecayDuration() }; combo_decay_timer.Completed(decay)) {
@@ -548,9 +539,7 @@ public:
 };
 
 void ScoreScene::OnEnter() {
-	// ctx().input.SetSettings({ .debug_draw_enabled = true });
 	SetBackgroundColor({ 66, 66, 66, 255 });
-	// CreateSprite(*this, "score_bg");
 
 	auto end_text = CreateText(*this, "Thanks for playing!", color::Black, 14);
 	SetPosition(end_text, { 0, -60 });
@@ -586,8 +575,6 @@ void ScoreScene::OnEnter() {
 }
 
 void MainMenuScene::OnEnter() {
-	// PTGN_LOG("Entering main menu scene");
-	// ctx().input.SetSettings({ .debug_draw_enabled = true });
 	ctx().asset.LoadDirectory("assets");
 	ctx().font.SetDefault("Early GameBoy");
 	ctx().audio.Play("music", 0.10f, -1, 1.0f, true, false);
@@ -613,8 +600,6 @@ void MainMenuScene::OnEnter() {
 }
 
 void InstructionScene::OnEnter() {
-	// PTGN_LOG("Entering instructions scene");
-	// ctx().input.SetSettings({ .debug_draw_enabled = true });
 	SetBackgroundColor({ 118, 164, 87, 255 });
 	TextProperties properties;
 	properties.wrap_after = static_cast<std::uint32_t>(game_size.x * 0.9f);
