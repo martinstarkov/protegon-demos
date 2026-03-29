@@ -82,6 +82,7 @@ Button CreateMenuButton(Scene& scene, V2_float pos, V2_float size, std::string_v
 		  .text_color		  = color::Gray,
 		  .text_color_hover	  = color::Gold,
 		  .text_outline_width = 1,
+		  .font_size		  = 10,
 		  .sound_hover		  = "hover",
 		  .sound_press		  = "press",
 		  .scale			  = ScaleButtonConfig{} }
@@ -121,7 +122,7 @@ public:
 	Timer combo_decay_timer;
 
 	std::size_t combo{ 0 };
-	std::size_t score{ 0 };
+	std::size_t score{ 8888 };
 	std::size_t standard_score{ 1 };
 
 	static constexpr float combo_decay_exponential_constant = 0.1f; // Higher -> Faster decay.
@@ -175,7 +176,7 @@ public:
 			SetTint(combo_arc, color::White);
 			return;
 		}
-		auto tint{ combo_gradient.Sample(static_cast<float>(combo) / 25.0f) };
+		auto tint{ combo_gradient.Sample(static_cast<float>(combo) / 20.0f) };
 		SetTint(combo_meter, tint);
 		SetTint(combo_arc, tint);
 		auto combo_decay{ GetComboDecayDuration() };
@@ -192,7 +193,7 @@ public:
 
 	void IncrementScore() {
 		score += standard_score * std::max(static_cast<std::size_t>(1), combo);
-		score_text.SetContent("Score: " + ToString(score));
+		score_text.SetContent(ToString(score));
 	}
 
 	void IncrementCombo() {
@@ -325,9 +326,9 @@ public:
 		PTGN_ASSERT(next_entity.size() == 2);
 
 		preview_first =
-			CreateSprite(*this, next_entity.front(), V2_float{ 159, 159 } - game_size / 2.0f);
+			CreateSprite(*this, next_entity.front(), V2_float{ 159, 158 } - game_size / 2.0f);
 		preview_second =
-			CreateSprite(*this, next_entity.back(), V2_float{ 120, 160 } - game_size / 2.0f);
+			CreateSprite(*this, next_entity.back(), V2_float{ 118, 165 } - game_size / 2.0f);
 		SetScale(preview_second, 0.5f);
 
 		cursor = CreateSprite(*this, "cursor", ctx().input.GetMousePosition());
@@ -361,12 +362,15 @@ public:
 			.Then([]() { /* PTGN_LOG("You lost");*/ })
 			.Start();
 
-		remaining_text = CreateText(*this, FormatDuration(level_duration), color::Black, 24);
-		SetPosition(remaining_text, V2_float{ 155, 12 } - game_size / 2.0f);
+		remaining_text = CreateText(*this, FormatDuration(level_duration), color::Black, 10);
+		SetPosition(remaining_text, V2_float{ 162, 12 } - game_size / 2.0f);
 
-		score_text = CreateText(*this, "Score: 0", color::Black, 12, {});
-		SetPosition(score_text, V2_float{ 242, 11 } - game_size / 2.0f);
-		SetDrawOrigin(score_text, Origin::CenterLeft);
+		auto score_label = CreateText(*this, "Score:", color::Black, 8, {});
+		score_text		 = CreateText(*this, "0", color::Black, 8, {});
+		SetPosition(score_label, V2_float{ 234, 11 } - game_size / 2.0f);
+		SetDrawOrigin(score_label, Origin::CenterLeft);
+		SetPosition(score_text, V2_float{ 314, 11 } - game_size / 2.0f);
+		SetDrawOrigin(score_text, Origin::CenterRight);
 
 		V2_float combo_meter_pos{ V2_float{ 2, 2 } - game_size / 2.0f };
 		auto arc_meter = CreateSprite(*this, "combo_meter_bg", combo_meter_pos, Origin::TopLeft);
@@ -381,9 +385,11 @@ public:
 		SetParent(combo_arc, arc_meter);
 		combo_meter = CreateSprite(*this, "combo_meter", combo_meter_pos, Origin::TopLeft);
 
-		combo_text = CreateText(*this, "0", color::Black, 18);
+		combo_text = CreateText(
+			*this, "0", color::Black, 14, {}, TextProperties{ .justify = TextJustify::Right }
+		);
 		SetParent(combo_text, arc_meter);
-		SetPosition(combo_text, combo_meter_size + combo_meter_center_offset);
+		SetPosition(combo_text, combo_meter_size + combo_meter_center_offset + V2_float{ 1, 0 });
 
 		auto cannon = CreateSprite(*this, "cannon", game_size / 2.0f, Origin::BottomRight);
 		SetDepth(cannon, 1);
