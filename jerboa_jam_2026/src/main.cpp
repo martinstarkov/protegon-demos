@@ -78,14 +78,12 @@ std::string FormatDuration(milliseconds ms) {
 Button CreateMenuButton(Scene& scene, V2_float pos, V2_float size, std::string_view content) {
 	return CreateButton(
 		scene, pos, size,
-		{ .content			  = std::string(content),
-		  .text_color		  = color::Gray,
-		  .text_color_hover	  = color::Gold,
-		  .text_outline_width = 1,
-		  .font_size		  = 10,
-		  .sound_hover		  = "hover",
-		  .sound_press		  = "press",
-		  .scale			  = ScaleButtonConfig{} }
+		{ .content			= std::string(content),
+		  .text_color		= color::Black,
+		  .text_color_hover = color::White,
+		  .font_size		= 10,
+		  .sound_hover		= "hover",
+		  .sound_press		= "press" }
 	);
 }
 
@@ -96,6 +94,19 @@ public:
 
 class InstructionScene : public Scene {
 public:
+	void OnEnter() override;
+};
+
+class ScoreScene : public Scene {
+public:
+	std::size_t score{ 0 };
+	std::size_t highest_combo{ 0 };
+
+	ScoreScene() = default;
+
+	ScoreScene(std::size_t score, std::size_t highest_combo) :
+		score{ score }, highest_combo{ highest_combo } {}
+
 	void OnEnter() override;
 };
 
@@ -122,7 +133,8 @@ public:
 	Timer combo_decay_timer;
 
 	std::size_t combo{ 0 };
-	std::size_t score{ 8888 };
+	std::size_t score{ 0 };
+	std::size_t highest_combo{ 0 };
 	std::size_t standard_score{ 1 };
 
 	static constexpr float combo_decay_exponential_constant = 0.1f; // Higher -> Faster decay.
@@ -131,7 +143,7 @@ public:
 	static constexpr float arc_end_angle{ DegToRad(156.0f) };
 	static constexpr float arc_radius{ 23.0f };
 
-	static constexpr milliseconds level_duration{ 2min };
+	static constexpr milliseconds level_duration{ 1s };
 	static constexpr float standard_flight_distance		   = 280.0f;
 	static constexpr milliseconds standard_flight_duration = 1000ms;
 
@@ -198,6 +210,7 @@ public:
 
 	void IncrementCombo() {
 		combo++;
+		highest_combo = std::max(highest_combo, combo);
 		combo_text.SetContent(ToString(combo));
 		ResetComboTimer();
 	}
@@ -312,6 +325,8 @@ public:
 							ctx().audio.Play("cop", 0.7f, 0, RandomNumber(0.9f, 1.1f));
 						} else if (choice == "teacher") {
 							ctx().audio.Play("teacher", 0.8f, 0, RandomNumber(0.9f, 1.2f));
+						} else if (choice == "florist") {
+							ctx().audio.Play("florist", 0.8f, 0, RandomNumber(0.9f, 1.2f));
 						} else if (choice == "nurse") {
 							ctx().audio.Play("nurse", 0.8f, 0, RandomNumber(0.98f, 1.15f));
 						} else if (is_woman()) {
@@ -337,6 +352,8 @@ public:
 			})
 			.Start();
 	}
+
+	bool shooting{ true };
 
 	void OnEnter() override {
 		SetBackgroundColor({ 118, 164, 87, 255 });
@@ -400,7 +417,14 @@ public:
 					remaining_text.SetContent(remaining_time_text);
 				}
 			)
-			.Then([]() { /* PTGN_LOG("You lost");*/ })
+			.Then([this]() {
+				GetTween<ArcTween>(combo_arc).Stop();
+				shooting = false;
+				combo_decay_timer.Stop();
+				ctx().scene.Switch<ScoreScene>(
+					"score", FadeTransition{ 1000ms }, score, highest_combo
+				);
+			})
 			.Start();
 
 		remaining_text = CreateText(*this, FormatDuration(level_duration), color::White, 10);
@@ -465,13 +489,53 @@ public:
 			if (e.button != Mouse::Left) {
 				return;
 			}
-			ShootEntity();
+			if (shooting) {
+				ShootEntity();
+			}
 		});
 	}
 };
 
+void ScoreScene::OnEnter() {
+	// ctx().input.SetSettings({ .debug_draw_enabled = true });
+	SetBackgroundColor({ 66, 66, 66, 255 });
+	// CreateSprite(*this, "score_bg");
+
+	auto end_text = CreateText(*this, "Thanks for playing!", color::Black, 14);
+	SetPosition(end_text, { 0, -60 });
+	auto score_text = CreateText(*this, "Score: " + ToString(score), color::White, 14);
+	SetPosition(score_text, { 0, -30 + 10 });
+	auto combo_text =
+		CreateText(*this, "Highest Combo: " + ToString(highest_combo), color::White, 14);
+	SetPosition(combo_text, { 0, -5 + 10 });
+
+	auto back = CreateMenuButton(*this, { -40, 55 }, V2_float{ 50, 25 }, "Exit");
+	back.OnPress([back]() mutable {
+		if (back.GetScene().ctx().scene.Switch<MainMenuScene>(
+				"main_menu", FadeTransition{ 200ms }
+			)) {
+			back.Disable();
+		}
+	});
+
+	auto exit_button = CreateButton(
+		*this, { 40, 55 }, { 45, 45 },
+		{
+			.texture	   = "replay",
+			.texture_hover = "replay_hover",
+			.sound_hover   = "hover",
+			.sound_press   = "press",
+		}
+	);
+	SetScale(exit_button, 0.75f);
+	exit_button.OnPress([exit_button]() mutable {
+		exit_button.GetScene().ctx().scene.Switch<GameScene>("game", FadeTransition{ 500ms });
+	});
+}
+
 void MainMenuScene::OnEnter() {
-	//	ctx().input.SetSettings({ .debug_draw_enabled = true });
+	// PTGN_LOG("Entering main menu scene");
+	// ctx().input.SetSettings({ .debug_draw_enabled = true });
 	ctx().asset.LoadDirectory("assets");
 	ctx().font.SetDefault("Early GameBoy");
 	ctx().renderer.SetGameSize(game_size);
@@ -480,20 +544,23 @@ void MainMenuScene::OnEnter() {
 
 	auto play = CreateMenuButton(*this, { -70, 55 }, V2_float{ 50, 25 }, "Play");
 	play.OnPress([play]() mutable {
-		play.Disable();
-		play.GetScene().ctx().scene.Switch<GameScene>("game", FadeTransition{ 500ms });
+		if (play.GetScene().ctx().scene.Switch<GameScene>("game", FadeTransition{ 500ms })) {
+			play.Disable();
+		}
 	});
 
-	auto instructions = CreateMenuButton(*this, { 70, 55 }, V2_float{ 100, 25 }, "Instructions");
+	auto instructions = CreateMenuButton(*this, { 70, 55 }, V2_float{ 120, 25 }, "Instructions");
 	instructions.OnPress([instructions]() mutable {
-		instructions.Disable();
-		instructions.GetScene().ctx().scene.Switch<InstructionScene>(
-			"instructions", FadeTransition{ 200ms }
-		);
+		if (instructions.GetScene().ctx().scene.Switch<InstructionScene>(
+				"instructions", FadeTransition{ 200ms }
+			)) {
+			instructions.Disable();
+		}
 	});
 }
 
 void InstructionScene::OnEnter() {
+	// PTGN_LOG("Entering instructions scene");
 	// ctx().input.SetSettings({ .debug_draw_enabled = true });
 	CreateSprite(*this, "instructions_bg");
 	TextProperties properties;
@@ -512,8 +579,11 @@ void InstructionScene::OnEnter() {
 	SetPosition(t1, V2_float{ 0, -12 });
 	auto back = CreateMenuButton(*this, { 0, 55 }, V2_float{ 50, 25 }, "Back");
 	back.OnPress([back]() mutable {
-		back.Disable();
-		back.GetScene().ctx().scene.Switch<MainMenuScene>("main_menu", FadeTransition{ 200ms });
+		if (back.GetScene().ctx().scene.Switch<MainMenuScene>(
+				"main_menu", FadeTransition{ 200ms }
+			)) {
+			back.Disable();
+		}
 	});
 }
 
