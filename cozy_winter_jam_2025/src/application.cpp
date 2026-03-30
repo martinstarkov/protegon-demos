@@ -87,11 +87,11 @@ struct Tooltip {
 		};
 
 		tween = CreateFadingTween(
-			[=](float f) mutable { std::invoke(draw_text, f / 2.0f, vertical_offset); },
+			[=](float f) mutable { draw_text(f / 2.0f, vertical_offset); },
 			[=](float f) mutable {
 				float vertical_distance{ up_distance };
 				// How much distance above the og_position the tween text moves up.
-				std::invoke(draw_text, 1.0f, -f * vertical_distance);
+				draw_text(1.0f, -f * vertical_distance);
 			},
 			[&]() { vertical_offset = 0.0f; },
 			[&]() {
@@ -146,8 +146,8 @@ struct Waypoint {
 		};
 
 		tween = CreateFadingTween(
-			[=](float f) mutable { std::invoke(draw_waypoint, f / 2.0f, -f * up_distance); },
-			[=](float f) mutable { std::invoke(draw_waypoint, 1.0f, -f * up_distance); }
+			[=](float f) mutable { draw_waypoint(f / 2.0f, -f * up_distance); },
+			[=](float f) mutable { draw_waypoint(1.0f, -f * up_distance); }
 		);
 	}
 
@@ -198,9 +198,7 @@ void CreateFloatingText(
 		PTGN_ASSERT(alpha >= 0.0f && alpha <= 1.0f);
 		*vertical_offset = v_offset;
 		auto old_cam{ game.camera.GetPrimary() };
-		Rect r{ old_cam.TransformToScreen(
-					std::invoke(get_position) + V2_float{ 0.0f, *vertical_offset }
-				),
+		Rect r{ old_cam.TransformToScreen(get_position() + V2_float{ 0.0f, *vertical_offset }),
 				{},
 				Origin::Center };
 		text.SetColor(text.GetColor().SetAlpha(alpha));
@@ -212,13 +210,13 @@ void CreateFloatingText(
 	};
 
 	auto fade_function = [=](float f) mutable {
-		std::invoke(draw_text, f / 2.0f, *vertical_offset);
+		draw_text(f / 2.0f, *vertical_offset);
 	};
 
 	auto update_function = [=](float f) mutable {
 		float v_distance{ vertical_distance };
 		// How much distance above the og_position the tween text moves up.
-		std::invoke(draw_text, 1.0f, -f * v_distance);
+		draw_text(1.0f, -f * v_distance);
 	};
 
 	milliseconds fade_duration{ 150 };
@@ -235,7 +233,8 @@ void CreateFloatingText(
 						  .Reverse()
 						  .OnUpdate(fade_function)
 						  .OnComplete([=]() { Invoke(on_complete); }) };
-	Tween tween{ game.tween.Load().During(duration).OnStart([=]() mutable { text_tween.Start(); }
+	Tween tween{ game.tween.Load().During(duration).OnStart(
+													   [=]() mutable { text_tween.Start(); }
 	).OnComplete([=]() mutable { text_tween.IncrementTweenPoint(); }) };
 	tween.Start();
 }
@@ -478,7 +477,8 @@ class GameScene : public Scene {
 	Rect house_perimeter;
 
 	void SequenceSpawnDelay(seconds duration) {
-		game.tween.Load().During(duration).OnComplete([&]() { StartSequence(++sequence_index); }
+		game.tween.Load().During(duration).OnComplete(
+											  [&]() { StartSequence(++sequence_index); }
 		).Start();
 	}
 
@@ -508,9 +508,7 @@ class GameScene : public Scene {
 				.SetSize(tooltip_text_size)
 				.SetShadingColor(shading_color),
 			duration, seconds{ 1 }, 10.0f / camera_zoom,
-			[=]() {
-				return player.Get<Transform>().position + V2_float{ 0, -13 };
-			},
+			[=]() { return player.Get<Transform>().position + V2_float{ 0, -13 }; },
 			[&]() { StartSequence(++sequence_index); }
 		);
 	}
@@ -810,8 +808,8 @@ class GameScene : public Scene {
 					name, texture, rect,
 					(item.contains("hitbox_offset") ? V2_float{ item.at("hitbox_offset") }
 													: V2_float{}),
-					(item.contains("hitbox_size") ? V2_float{ item.at("hitbox_size") } : V2_float{}
-					),
+					(item.contains("hitbox_size") ? V2_float{ item.at("hitbox_size") }
+												  : V2_float{}),
 					V2_float{ item.at("interaction_offset") },
 					V2_float{ item.at("interaction_size") }, visibility
 				);
@@ -866,11 +864,10 @@ class GameScene : public Scene {
 		};
 
 		waypoint_arrow_tween = CreateFadingTween(
-			[=](float f) { std::invoke(draw_waypoint_arrow, f / 2.0f, 1.0f); },
+			[=](float f) { draw_waypoint_arrow(f / 2.0f, 1.0f); },
 			[=](float f) mutable {
-				std::invoke(
-					draw_waypoint_arrow, 0.5f + f / 2.0f,
-					Lerp(waypoint_arrow_start_scale, waypoint_arrow_end_scale, f)
+				draw_waypoint_arrow(
+					0.5f + f / 2.0f, Lerp(waypoint_arrow_start_scale, waypoint_arrow_end_scale, f)
 				);
 			}
 		);
@@ -1164,9 +1161,11 @@ public:
 		/*Text text{ "Play", color::Black };
 		play.Set<ButtonProperty::Text>(text);
 		play.Set<ButtonProperty::TextSize>(V2_float{ 0.0f, 0.0f });*/
-		play.SetRect({ { game.window.GetCenter().x, game.window.GetSize().y * 0.75f },
-					   texture.GetSize() * 2.0f,
-					   Origin::Center });
+		play.SetRect(
+			{ { game.window.GetCenter().x, game.window.GetSize().y * 0.75f },
+			  texture.GetSize() * 2.0f,
+			  Origin::Center }
+		);
 	}
 
 	void Update() override {

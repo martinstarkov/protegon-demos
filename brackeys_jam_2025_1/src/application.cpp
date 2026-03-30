@@ -232,7 +232,7 @@ void CreateZombies(
 		V2_float texture_size{ game.texture.GetSize(texture_key) };
 		V2_float local_spawn{ texture_size * spawn_frac };
 		V2_float spawn_point{ r.Min() + local_spawn };
-		std::invoke(create_zombie, spawn_point);
+		create_zombie(spawn_point);
 	}
 }
 
@@ -442,8 +442,7 @@ public:
 			auto camera_rect{ camera.primary.GetRect() };
 			camera_rect.size *= 1.2f;
 			CreateZombies(
-				manager, camera_rect, car, spawn_range,
-				{ std::invoke(spawn_rng), std::invoke(spawn_rng) }, physics.dt()
+				manager, camera_rect, car, spawn_range, { spawn_rng(), spawn_rng() }, physics.dt()
 			);
 		}
 	}

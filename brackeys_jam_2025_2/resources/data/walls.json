@@ -1,0 +1,12 @@
+{
+  "hitboxes": [
+    { "position": [10, 10], "size": [215, 8] },
+    { "position": [257, 10], "size": [215, 8] },
+    { "position": [10, 342], "size": [215, 8] },
+    { "position": [257, 342], "size": [215, 8] },
+    { "position": [10, 18], "size": [8, 147] },
+    { "position": [10, 197], "size": [8, 147] },
+    { "position": [462, 18], "size": [8, 147] },
+    { "position": [462, 197], "size": [8, 147] }
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "entities": [
+    "robber",
+    "cop",
+    "banker",
+    "nurse",
+    "firefighter",
+    "mech",
+    "florist",
+    "bro",
+    "teacher",
+    "rat",
+    "mayor",
+    "dog",
+    "squirrel"
+  ],
+  "locations": [
+    {
+      "entities": [
+        "cop1",
+        "cop2",
+        "robber"
+      ],
+      "hitbox_position": [
+        27,
+        76
+      ],
+      "hitbox_size": [
+        44,
+        21
+      ]
+    },
+    {
+      "entities": [
+        "banker1",
+        "banker2",
+        "robber"
+      ],
+      "hitbox_position": [
+        95,
+        9
+      ],
+      "hitbox_size": [
+        38,
+        38
+      ]
+    },
+    {
+      "entities": [
+        "nurse1",
+        "nurse2"
+      ],
+      "hitbox_position": [
+        180,
+        71
+      ],
+      "hitbox_size": [
+        36,
+        54
+      ]
+    },
+    {
+      "entities": [
+        "teacher1",
+        "teacher2"
+      ],
+      "hitbox_position": [
+        89,
+        104
+      ],
+      "hitbox_size": [
+        74,
+        30
+      ]
+    },
+    {
+      "entities": [
+        "florist1",
+        "florist2"
+      ],
+      "hitbox_position": [
+        34,
+        137
+      ],
+      "hitbox_size": [
+        43,
+        26
+      ]
+    },
+    {
+      "entities": [
+        "bro1",
+        "bro2"
+      ],
+      "hitbox_position": [
+        200,
+        29
+      ],
+      "hitbox_size": [
+        39,
+        37
+      ]
+    },
+    {
+      "entities": [
+        "mech1",
+        "mech2"
+      ],
+      "hitbox_position": [
+        257,
+        25
+      ],
+      "hitbox_size": [
+        49,
+        42
+      ]
+    },
+    {
+      "entities": [
+        "firefighter1",
+        "firefighter2"
+      ],
+      "hitbox_position": [
+        261,
+        88
+      ],
+      "hitbox_size": [
+        36,
+        36
+      ]
+    },
+    {
+      "entities": [
+        "rat1",
+        "rat2"
+      ],
+      "hitbox_position": [
+        38,
+        107
+      ],
+      "hitbox_size": [
+        38,
+        23
+      ]
+    },
+    {
+      "entities": [
+        "squirrel1",
+        "squirrel2"
+      ],
+      "hitbox_position": [
+        221,
+        70
+      ],
+      "hitbox_size": [
+        40,
+        50
+      ]
+    },
+    {
+      "entities": [
+        "mayor1",
+        "mayor2"
+      ],
+      "hitbox_position": [
+        93,
+        53
+      ],
+      "hitbox_size": [
+        69,
+        44
+      ]
+    },
+    {
+      "entities": [
+        "dog1",
+        "dog2"
+      ],
+      "hitbox_position": [
+        51,
+        15
+      ],
+      "hitbox_size": [
+        39,
+        33
+      ]
+    }
+  ]
+}

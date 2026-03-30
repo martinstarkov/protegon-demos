@@ -35,17 +35,17 @@ V2_float GetRandomEdgePosition(const V2_float& size) {
 	static RNG<int> edge_rng{ 0, 3 };
 	RNG<float> x_rng{ 0.0f, size.x };
 	RNG<float> y_rng{ 0.0f, size.y };
-	int edge{ std::invoke(edge_rng) };
+	int edge{ edge_rng() };
 
 	switch (edge) {
 		case 0: // Top
-			return V2_float{ std::invoke(x_rng), 0.0f };
+			return V2_float{ x_rng(), 0.0f };
 		case 1: // Right
-			return V2_float{ size.x, std::invoke(y_rng) };
+			return V2_float{ size.x, y_rng() };
 		case 2: // Bottom
-			return V2_float{ std::invoke(x_rng), size.y };
+			return V2_float{ x_rng(), size.y };
 		case 3: // Left
-			return V2_float{ 0.0f, std::invoke(y_rng) };
+			return V2_float{ 0.0f, y_rng() };
 		default: PTGN_ERROR("Invalid edge");
 	}
 }
@@ -145,10 +145,10 @@ public:
 		rect.Add<Connections>();
 		constexpr float max_speed = 100.0f;
 		static RNG<float> speed_rng{ max_speed / 2.0f, max_speed };
-		rb.velocity = velocity_dir * std::invoke(speed_rng);
+		rb.velocity = velocity_dir * speed_rng();
 		constexpr float angular_max_speed{ DegToRad(200.0f) };
 		static RNG<float> angular_rng{ -angular_max_speed, angular_max_speed };
-		// rb.angular_velocity = std::invoke(angular_rng);
+		// rb.angular_velocity = angular_rng();
 		rect.Enable();
 		Origin origin{ Origin::Center };
 		rect.SetOrigin(origin);

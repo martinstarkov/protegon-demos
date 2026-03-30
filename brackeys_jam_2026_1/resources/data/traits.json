@@ -1,0 +1,252 @@
+{
+  "creatures": {
+    "category_1": {
+      "radiation resistant": {
+        "good": ["weak ozone layer", "high radiation levels"],
+        "bad": ["little radiation present"]
+      },
+      "radiation sensitive": {
+        "good": ["low radiation levels", "thick ozone layer", "weak sun uv"],
+        "bad": [
+          "weak ozone layer",
+          "high radiation levels",
+          "high solar flare activity"
+        ]
+      }
+    },
+    "category_2": {
+      "carnivore": {
+        "good": [
+          "lots of animals",
+          "native mammals",
+          "animal dominated biosphere"
+        ],
+        "bad": [
+          "no animal life",
+          "poisonous animal life",
+          "lifeless",
+          "devoid of animal life"
+        ]
+      },
+      "herbivore": {
+        "good": [
+          "abundant plant life",
+          "rich in vegetation",
+          "plant dominated biosphere"
+        ],
+        "bad": ["no vegetation", "lifeless", "low levels of vegetation"]
+      },
+      "photosynthesizer": {
+        "good": [
+          "lifeless",
+          "no animal life",
+          "no plant life",
+          "abundant sunlight"
+        ],
+        "bad": ["dark", "no sunlight"]
+      },
+      "omnivore": {
+        "good": [
+          "lots of animals",
+          "native mammals",
+          "abundant plant life",
+          "rich in vegetation"
+        ],
+        "bad": ["lifeless", "little to no biosphere"]
+      }
+    },
+    "category_3": {
+      "weak lungs": {
+        "good": ["highly breathable atmosphere", "high oxygen levels"],
+        "bad": ["no atmosphere", "low oxygen atmosphere", "no oxygen"]
+      },
+      "strong lungs": {
+        "good": [
+          "low oxygen atmosphere",
+          "thin atmosphere",
+          "average oxygen levels"
+        ],
+        "bad": ["no atmosphere", "no oxygen", "high oxygen levels"]
+      },
+      "multi-breathing technology": {
+        "good": [
+          "breathable atmosphere",
+          "no atmosphere",
+          "highly breathable atmosphere",
+          "high oxygen levels",
+          "low oxygen atmosphere",
+          "thin atmosphere",
+          "average oxygen levels"
+        ],
+        "bad": ["technology corrosive smog"]
+      }
+    },
+    "category_4": {
+      "low insulation bodies": {
+        "good": [
+          "warm climate",
+          "high surface temperature",
+          "long warm summers"
+        ],
+        "bad": [
+          "extreme cold climate",
+          "frequent snow and ice storms",
+          "long winters",
+          "little warmth on surface"
+        ]
+      },
+      "moderately insulated bodies": {
+        "good": [
+          "temperate climate",
+          "changing seasons",
+          "mild summers",
+          "mild winters"
+        ],
+        "bad": [
+          "boiling atmosphere",
+          "extreme heat",
+          "extreme cold climate",
+          "frequent snow and ice storms"
+        ]
+      },
+      "highly insulated bodies": {
+        "good": [
+          "extreme cold climate",
+          "frequent snow and ice storms",
+          "long winters",
+          "little warmth on surface"
+        ],
+        "bad": [
+          "warm climate",
+          "high surface temperature",
+          "long warm summers",
+          "boiling atmosphere",
+          "extreme heat"
+        ]
+      }
+    },
+    "category_5": {
+      "high water needs": {
+        "good": ["abundance of surface water", "water present on surface"],
+        "bad": ["no water", "desert surface"]
+      },
+      "low water needs": {
+        "good": ["desert surface", "low water presence on surface"],
+        "bad": ["no dry land", "waterlogged surface"]
+      }
+    },
+    "category_6": {
+      "hardy physical form": {
+        "good": [
+          "frequent storms",
+          "frequent earthquakes",
+          "active volcanoes",
+          "moderately stable environment"
+        ],
+        "bad": ["highly stable environment", "highly unstable environment"]
+      },
+      "weak physical form": {
+        "good": [
+          "stable environment",
+          "low storm activity",
+          "low earthequake activity"
+        ],
+        "bad": [
+          "highly unstable environment",
+          "frequent storms",
+          "frequent earthquakes",
+          "active volcanoes"
+        ]
+      },
+      "technologically disaster resistant": {
+        "good": [
+          "highly unstable environment",
+          "frequent storms",
+          "frequent earthquakes",
+          "active volcanoes"
+        ],
+        "bad": ["highly stable environment"]
+      }
+    },
+    "category_7": {
+      "low gravity adapted": {
+        "good": ["low gravity", "very low gravity"],
+        "bad": ["high gravity", "extreme gravitational pull"]
+      },
+      "high gravity adapted": {
+        "good": ["high gravity", "very high gravity"],
+        "bad": ["low gravity", "near weighless conditions"]
+      }
+    },
+    "category_8": {
+      "adept at climbing": {
+        "good": ["mountainous terrain", "steep terrain"],
+        "bad": ["flat terrain", "wide open plains"]
+      },
+      "poor climbing skills": {
+        "good": ["wide open plains", "flat terrain", "gentle hills"],
+        "bad": [
+          "mountainous terrain",
+          "high altitude changes on surface",
+          "steep terrain"
+        ]
+      }
+    },
+    "category_9": {
+      "mining civilization": {
+        "good": [
+          "many rocky deposits",
+          "abundant ore deposits",
+          "rich metallic resources"
+        ],
+        "bad": ["little to no mineral deposits", "wooded and sandy"]
+      },
+      "wood based civilization": {
+        "good": ["adundance of timber", "large timber forests"],
+        "bad": ["no wooded vegetation", "rocky with no dense forests"]
+      },
+      "cloth weaving civilization": {
+        "good": [
+          "adundance of sheep",
+          "abundance of cotton",
+          "many fiborous plants and thick animal coats"
+        ],
+        "bad": [
+          "no native wool or cotton substitute",
+          "rocky with no fiborous plant or animal matter"
+        ]
+      }
+    },
+    "category_10": {
+      "coal and oil powered technology": {
+        "good": [
+          "vast oil deposits",
+          "presence of coal near surface",
+          "oil rich land"
+        ],
+        "bad": ["difficult to reach oil reserves", "weak oil and coal veins"]
+      },
+      "wind powered technology": {
+        "good": [
+          "windy surface and lower atmosphere",
+          "generally high wind speeds",
+          "consistent wind gusting near coast"
+        ],
+        "bad": [
+          "stagnant air",
+          "high geographic wind insulation",
+          "low average wind speeds"
+        ]
+      },
+      "geothermal technology": {
+        "good": [
+          "significant amount of tectonic plates",
+          "porous rock formations",
+          "thin surface crust",
+          "large molten mantle"
+        ],
+        "bad": ["thick average crust", "low mantle activity"]
+      }
+    }
+  }
+}

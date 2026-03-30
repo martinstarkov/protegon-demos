@@ -1,0 +1,8 @@
+{
+  "player_anim": "resources/entity/player.png",
+  "cursor": "resources/entity/cursor.png",
+  "bullet1": "resources/entity/bullet1.png",
+  "walls_json": "resources/data/walls.json",
+  "bullet1_sound": "resources/audio/bullet1.ogg",
+  "arena": "resources/entity/arena.png"
+}
