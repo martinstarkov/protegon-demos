@@ -62,7 +62,7 @@ struct Location {
 V2_float ArcPosition(V2_float start, V2_float end, float t) {
 	V2_float pos = Lerp(start, end, t);
 
-	float height_offset	 = std::sin(t * pi<float>);
+	float height_offset	 = std::sin(t * kPi);
 	pos.y				+= -height_offset * (end - start).Magnitude() * 0.2f;
 
 	return pos;
@@ -402,10 +402,10 @@ public:
 		CreateSprite(*this, "bg");
 
 		auto welcome_text = CreateText(
-			*this, "Welcome\nto\nTown", { 225, 215, 5, 255 }, 4, {},
+			*this, V2_float{ 241, 163 } - game_size / 2.0f, "Welcome\nto\nTown",
+			{ 225, 215, 5, 255 }, 4, {}, Origin::Center,
 			TextProperties{ .justify = TextJustify::Center }
 		);
-		SetPosition(welcome_text, V2_float{ 241, 163 } - game_size / 2.0f);
 
 		auto exit_button = CreateButton(
 			*this, V2_float{ -game_size.x, game_size.y } / 2.0f, { 16, 16 },
@@ -467,15 +467,19 @@ public:
 			})
 			.Start();
 
-		remaining_text = CreateText(*this, FormatDuration(level_duration), color::White, 10);
-		SetPosition(remaining_text, V2_float{ 162, 12 } - game_size / 2.0f);
+		remaining_text = CreateText(
+			*this, V2_float{ 162, 12 } - game_size / 2.0f, FormatDuration(level_duration),
+			color::White, 10, {}, Origin::Center
+		);
 
-		auto score_label = CreateText(*this, "Score:", color::White, 8, {});
-		score_text		 = CreateText(*this, "0", color::White, 8, {});
-		SetPosition(score_label, V2_float{ 234, 11 } - game_size / 2.0f);
-		SetDrawOrigin(score_label, Origin::CenterLeft);
-		SetPosition(score_text, V2_float{ 314, 11 } - game_size / 2.0f);
-		SetDrawOrigin(score_text, Origin::CenterRight);
+		auto score_label = CreateText(
+			*this, V2_float{ 234, 11 } - game_size / 2.0f, "Score:", color::White, 8, {},
+			Origin::CenterLeft
+		);
+		score_text = CreateText(
+			*this, V2_float{ 314, 11 } - game_size / 2.0f, "0", color::White, 8, {},
+			Origin::CenterRight
+		);
 
 		V2_float combo_meter_pos{ V2_float{ 2, 2 } - game_size / 2.0f };
 		auto arc_meter = CreateSprite(*this, "combo_meter_bg", combo_meter_pos, Origin::TopLeft);
@@ -491,10 +495,10 @@ public:
 		combo_meter = CreateSprite(*this, "combo_meter", combo_meter_pos, Origin::TopLeft);
 
 		combo_text = CreateText(
-			*this, "0", color::Black, 14, {}, TextProperties{ .justify = TextJustify::Right }
+			*this, combo_meter_size + combo_meter_center_offset + V2_float{ 1, 0 }, "0",
+			color::Black, 14, {}, Origin::Center, TextProperties{ .justify = TextJustify::Right }
 		);
 		SetParent(combo_text, arc_meter);
-		SetPosition(combo_text, combo_meter_size + combo_meter_center_offset + V2_float{ 1, 0 });
 
 		cannon = CreateAnimation(
 			*this, "cannon", game_size / 2.0f, AnimationConfig{ 3, 100ms, V2_int{ 49, 39 }, 1 }
@@ -541,13 +545,12 @@ public:
 void ScoreScene::OnEnter() {
 	SetBackgroundColor({ 66, 66, 66, 255 });
 
-	auto end_text = CreateText(*this, "Thanks for playing!", color::Black, 14);
-	SetPosition(end_text, { 0, -60 });
-	auto score_text = CreateText(*this, "Score: " + ToString(score), color::White, 14);
-	SetPosition(score_text, { 0, -30 + 10 });
-	auto combo_text =
-		CreateText(*this, "Highest Combo: " + ToString(highest_combo), color::White, 14);
-	SetPosition(combo_text, { 0, -5 + 10 });
+	auto end_text = CreateText(*this, { 0, -60 }, "Thanks for playing!", color::Black, 14);
+	auto score_text =
+		CreateText(*this, { 0, -30 + 10 }, "Score: " + ToString(score), color::White, 14);
+	auto combo_text = CreateText(
+		*this, { 0, -5 + 10 }, "Highest Combo: " + ToString(highest_combo), color::White, 14
+	);
 
 	auto back = CreateMenuButton(*this, { -40, 55 }, V2_float{ 50, 25 }, "Exit");
 	back.OnPress([back]() mutable {
@@ -605,15 +608,15 @@ void InstructionScene::OnEnter() {
 	properties.wrap_after = static_cast<std::uint32_t>(game_size.x * 0.9f);
 	properties.justify	  = TextJustify::Left;
 	auto t1				  = CreateText(
-		  *this,
+		  *this, V2_float{ 0, -12 },
 		  "Citizens await their daily commute... though not quite in the usual way.\n\n"
 					  "Launch them to their rightful place: nurses to hospitals, rats to "
 					  "sewers, mechanics to the autoshop, you know the drill.\n\n"
-					  "Chain together perfect placements to build combos and rack up a skyhigh score.\n\n"
+					  "Chain together perfect placements to build combos and rack up a skyhigh "
+					  "score.\n\n"
 					  "Workplace satisfaction has never been so explosive!",
-		  color::White, 6, "retro_gaming", properties
+		  color::White, 6, "retro_gaming", Origin::Center, properties
 	  );
-	SetPosition(t1, V2_float{ 0, -12 });
 	auto back = CreateMenuButton(*this, { 0, 55 }, V2_float{ 50, 25 }, "Back");
 	back.OnPress([back]() mutable {
 		if (back.GetScene().ctx().scene.Switch<MainMenuScene>(
