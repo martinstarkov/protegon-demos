@@ -413,14 +413,14 @@ public:
 			  .texture_hover = "exit_button_hover",
 			  .texture_press = "exit_button_hover",
 			  .sound_hover	 = "hover",
-			  .sound_press	 = "press" }
+			  .sound_press	 = "press" },
+			Origin::BottomLeft
 		);
 		exit_button.OnPress([exit_button]() mutable {
 			exit_button.GetScene().ctx().scene.Switch<MainMenuScene>(
 				"main_menu", FadeTransition{ 200ms }
 			);
 		});
-		SetDrawOrigin(exit_button, Origin::BottomLeft);
 
 		PTGN_ASSERT(next_entity.size() == 2);
 
@@ -501,9 +501,9 @@ public:
 		SetParent(combo_text, arc_meter);
 
 		cannon = CreateAnimation(
-			*this, "cannon", game_size / 2.0f, AnimationConfig{ 3, 100ms, V2_int{ 49, 39 }, 1 }
+			*this, "cannon", game_size / 2.0f, AnimationConfig{ 3, 100ms, V2_int{ 49, 39 }, 1 },
+			Origin::BottomRight
 		);
-		SetDrawOrigin(cannon, Origin::BottomRight);
 		SetDepth(cannon, 1);
 
 		ResetComboTimer();
