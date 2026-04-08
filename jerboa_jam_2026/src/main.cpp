@@ -14,7 +14,6 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/arc.h"
@@ -39,6 +38,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
@@ -211,10 +211,10 @@ public:
 		auto arc_tween = GetTween<ArcTween>(combo_arc);
 		arc_tween.Clear();
 		arc_tween.During(combo_decay)
-			.OnProgress([](Entity e, float progress) {
-				auto& arc_shape{ GetParent(e).Get<Arc>() };
+			.OnProgress([](auto p) {
+				auto& arc_shape{ GetParent(p.tween).Get<Arc>() };
 
-				arc_shape.SetStartAngle(Lerp(arc_start_angle, arc_end_angle, progress));
+				arc_shape.SetStartAngle(Lerp(arc_start_angle, arc_end_angle, p.progress));
 			})
 			.Start();
 	}
@@ -357,18 +357,17 @@ public:
 
 		GetTween<EntityArcPath>(entity)
 			.During(flight_duration)
-			.OnProgress([angle, direction, cannon_firing_point, end,
-						 distance_ratio](Entity e, float t) {
-				auto parent{ GetParent(e) };
+			.OnProgress([angle, direction, cannon_firing_point, end, distance_ratio](auto p) {
+				auto parent{ GetParent(p.tween) };
 				if (direction == 0) {
 					SetRotation(parent, angle);
 				} else {
 					SetRotation(
-						parent, static_cast<float>(direction) * t * 3.0f * distance_ratio *
+						parent, static_cast<float>(direction) * p.progress * 3.0f * distance_ratio *
 									Degrees{ 360.0f }
 					);
 				}
-				SetPosition(parent, ArcPosition(cannon_firing_point, end, t));
+				SetPosition(parent, ArcPosition(cannon_firing_point, end, p.progress));
 			})
 			.OnComplete([this, choice](Entity e) {
 				auto parent{ GetParent(e) };
@@ -537,8 +536,8 @@ public:
 	}
 
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<MousePressed>([this](const MousePressed& e) {
-			if (e.button != Mouse::Left) {
+		d.Dispatch<event::MousePressed>([this](const auto& e) {
+			if (e != Mouse::Left) {
 				return;
 			}
 			if (shooting) {
