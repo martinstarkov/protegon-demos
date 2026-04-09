@@ -198,7 +198,7 @@ public:
 	void ResetComboTimer() {
 		combo_decay_timer.Start();
 		if (combo == 0) {
-			GetTween<ArcTween>(combo_arc).Clear();
+			GetOrCreateTween<ArcTween>(combo_arc).Clear();
 			combo_arc.Get<Arc>().SetStartAngle(arc_start_angle);
 			SetTint(combo_meter, color::White);
 			SetTint(combo_arc, color::White);
@@ -208,11 +208,11 @@ public:
 		SetTint(combo_meter, tint);
 		SetTint(combo_arc, tint);
 		auto combo_decay{ GetComboDecayDuration() };
-		auto arc_tween = GetTween<ArcTween>(combo_arc);
+		auto arc_tween = GetOrCreateTween<ArcTween>(combo_arc);
 		arc_tween.Clear();
 		arc_tween.During(combo_decay)
 			.OnProgress([](auto p) {
-				auto& arc_shape{ GetParent(p.tween).Get<Arc>() };
+				auto& arc_shape{ p.parent.Get<Arc>() };
 
 				arc_shape.SetStartAngle(Lerp(arc_start_angle, arc_end_angle, p.progress));
 			})
@@ -343,36 +343,33 @@ public:
 
 		auto entity = CreateSprite(*this, choice, cannon_firing_point);
 
-		V2_float end{ mouse_pos };
+		ScaleTo(entity, V2_float{ 1.1f }, flight_duration / 2)
+			.OnComplete([flight_duration](auto e) {
+				ScaleTo(e.parent, V2_float{ 0.3f }, flight_duration / 2);
+			});
 
 		struct EntityArcPath {};
+
+		V2_float end{ mouse_pos };
 
 		auto direction{ RandomNumber(-1, 1) };
 		auto angle{ Degrees::Random() };
 
-		ScaleTo(entity, V2_float{ 1.1f }, flight_duration / 2)
-			.OnComplete([flight_duration](auto e) {
-				ScaleTo(GetParent(e), V2_float{ 0.3f }, flight_duration / 2);
-			});
-
-		GetTween<EntityArcPath>(entity)
+		GetOrCreateTween<EntityArcPath>(entity)
 			.During(flight_duration)
 			.OnProgress([angle, direction, cannon_firing_point, end, distance_ratio](auto p) {
-				auto parent{ GetParent(p.tween) };
 				if (direction == 0) {
-					SetRotation(parent, angle);
+					SetRotation(p.parent, angle);
 				} else {
 					SetRotation(
-						parent, static_cast<float>(direction) * p.progress * 3.0f * distance_ratio *
-									Degrees{ 360.0f }
+						p.parent, static_cast<float>(direction) * p.progress * 3.0f *
+									  distance_ratio * Degrees{ 360.0f }
 					);
 				}
-				SetPosition(parent, ArcPosition(cannon_firing_point, end, p.progress));
+				SetPosition(p.parent, ArcPosition(cannon_firing_point, end, p.progress));
 			})
-			.OnComplete([this, choice](Entity e) {
-				auto parent{ GetParent(e) };
-
-				if (auto location = FindLocationAt(GetWorldPosition(parent)); location) {
+			.OnComplete([this, choice](auto e) {
+				if (auto location = FindLocationAt(GetWorldPosition(e.parent)); location) {
 					if (std::ranges::contains(location.Get<Location>().entities, choice)) {
 						IncrementCombo();
 						IncrementScore();
@@ -385,7 +382,7 @@ public:
 					DecrementCombo();
 				}
 
-				FadeOut(parent, 200ms).OnComplete([](Entity e) { GetParent(e).Destroy(); });
+				FadeOut(e.parent, 200ms).OnComplete([](auto e) { e.parent.Destroy(); });
 			})
 			.Start();
 	}
@@ -452,18 +449,17 @@ public:
 			.Wait(1s)
 			.During(
 				level_duration,
-				[this](Entity e) {
-					auto elapsed{ Tween{ GetChild(e, "tween") }.GetProgress() };
+				[this](auto p) {
 					auto remaining_time_text = FormatDuration(
-						level_duration -
-						milliseconds{
-							static_cast<std::size_t>(FastFloor(elapsed * level_duration.count())) }
+						level_duration - milliseconds{ static_cast<std::size_t>(
+											 FastFloor(p.progress * level_duration.count())
+										 ) }
 					);
 					remaining_text.SetContent(remaining_time_text);
 				}
 			)
 			.Then([this]() {
-				GetTween<ArcTween>(combo_arc).Stop();
+				GetOrCreateTween<ArcTween>(combo_arc).Stop();
 				shooting = false;
 				combo_decay_timer.Stop();
 				ctx().scene.Switch<ScoreScene>(
