@@ -25,9 +25,9 @@
 #include "core/time/timer.h"
 #include "core/util/string.h"
 #include "nlohmann/json.hpp"
-#include "platform/input/events.h"
-#include "platform/input/mouse.h"
-#include "platform/window/window.h"
+#include "platform/events.h"
+#include "platform/mouse.h"
+#include "platform/window.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/gradient.h"
 #include "runtime/animation/animation.h"
@@ -580,7 +580,7 @@ void ScoreScene::OnEnter() {
 void MainMenuScene::OnEnter() {
 	ctx().asset.LoadDirectory("assets");
 	ctx().font.SetDefault("Early GameBoy");
-	ctx().audio.Play("music", 0.10f, -1, 1.0f, true, false);
+	ctx().audio.Play("music", 0.10f, std::nullopt, 1.0f, true, false);
 	ctx().renderer.SetGameSize(game_size);
 
 	CreateSprite(*this, "menu_bg");

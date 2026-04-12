@@ -15,11 +15,3 @@ set(PTGN_EXAMPLES OFF CACHE BOOL "")
 add_subdirectory(../../protegon binary_dir)
 
 add_protegon_to(${PROJECT_NAME} ASSETS_DIR "${ASSETS_DIR}")
-
-if(MSVC)
-  set_target_properties(${PROJECT_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
-endif()
-
-if (NOT EMSCRIPTEN AND EXISTS "${ASSETS_DIR}")
-  create_symlink(${PROJECT_NAME} "${ASSETS_DIR}" "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
-endif()
