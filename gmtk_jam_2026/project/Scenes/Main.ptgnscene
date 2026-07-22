@@ -1,0 +1,115 @@
+{
+    "assets": [
+        "squirrel"
+    ],
+    "content": {
+        "entities": [
+            {
+                "children": [],
+                "components": {
+                    "BlendMode": 1,
+                    "ClearColor": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Scene Target",
+                "uuid": 221392354
+            },
+            {
+                "children": [],
+                "components": {
+                    "CameraData": {
+                        "pixel_rounding": false,
+                        "viewport_space": 0
+                    },
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Main Camera",
+                "uuid": 1035602490
+            },
+            {
+                "children": [],
+                "components": {
+                    "CameraData": {
+                        "pixel_rounding": false,
+                        "viewport_space": 0
+                    },
+                    "CameraMask": {
+                        "exclude": 18446744073709551615,
+                        "include": 0
+                    },
+                    "RenderMask": 0,
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Fixed Camera",
+                "uuid": 614942903
+            },
+            {
+                "children": [],
+                "components": {
+                    "IDrawable": {
+                        "hash": 12046072236507568353
+                    },
+                    "Origin": "Center",
+                    "TextureKey": "squirrel",
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Sprite",
+                "uuid": 2110729840
+            }
+        ],
+        "primary_entities": {
+            "camera": 1035602490,
+            "fixed_camera": 614942903,
+            "render_target": 221392354
+        }
+    },
+    "parameters": {},
+    "type": "FirstScene"
+}

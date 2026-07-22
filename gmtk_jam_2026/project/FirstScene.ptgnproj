@@ -1,0 +1,12 @@
+{
+    "assets": [
+        {
+            "key": "squirrel",
+            "kind": "Texture",
+            "path": "assets/entity/squirrel.png"
+        }
+    ],
+    "name": "FirstScene",
+    "preload_assets": [],
+    "startup_scene": "Scenes/Main.ptgnscene"
+}
