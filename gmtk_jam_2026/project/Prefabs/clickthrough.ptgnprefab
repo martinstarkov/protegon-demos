@@ -1,0 +1,212 @@
+{
+    "key": "prefabs/clickthrough",
+    "root": {
+        "children": [],
+        "components": {
+            "AnimationData": {
+                "config": {
+                    "duration": "0ms",
+                    "frame_count": 8,
+                    "frame_size": [
+                        43,
+                        45
+                    ],
+                    "play_count": 1,
+                    "reset_on_complete": false,
+                    "start_pixel": [
+                        0,
+                        0
+                    ]
+                },
+                "current_frame": 0
+            },
+            "Circle": {
+                "radius": 21.799999237060547
+            },
+            "Depth": 0.8999999761581421,
+            "IDrawable": {
+                "hash": 12046072236507568353
+            },
+            "Interactive": true,
+            "Origin": "Center",
+            "Scripts": [
+                {
+                    "sequence": {
+                        "destroy_owner_on_complete": false,
+                        "enabled": true,
+                        "id": 16,
+                        "lifecycle_actions": [],
+                        "name": "New Script Sequence",
+                        "reentry": "IgnoreWhileRunning",
+                        "remove_binding_on_complete": false,
+                        "shared_reference": false,
+                        "shared_sequence_id": 0,
+                        "start_events": [
+                            {
+                                "consume": false,
+                                "enabled": true,
+                                "name": "MousePressedOver",
+                                "type_hash": 18219744806835818765,
+                                "value": {
+                                    "button": "Button0"
+                                }
+                            }
+                        ],
+                        "steps": [
+                            {
+                                "enabled": true,
+                                "name": "AnimationActionScript",
+                                "type_hash": 12666062028396431375,
+                                "value": {
+                                    "action": 7,
+                                    "animation_key": "",
+                                    "force": true,
+                                    "frame": 0,
+                                    "reset_on_stop": false
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "name": "EmitSignalScript",
+                                "type_hash": 11448630891714376396,
+                                "value": {
+                                    "signal": "action.completed"
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "name": "SetSceneInteractablesEnabledScript",
+                                "type_hash": 17900196821975614776,
+                                "value": {
+                                    "enabled": false
+                                }
+                            },
+                            {
+                                "completion": "Duration",
+                                "enabled": true,
+                                "name": "WaitScript",
+                                "timing": {
+                                    "additional_repeats": 0,
+                                    "duration_ms": 1000.0,
+                                    "ease": "Linear",
+                                    "infinite_repeats": false,
+                                    "reversed": false,
+                                    "yoyo": false
+                                },
+                                "type_hash": 14913473955662755852,
+                                "value": "WaitScript"
+                            },
+                            {
+                                "enabled": true,
+                                "name": "SetSceneInteractablesEnabledScript",
+                                "type_hash": 17900196821975614776,
+                                "value": {
+                                    "enabled": true
+                                }
+                            }
+                        ],
+                        "stop_events": [],
+                        "transient": false
+                    },
+                    "type": "Script",
+                    "value": {
+                        "sequence": {
+                            "destroy_owner_on_complete": false,
+                            "enabled": true,
+                            "id": 14,
+                            "lifecycle_actions": [],
+                            "name": "New Script Sequence",
+                            "reentry": "IgnoreWhileRunning",
+                            "remove_binding_on_complete": false,
+                            "shared_reference": false,
+                            "shared_sequence_id": 0,
+                            "start_events": [],
+                            "steps": [],
+                            "stop_events": [],
+                            "transient": false
+                        }
+                    }
+                },
+                {
+                    "sequence": {
+                        "destroy_owner_on_complete": false,
+                        "enabled": true,
+                        "id": 31893,
+                        "lifecycle_actions": [],
+                        "name": "New Script Sequence",
+                        "reentry": "IgnoreWhileRunning",
+                        "remove_binding_on_complete": false,
+                        "shared_reference": false,
+                        "shared_sequence_id": 0,
+                        "start_events": [
+                            {
+                                "consume": false,
+                                "enabled": true,
+                                "name": "AnimationFinalFrame",
+                                "type_hash": 5942062835637060259,
+                                "value": {}
+                            }
+                        ],
+                        "steps": [
+                            {
+                                "enabled": true,
+                                "name": "RemoveComponentsScript",
+                                "type_hash": 2109423643212945885,
+                                "value": {
+                                    "components": [
+                                        "Interactive"
+                                    ]
+                                }
+                            }
+                        ],
+                        "stop_events": [],
+                        "transient": false
+                    },
+                    "type": "Script",
+                    "value": {
+                        "sequence": {
+                            "destroy_owner_on_complete": false,
+                            "enabled": true,
+                            "id": 31891,
+                            "lifecycle_actions": [],
+                            "name": "New Script Sequence",
+                            "reentry": "IgnoreWhileRunning",
+                            "remove_binding_on_complete": false,
+                            "shared_reference": false,
+                            "shared_sequence_id": 0,
+                            "start_events": [],
+                            "steps": [],
+                            "stop_events": [],
+                            "transient": false
+                        }
+                    }
+                }
+            ],
+            "TextureCrop": {
+                "position": [
+                    0.0,
+                    0.0
+                ],
+                "size": [
+                    43.0,
+                    45.0
+                ]
+            },
+            "TextureKey": "rubiks_anim",
+            "Transform": {
+                "position": [
+                    234.2616424560547,
+                    70.26521301269531
+                ],
+                "rotation": 0.0,
+                "scale": [
+                    1.0,
+                    1.0
+                ]
+            },
+            "Visible": true
+        },
+        "tag": "Animation",
+        "tags": []
+    }
+}

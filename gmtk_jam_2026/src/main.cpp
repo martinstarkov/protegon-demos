@@ -10,6 +10,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "runtime/interaction/interactive.h"
+#include "runtime/scripting/script_registration.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_registry.h"
@@ -17,6 +19,53 @@
 #include "runtime/scripting/script.h"
 
 using namespace ptgn;
+
+struct SetSceneInteractablesEnabledScript : public Script {
+	bool enabled{ true };
+
+	SetSceneInteractablesEnabledScript() = default;
+
+	explicit SetSceneInteractablesEnabledScript(
+		bool enabled
+	) :
+		enabled{ enabled } {}
+
+	void OnStart() override {
+		auto& scene{
+			GetScene()
+		};
+
+		for (auto [entity, interactive] :
+			 scene.EntitiesWith<
+				 impl::Interactive
+			 >()) {
+			SetInteractive(
+				entity,
+				enabled
+			);
+		}
+	}
+
+	PTGN_REFLECT(
+		SetSceneInteractablesEnabledScript,
+		enabled
+	)
+};
+
+PTGN_REGISTER_SCRIPT(
+	SetSceneInteractablesEnabledScript,
+	{
+		.completion = ScriptCompletion::Instant,
+		.label =
+			"Set Scene Interactables",
+		.group =
+			"Interaction",
+		.description =
+			"Enable or disable every interactive entity in the current scene.",
+		.type =
+			editor::ScriptType::Sequence,
+	}
+);
 
 namespace {
 

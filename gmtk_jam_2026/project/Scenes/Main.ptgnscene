@@ -14,8 +14,8 @@
                     "RenderTargetSize": {
                         "follow_display_size": true,
                         "size": [
-                            860,
-                            483
+                            1108,
+                            623
                         ]
                     },
                     "Transform": {
@@ -165,7 +165,7 @@
                                             "ease": "Linear",
                                             "priority": 0,
                                             "scene_key": "GameScene",
-                                            "transition": 1
+                                            "transition": 0
                                         }
                                     }
                                 ],
@@ -268,7 +268,7 @@
                                             "ease": "Linear",
                                             "priority": 0,
                                             "scene_key": "InstructionsScene",
-                                            "transition": 1
+                                            "transition": 0
                                         }
                                     }
                                 ],

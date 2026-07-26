@@ -1,5 +1,11 @@
 {
-    "assets": [],
+    "assets": [
+        {
+            "key": "prefabs/clickthrough",
+            "kind": "Prefab",
+            "source_path": "Prefabs/clickthrough.ptgnprefab"
+        }
+    ],
     "name": "GMTKJam2026",
     "preload_assets": [],
     "scenes": [
@@ -121,5 +127,5 @@
             ]
         }
     },
-    "startup_scene_key": "Main"
+    "startup_scene_key": "GameScene"
 }
