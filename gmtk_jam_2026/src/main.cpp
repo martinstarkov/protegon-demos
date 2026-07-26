@@ -67,11 +67,11 @@ constexpr V2_float kThirdHandEnd{
 };
 
 constexpr int kRequiredRotations{
-	12
+	28
 };
 
 constexpr float kLoseDelaySeconds{
-	10.0f
+	15.0f
 };
 
 const SignalKey kActionCompletedSignal{
