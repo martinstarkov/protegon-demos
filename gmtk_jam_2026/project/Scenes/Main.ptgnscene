@@ -14,8 +14,8 @@
                     "RenderTargetSize": {
                         "follow_display_size": true,
                         "size": [
-                            950,
-                            534
+                            860,
+                            483
                         ]
                     },
                     "Transform": {

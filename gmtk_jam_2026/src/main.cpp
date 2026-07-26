@@ -67,11 +67,11 @@ constexpr V2_float kThirdHandEnd{
 };
 
 constexpr int kRequiredRotations{
-	28
+	34
 };
 
 constexpr float kLoseDelaySeconds{
-	15.0f
+	25.0f
 };
 
 const SignalKey kActionCompletedSignal{
@@ -391,6 +391,8 @@ class TitleScene : public Scene {
 public:
 	void OnLoad() override {
 		ctx().asset.LoadDirectory("assets");
+
+		
 	}
 
 	void OnNew() override {
@@ -602,6 +604,7 @@ private:
 class InstructionsScene : public Scene {
 public:
 	void OnNew() override {
+
 		SetBackgroundColor(
 			Color{
 				45,

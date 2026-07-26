@@ -48,7 +48,7 @@
                     255,
                     255
                 ],
-                "draw_enabled": true,
+                "draw_enabled": false,
                 "draw_line_width": 2.0
             },
             "light": {
@@ -58,12 +58,12 @@
                     0,
                     255
                 ],
-                "draw_enabled": true,
+                "draw_enabled": false,
                 "draw_fill_style": {
                     "line_width": 2.0,
                     "type": "Hollow"
                 },
-                "draw_interiors": true,
+                "draw_interiors": false,
                 "masks_inside_color": [
                     255,
                     0,
@@ -127,5 +127,5 @@
             ]
         }
     },
-    "startup_scene_key": "GameScene"
+    "startup_scene_key": "Main"
 }
