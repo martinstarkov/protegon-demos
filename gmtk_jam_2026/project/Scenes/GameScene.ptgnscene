@@ -1,0 +1,96 @@
+{
+    "assets": [],
+    "content": {
+        "entities": [
+            {
+                "components": {
+                    "ClearColor": [
+                        25,
+                        85,
+                        55,
+                        255
+                    ],
+                    "RenderTargetSize": {
+                        "follow_display_size": true,
+                        "size": [
+                            676,
+                            380
+                        ]
+                    },
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Scene Target",
+                "uuid": 572368896
+            },
+            {
+                "components": {
+                    "CameraData": {
+                        "pixel_rounding": false,
+                        "viewport_space": 0
+                    },
+                    "Depth": 0.0,
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Main Camera",
+                "uuid": 1373043251
+            },
+            {
+                "components": {
+                    "CameraData": {
+                        "pixel_rounding": false,
+                        "viewport_space": 0
+                    },
+                    "CameraMask": {
+                        "exclude": 18446744073709551615,
+                        "include": 0
+                    },
+                    "RenderMask": 0,
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Fixed Camera",
+                "tags": [
+                    "UILayer"
+                ],
+                "uuid": 362898036
+            }
+        ],
+        "primary_entities": {
+            "camera": 1373043251,
+            "fixed_camera": 362898036,
+            "render_target": 572368896
+        }
+    },
+    "parameters": {},
+    "type": "GameScene"
+}

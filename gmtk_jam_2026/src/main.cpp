@@ -63,7 +63,7 @@ Button CreateMenuButton(
 
 ScriptSequence MakeSceneChangeSequence(
 	std::string name,
-	std::string target_scene_type,
+	std::string target_scene_key,
 	SceneTransitionStyle transition,
 	V2_float direction = {
 		1.0f,
@@ -75,14 +75,8 @@ ScriptSequence MakeSceneChangeSequence(
 	change.action =
 		SceneChangeAction::Switch;
 
-	// Reuse the current scene tag so the active scene is replaced.
-	change.scene_tag.clear();
-
-	change.scene_type =
-		std::move(target_scene_type);
-
-	change.scene_parameters =
-		json::object();
+	change.scene_key =
+		std::move(target_scene_key);
 
 	change.transition =
 		transition;
@@ -292,7 +286,7 @@ public:
 			back_button,
 			MakeSceneChangeSequence(
 				"Back To Title",
-				"TitleScene",
+				"Main",
 				SceneTransitionStyle::Slide,
 				{
 					-1.0f,
@@ -320,7 +314,7 @@ PTGN_REGISTER_SCENE(
 
 int main(int, char**) {
 	Application app{
-		"4;59 PM"
+		"Hardly Working"
 	};
 
 	PTGN_WITH_EDITOR(
@@ -329,7 +323,7 @@ int main(int, char**) {
 	);
 
 	app.StartProject<TitleScene>(
-		"GMTKJam2026/"
-		"GMTKJam2026.ptgnproj"
+		"../project/GMTKJam2026.ptgnproj"
 	);
 }
+
