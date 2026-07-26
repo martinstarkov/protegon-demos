@@ -120,6 +120,10 @@ void AttachSequence(
 
 class TitleScene : public Scene {
 public:
+	void OnLoad() {
+		ctx().asset.LoadDirectory("assets");
+	}
+
 	void OnNew() override {
 		SetBackgroundColor(
 			Color{

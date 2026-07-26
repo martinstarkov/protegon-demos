@@ -42,7 +42,7 @@
                     255,
                     255
                 ],
-                "draw_enabled": false,
+                "draw_enabled": true,
                 "draw_line_width": 2.0
             },
             "light": {

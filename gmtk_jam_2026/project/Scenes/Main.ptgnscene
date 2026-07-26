@@ -14,8 +14,8 @@
                     "RenderTargetSize": {
                         "follow_display_size": true,
                         "size": [
-                            676,
-                            380
+                            860,
+                            483
                         ]
                     },
                     "Transform": {
@@ -88,125 +88,14 @@
                 "components": {
                     "Depth": 0.0,
                     "IDrawable": {
-                        "hash": 8243492830173851669
+                        "hash": 12046072236507568353
                     },
                     "Origin": "Center",
-                    "TextData": {
-                        "box": {
-                            "rect": {
-                                "max": [
-                                    0.0,
-                                    0.0
-                                ],
-                                "min": [
-                                    0.0,
-                                    0.0
-                                ]
-                            },
-                            "style": {
-                                "alignment": {
-                                    "horizontal": "Left",
-                                    "vertical": "Top"
-                                },
-                                "collapse_spaces": false,
-                                "justify_last_line": false,
-                                "max_lines": 0,
-                                "overflow": "Overflow",
-                                "shrink_scale": {
-                                    "max": 1.0,
-                                    "min": 0.25
-                                },
-                                "tab_width": 4,
-                                "wrap": {
-                                    "allow_word_break_in_overflow": true,
-                                    "insert_hyphen_on_split": true,
-                                    "mode": "None",
-                                    "prevent_single_letter_split": true,
-                                    "require_three_letter_remainder": true
-                                }
-                            }
-                        },
-                        "text": [
-                            {
-                                "font": "",
-                                "style": {
-                                    "bold_weight": 0.03999999910593033,
-                                    "color": [
-                                        255,
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "effect": {
-                                        "amplitude": 0.0,
-                                        "frequency": 0.0,
-                                        "phase": 0.0,
-                                        "speed": 0.0,
-                                        "type": "None"
-                                    },
-                                    "flags": "Bold",
-                                    "kerning": 1.0,
-                                    "line_spacing": 0.0,
-                                    "sdf": {
-                                        "inner_glow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "outer_glow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "outline": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "pixel_range": 0.0,
-                                        "shadow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "shadow_offset": [
-                                            0.0,
-                                            0.0
-                                        ],
-                                        "softness": 1.0,
-                                        "weight": 0.5
-                                    },
-                                    "size": 64.0,
-                                    "tracking": 0.0
-                                },
-                                "text": "Game Demo"
-                            }
-                        ]
-                    },
+                    "TextureKey": "title_screen",
                     "Transform": {
                         "position": [
-                            2.9867806006222963e-08,
-                            -111.96846008300781
+                            0.0,
+                            0.0
                         ],
                         "rotation": 0.0,
                         "scale": [
@@ -216,14 +105,10 @@
                     },
                     "Visible": true
                 },
-                "tag": "Text",
-                "uuid": 1752504399
+                "tag": "Sprite",
+                "uuid": 656954476
             },
             {
-                "children": [
-                    1448119591,
-                    476957092
-                ],
                 "components": {
                     "ButtonData": {
                         "hover_enabled": true,
@@ -234,12 +119,12 @@
                     "Origin": "Center",
                     "Rect": {
                         "max": [
-                            150.0,
-                            40.0
+                            20.0,
+                            8.050000190734863
                         ],
                         "min": [
-                            -150.0,
-                            -40.0
+                            -20.0,
+                            -8.050000190734863
                         ]
                     },
                     "RenderMask": 0,
@@ -248,9 +133,9 @@
                             "sequence": {
                                 "destroy_owner_on_complete": false,
                                 "enabled": true,
-                                "id": 2,
+                                "id": 16,
                                 "lifecycle_actions": [],
-                                "name": "Play Game",
+                                "name": "New Script Sequence",
                                 "reentry": "IgnoreWhileRunning",
                                 "remove_binding_on_complete": false,
                                 "shared_reference": false,
@@ -266,7 +151,6 @@
                                 ],
                                 "steps": [
                                     {
-                                        "completion": "Instant",
                                         "enabled": true,
                                         "name": "SceneChangeScript",
                                         "type_hash": 8456253724118082335,
@@ -277,8 +161,8 @@
                                                 1.0,
                                                 0.0
                                             ],
-                                            "duration_ms": 700.0,
-                                            "ease": "InOutQuad",
+                                            "duration_ms": 1.0,
+                                            "ease": "Linear",
                                             "priority": 0,
                                             "scene_key": "GameScene",
                                             "transition": 1
@@ -293,7 +177,7 @@
                                 "sequence": {
                                     "destroy_owner_on_complete": false,
                                     "enabled": true,
-                                    "id": 3,
+                                    "id": 14,
                                     "lifecycle_actions": [],
                                     "name": "New Script Sequence",
                                     "reentry": "IgnoreWhileRunning",
@@ -310,8 +194,8 @@
                     ],
                     "Transform": {
                         "position": [
-                            -170.0,
-                            60.0
+                            -41.04057693481445,
+                            -23.9180908203125
                         ],
                         "rotation": 0.0,
                         "scale": [
@@ -325,382 +209,9 @@
                 "tags": [
                     "UILayer"
                 ],
-                "uuid": 471441542
+                "uuid": 1481839464
             },
             {
-                "components": {
-                    "ButtonBackgroundVisuals": [
-                        {
-                            "color": [
-                                64,
-                                64,
-                                64,
-                                255
-                            ],
-                            "defined": true,
-                            "fill_style": {
-                                "type": "Solid"
-                            }
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        }
-                    ],
-                    "Color": [
-                        64,
-                        64,
-                        64,
-                        255
-                    ],
-                    "FillStyle": {
-                        "type": "Solid"
-                    },
-                    "IDrawable": {
-                        "hash": 2537629213078399720
-                    },
-                    "Origin": "Center",
-                    "Rect": {
-                        "max": [
-                            150.0,
-                            40.0
-                        ],
-                        "min": [
-                            -150.0,
-                            -40.0
-                        ]
-                    },
-                    "RenderMask": 0,
-                    "Transform": {
-                        "position": [
-                            0.0,
-                            0.0
-                        ],
-                        "rotation": 0.0,
-                        "scale": [
-                            1.0,
-                            1.0
-                        ]
-                    },
-                    "Visible": true
-                },
-                "tag": "Button Background",
-                "tags": [
-                    "UILayer"
-                ],
-                "uuid": 1448119591
-            },
-            {
-                "components": {
-                    "ButtonTextVisuals": [
-                        {
-                            "anchor": "Center",
-                            "auto_box": true,
-                            "box": {
-                                "rect": {
-                                    "max": [
-                                        0.0,
-                                        0.0
-                                    ],
-                                    "min": [
-                                        0.0,
-                                        0.0
-                                    ]
-                                },
-                                "style": {
-                                    "alignment": {
-                                        "horizontal": "Center",
-                                        "vertical": "Center"
-                                    },
-                                    "collapse_spaces": false,
-                                    "justify_last_line": false,
-                                    "max_lines": 0,
-                                    "overflow": "Overflow",
-                                    "shrink_scale": {
-                                        "max": 1.0,
-                                        "min": 0.25
-                                    },
-                                    "tab_width": 4,
-                                    "wrap": {
-                                        "allow_word_break_in_overflow": true,
-                                        "insert_hyphen_on_split": true,
-                                        "mode": "None",
-                                        "prevent_single_letter_split": true,
-                                        "require_three_letter_remainder": true
-                                    }
-                                }
-                            },
-                            "defined": true,
-                            "origin": "Center",
-                            "padding": {
-                                "bottom": 0.0,
-                                "left": 0.0,
-                                "right": 0.0,
-                                "top": 0.0
-                            },
-                            "styled_text": [
-                                {
-                                    "font": "",
-                                    "style": {
-                                        "bold_weight": 0.03999999910593033,
-                                        "color": [
-                                            0,
-                                            0,
-                                            0,
-                                            255
-                                        ],
-                                        "effect": {
-                                            "amplitude": 0.0,
-                                            "frequency": 0.0,
-                                            "phase": 0.0,
-                                            "speed": 0.0,
-                                            "type": "None"
-                                        },
-                                        "flags": "Normal",
-                                        "kerning": 1.0,
-                                        "line_spacing": 0.0,
-                                        "sdf": {
-                                            "inner_glow": {
-                                                "color": [
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                ],
-                                                "softness": 1.0,
-                                                "width": 0.0
-                                            },
-                                            "outer_glow": {
-                                                "color": [
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                ],
-                                                "softness": 1.0,
-                                                "width": 0.0
-                                            },
-                                            "outline": {
-                                                "color": [
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                ],
-                                                "softness": 1.0,
-                                                "width": 0.0
-                                            },
-                                            "pixel_range": 0.0,
-                                            "shadow": {
-                                                "color": [
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                ],
-                                                "softness": 1.0,
-                                                "width": 0.0
-                                            },
-                                            "shadow_offset": [
-                                                0.0,
-                                                0.0
-                                            ],
-                                            "softness": 1.0,
-                                            "weight": 0.5
-                                        },
-                                        "size": 28.0,
-                                        "tracking": 0.0
-                                    },
-                                    "text": "Play"
-                                }
-                            ]
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        }
-                    ],
-                    "IDrawable": {
-                        "hash": 8243492830173851669
-                    },
-                    "Origin": "Center",
-                    "RenderMask": 0,
-                    "TextData": {
-                        "box": {
-                            "rect": {
-                                "max": [
-                                    150.0,
-                                    40.0
-                                ],
-                                "min": [
-                                    -150.0,
-                                    -40.0
-                                ]
-                            },
-                            "style": {
-                                "alignment": {
-                                    "horizontal": "Center",
-                                    "vertical": "Center"
-                                },
-                                "collapse_spaces": false,
-                                "justify_last_line": false,
-                                "max_lines": 0,
-                                "overflow": "Overflow",
-                                "shrink_scale": {
-                                    "max": 1.0,
-                                    "min": 0.25
-                                },
-                                "tab_width": 4,
-                                "wrap": {
-                                    "allow_word_break_in_overflow": true,
-                                    "insert_hyphen_on_split": true,
-                                    "mode": "None",
-                                    "prevent_single_letter_split": true,
-                                    "require_three_letter_remainder": true
-                                }
-                            }
-                        },
-                        "text": [
-                            {
-                                "font": "",
-                                "style": {
-                                    "bold_weight": 0.03999999910593033,
-                                    "color": [
-                                        0,
-                                        0,
-                                        0,
-                                        255
-                                    ],
-                                    "effect": {
-                                        "amplitude": 0.0,
-                                        "frequency": 0.0,
-                                        "phase": 0.0,
-                                        "speed": 0.0,
-                                        "type": "None"
-                                    },
-                                    "flags": "Normal",
-                                    "kerning": 1.0,
-                                    "line_spacing": 0.0,
-                                    "sdf": {
-                                        "inner_glow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "outer_glow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "outline": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "pixel_range": 0.0,
-                                        "shadow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "shadow_offset": [
-                                            0.0,
-                                            0.0
-                                        ],
-                                        "softness": 1.0,
-                                        "weight": 0.5
-                                    },
-                                    "size": 28.0,
-                                    "tracking": 0.0
-                                },
-                                "text": "Play"
-                            }
-                        ]
-                    },
-                    "Transform": {
-                        "position": [
-                            0.0,
-                            0.0
-                        ],
-                        "rotation": 0.0,
-                        "scale": [
-                            1.0,
-                            1.0
-                        ]
-                    },
-                    "Visible": true
-                },
-                "tag": "Button Text",
-                "tags": [
-                    "UILayer"
-                ],
-                "uuid": 476957092
-            },
-            {
-                "children": [
-                    321625888,
-                    1532872978
-                ],
                 "components": {
                     "ButtonData": {
                         "hover_enabled": true,
@@ -711,12 +222,12 @@
                     "Origin": "Center",
                     "Rect": {
                         "max": [
-                            150.0,
-                            40.0
+                            41.599998474121094,
+                            8.300000190734863
                         ],
                         "min": [
-                            -150.0,
-                            -40.0
+                            -41.599998474121094,
+                            -8.300000190734863
                         ]
                     },
                     "RenderMask": 0,
@@ -725,9 +236,9 @@
                             "sequence": {
                                 "destroy_owner_on_complete": false,
                                 "enabled": true,
-                                "id": 8,
+                                "id": 14410,
                                 "lifecycle_actions": [],
-                                "name": "Open Instructions",
+                                "name": "New Script Sequence",
                                 "reentry": "IgnoreWhileRunning",
                                 "remove_binding_on_complete": false,
                                 "shared_reference": false,
@@ -743,7 +254,6 @@
                                 ],
                                 "steps": [
                                     {
-                                        "completion": "Instant",
                                         "enabled": true,
                                         "name": "SceneChangeScript",
                                         "type_hash": 8456253724118082335,
@@ -754,11 +264,11 @@
                                                 1.0,
                                                 0.0
                                             ],
-                                            "duration_ms": 700.0,
-                                            "ease": "InOutQuad",
+                                            "duration_ms": 1.0,
+                                            "ease": "Linear",
                                             "priority": 0,
                                             "scene_key": "InstructionsScene",
-                                            "transition": 3
+                                            "transition": 1
                                         }
                                     }
                                 ],
@@ -770,7 +280,7 @@
                                 "sequence": {
                                     "destroy_owner_on_complete": false,
                                     "enabled": true,
-                                    "id": 9,
+                                    "id": 14408,
                                     "lifecycle_actions": [],
                                     "name": "New Script Sequence",
                                     "reentry": "IgnoreWhileRunning",
@@ -787,8 +297,8 @@
                     ],
                     "Transform": {
                         "position": [
-                            170.0,
-                            60.0
+                            26.875879287719727,
+                            -23.826356887817383
                         ],
                         "rotation": 0.0,
                         "scale": [
@@ -802,377 +312,7 @@
                 "tags": [
                     "UILayer"
                 ],
-                "uuid": 868387422
-            },
-            {
-                "components": {
-                    "ButtonBackgroundVisuals": [
-                        {
-                            "color": [
-                                64,
-                                64,
-                                64,
-                                255
-                            ],
-                            "defined": true,
-                            "fill_style": {
-                                "type": "Solid"
-                            }
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        }
-                    ],
-                    "Color": [
-                        64,
-                        64,
-                        64,
-                        255
-                    ],
-                    "FillStyle": {
-                        "type": "Solid"
-                    },
-                    "IDrawable": {
-                        "hash": 2537629213078399720
-                    },
-                    "Origin": "Center",
-                    "Rect": {
-                        "max": [
-                            150.0,
-                            40.0
-                        ],
-                        "min": [
-                            -150.0,
-                            -40.0
-                        ]
-                    },
-                    "RenderMask": 0,
-                    "Transform": {
-                        "position": [
-                            0.0,
-                            0.0
-                        ],
-                        "rotation": 0.0,
-                        "scale": [
-                            1.0,
-                            1.0
-                        ]
-                    },
-                    "Visible": true
-                },
-                "tag": "Button Background",
-                "tags": [
-                    "UILayer"
-                ],
-                "uuid": 321625888
-            },
-            {
-                "components": {
-                    "ButtonTextVisuals": [
-                        {
-                            "anchor": "Center",
-                            "auto_box": true,
-                            "box": {
-                                "rect": {
-                                    "max": [
-                                        0.0,
-                                        0.0
-                                    ],
-                                    "min": [
-                                        0.0,
-                                        0.0
-                                    ]
-                                },
-                                "style": {
-                                    "alignment": {
-                                        "horizontal": "Center",
-                                        "vertical": "Center"
-                                    },
-                                    "collapse_spaces": false,
-                                    "justify_last_line": false,
-                                    "max_lines": 0,
-                                    "overflow": "Overflow",
-                                    "shrink_scale": {
-                                        "max": 1.0,
-                                        "min": 0.25
-                                    },
-                                    "tab_width": 4,
-                                    "wrap": {
-                                        "allow_word_break_in_overflow": true,
-                                        "insert_hyphen_on_split": true,
-                                        "mode": "None",
-                                        "prevent_single_letter_split": true,
-                                        "require_three_letter_remainder": true
-                                    }
-                                }
-                            },
-                            "defined": true,
-                            "origin": "Center",
-                            "padding": {
-                                "bottom": 0.0,
-                                "left": 0.0,
-                                "right": 0.0,
-                                "top": 0.0
-                            },
-                            "styled_text": [
-                                {
-                                    "font": "",
-                                    "style": {
-                                        "bold_weight": 0.03999999910593033,
-                                        "color": [
-                                            0,
-                                            0,
-                                            0,
-                                            255
-                                        ],
-                                        "effect": {
-                                            "amplitude": 0.0,
-                                            "frequency": 0.0,
-                                            "phase": 0.0,
-                                            "speed": 0.0,
-                                            "type": "None"
-                                        },
-                                        "flags": "Normal",
-                                        "kerning": 1.0,
-                                        "line_spacing": 0.0,
-                                        "sdf": {
-                                            "inner_glow": {
-                                                "color": [
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                ],
-                                                "softness": 1.0,
-                                                "width": 0.0
-                                            },
-                                            "outer_glow": {
-                                                "color": [
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                ],
-                                                "softness": 1.0,
-                                                "width": 0.0
-                                            },
-                                            "outline": {
-                                                "color": [
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                ],
-                                                "softness": 1.0,
-                                                "width": 0.0
-                                            },
-                                            "pixel_range": 0.0,
-                                            "shadow": {
-                                                "color": [
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                ],
-                                                "softness": 1.0,
-                                                "width": 0.0
-                                            },
-                                            "shadow_offset": [
-                                                0.0,
-                                                0.0
-                                            ],
-                                            "softness": 1.0,
-                                            "weight": 0.5
-                                        },
-                                        "size": 28.0,
-                                        "tracking": 0.0
-                                    },
-                                    "text": "Instructions"
-                                }
-                            ]
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        },
-                        {
-                            "defined": false
-                        }
-                    ],
-                    "Depth": 0.0,
-                    "IDrawable": {
-                        "hash": 8243492830173851669
-                    },
-                    "Origin": "Center",
-                    "RenderMask": 0,
-                    "TextData": {
-                        "box": {
-                            "rect": {
-                                "max": [
-                                    150.0,
-                                    40.0
-                                ],
-                                "min": [
-                                    -150.0,
-                                    -40.0
-                                ]
-                            },
-                            "style": {
-                                "alignment": {
-                                    "horizontal": "Center",
-                                    "vertical": "Center"
-                                },
-                                "collapse_spaces": false,
-                                "justify_last_line": false,
-                                "max_lines": 0,
-                                "overflow": "Overflow",
-                                "shrink_scale": {
-                                    "max": 1.0,
-                                    "min": 0.25
-                                },
-                                "tab_width": 4,
-                                "wrap": {
-                                    "allow_word_break_in_overflow": true,
-                                    "insert_hyphen_on_split": true,
-                                    "mode": "None",
-                                    "prevent_single_letter_split": true,
-                                    "require_three_letter_remainder": true
-                                }
-                            }
-                        },
-                        "text": [
-                            {
-                                "font": "",
-                                "style": {
-                                    "bold_weight": 0.03999999910593033,
-                                    "color": [
-                                        0,
-                                        0,
-                                        0,
-                                        255
-                                    ],
-                                    "effect": {
-                                        "amplitude": 0.0,
-                                        "frequency": 0.0,
-                                        "phase": 0.0,
-                                        "speed": 0.0,
-                                        "type": "None"
-                                    },
-                                    "flags": "Normal",
-                                    "kerning": 1.0,
-                                    "line_spacing": 0.0,
-                                    "sdf": {
-                                        "inner_glow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "outer_glow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "outline": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "pixel_range": 0.0,
-                                        "shadow": {
-                                            "color": [
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            ],
-                                            "softness": 1.0,
-                                            "width": 0.0
-                                        },
-                                        "shadow_offset": [
-                                            0.0,
-                                            0.0
-                                        ],
-                                        "softness": 1.0,
-                                        "weight": 0.5
-                                    },
-                                    "size": 28.0,
-                                    "tracking": 0.0
-                                },
-                                "text": "Instructions"
-                            }
-                        ]
-                    },
-                    "Transform": {
-                        "position": [
-                            0.0,
-                            0.0
-                        ],
-                        "rotation": 0.0,
-                        "scale": [
-                            1.0,
-                            1.0
-                        ]
-                    },
-                    "Visible": true
-                },
-                "tag": "Button Text",
-                "tags": [
-                    "UILayer"
-                ],
-                "uuid": 1532872978
+                "uuid": 1843112662
             }
         ],
         "primary_entities": {
