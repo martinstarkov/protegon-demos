@@ -13,8 +13,8 @@
                     "RenderTargetSize": {
                         "follow_display_size": true,
                         "size": [
-                            1108,
-                            623
+                            860,
+                            483
                         ]
                     },
                     "Transform": {
@@ -2083,6 +2083,1119 @@
                 },
                 "tag": "Stickman Ink",
                 "uuid": 1061735515
+            },
+            {
+                "components": {
+                    "Depth": 0.0,
+                    "IDrawable": {
+                        "hash": 12046072236507568353
+                    },
+                    "Origin": "Center",
+                    "TextureKey": "monitor_os",
+                    "Transform": {
+                        "position": [
+                            -0.9758152961730957,
+                            -64.71073913574219
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Monitor OS",
+                "uuid": 1148308347
+            },
+            {
+                "children": [
+                    947330777
+                ],
+                "components": {
+                    "AnimationData": {
+                        "config": {
+                            "duration": "2000ms",
+                            "frame_count": 2,
+                            "frame_size": [
+                                108,
+                                76
+                            ],
+                            "play_count": 1,
+                            "reset_on_complete": false,
+                            "start_pixel": [
+                                0,
+                                0
+                            ]
+                        },
+                        "current_frame": 0
+                    },
+                    "Depth": 2.0,
+                    "IDrawable": {
+                        "hash": 12046072236507568353
+                    },
+                    "Interactive": true,
+                    "Origin": "Center",
+                    "Scripts": [
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 16,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "MousePressedOver",
+                                        "type_hash": 18219744806835818765,
+                                        "value": {
+                                            "button": "Button0"
+                                        }
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "AnimationActionScript",
+                                        "type_hash": 12666062028396431375,
+                                        "value": {
+                                            "action": 0,
+                                            "animation_key": "",
+                                            "force": true,
+                                            "frame": 0,
+                                            "reset_on_stop": false
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "EmitSignalScript",
+                                        "type_hash": 11448630891714376396,
+                                        "value": {
+                                            "signal": "action.completed"
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SetSceneInteractablesEnabledScript",
+                                        "type_hash": 17900196821975614776,
+                                        "value": {
+                                            "enabled": false
+                                        }
+                                    },
+                                    {
+                                        "completion": "Duration",
+                                        "enabled": true,
+                                        "name": "WaitScript",
+                                        "timing": {
+                                            "additional_repeats": 0,
+                                            "duration_ms": 2000.0,
+                                            "ease": "Linear",
+                                            "infinite_repeats": false,
+                                            "reversed": false,
+                                            "yoyo": false
+                                        },
+                                        "type_hash": 14913473955662755852,
+                                        "value": "WaitScript"
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SetSceneInteractablesEnabledScript",
+                                        "type_hash": 17900196821975614776,
+                                        "value": {
+                                            "enabled": true
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 14,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        },
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 31893,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "AnimationFinalFrame",
+                                        "type_hash": 5942062835637060259,
+                                        "value": {}
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "RemoveComponentsScript",
+                                        "type_hash": 2109423643212945885,
+                                        "value": {
+                                            "components": [
+                                                "Interactive"
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "EmitSignalScript",
+                                        "type_hash": 11448630891714376396,
+                                        "value": {
+                                            "signal": "reply.notif"
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 31891,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        }
+                    ],
+                    "TextureCrop": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "size": [
+                            108.0,
+                            76.0
+                        ]
+                    },
+                    "TextureKey": "email1",
+                    "Transform": {
+                        "position": [
+                            29.670318603515625,
+                            -62.85837173461914
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Email1",
+                "uuid": 854489981
+            },
+            {
+                "components": {
+                    "Depth": 0.0,
+                    "Rect": {
+                        "max": [
+                            51.0,
+                            53.45000076293945
+                        ],
+                        "min": [
+                            -47.60000228881836,
+                            -13.94999885559082
+                        ]
+                    },
+                    "Transform": {
+                        "position": [
+                            -2.0152416229248047,
+                            -18.15572738647461
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Entity",
+                "tags": [
+                    "InteractiveTag"
+                ],
+                "uuid": 947330777
+            },
+            {
+                "children": [
+                    1781127709
+                ],
+                "components": {
+                    "AnimationData": {
+                        "config": {
+                            "duration": "4000ms",
+                            "frame_count": 7,
+                            "frame_size": [
+                                108,
+                                76
+                            ],
+                            "play_count": 1,
+                            "reset_on_complete": false,
+                            "start_pixel": [
+                                0,
+                                0
+                            ]
+                        },
+                        "current_frame": 0
+                    },
+                    "Depth": 3.0,
+                    "IDrawable": {
+                        "hash": 12046072236507568353
+                    },
+                    "Interactive": false,
+                    "Origin": "Center",
+                    "Scripts": [
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 16,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "Signal",
+                                        "type_hash": 12046072236508525814,
+                                        "value": {
+                                            "signal": "reply.notif"
+                                        }
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "SetVisibleScript",
+                                        "type_hash": 17439684944428900683,
+                                        "value": {
+                                            "visible": true
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SetEnabledScript",
+                                        "type_hash": 4065954827366692896,
+                                        "value": {
+                                            "component": "Interactive",
+                                            "enabled": true
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "EmitSignalScript",
+                                        "type_hash": 11448630891714376396,
+                                        "value": {
+                                            "signal": "action.completed"
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 14,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        },
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 31893,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "MousePressedOver",
+                                        "type_hash": 18219744806835818765,
+                                        "value": {
+                                            "button": "Button0"
+                                        }
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "AnimationActionScript",
+                                        "type_hash": 12666062028396431375,
+                                        "value": {
+                                            "action": 0,
+                                            "animation_key": "",
+                                            "force": true,
+                                            "frame": 0,
+                                            "reset_on_stop": false
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SetSceneInteractablesEnabledScript",
+                                        "type_hash": 17900196821975614776,
+                                        "value": {
+                                            "enabled": false
+                                        }
+                                    },
+                                    {
+                                        "completion": "Duration",
+                                        "enabled": true,
+                                        "name": "WaitScript",
+                                        "timing": {
+                                            "additional_repeats": 0,
+                                            "duration_ms": 4000.0,
+                                            "ease": "Linear",
+                                            "infinite_repeats": false,
+                                            "reversed": false,
+                                            "yoyo": false
+                                        },
+                                        "type_hash": 14913473955662755852,
+                                        "value": "WaitScript"
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SetSceneInteractablesEnabledScript",
+                                        "type_hash": 17900196821975614776,
+                                        "value": {
+                                            "enabled": true
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 31891,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        },
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 493935,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "AnimationFinalFrame",
+                                        "type_hash": 5942062835637060259,
+                                        "value": {}
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "EmitSignalScript",
+                                        "type_hash": 11448630891714376396,
+                                        "value": {
+                                            "signal": "nyan.time"
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "RemoveComponentsScript",
+                                        "type_hash": 2109423643212945885,
+                                        "value": {
+                                            "components": [
+                                                "Interactive"
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 493933,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        }
+                    ],
+                    "TextureCrop": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "size": [
+                            108.0,
+                            76.0
+                        ]
+                    },
+                    "TextureKey": "email2",
+                    "Transform": {
+                        "position": [
+                            30.0,
+                            -63.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": false
+                },
+                "tag": "Email2",
+                "uuid": 1454828489
+            },
+            {
+                "components": {
+                    "Depth": 0.0,
+                    "Rect": {
+                        "max": [
+                            17.100000381469727,
+                            8.449999809265137
+                        ],
+                        "min": [
+                            -17.100000381469727,
+                            -8.449999809265137
+                        ]
+                    },
+                    "Transform": {
+                        "position": [
+                            5.2052764892578125,
+                            17.67306137084961
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Entity",
+                "tags": [
+                    "InteractiveTag"
+                ],
+                "uuid": 1781127709
+            },
+            {
+                "components": {
+                    "AnimationData": {
+                        "config": {
+                            "duration": "2500ms",
+                            "frame_count": 10,
+                            "frame_size": [
+                                117,
+                                78
+                            ],
+                            "play_count": 2,
+                            "reset_on_complete": false,
+                            "start_pixel": [
+                                0,
+                                0
+                            ]
+                        },
+                        "current_frame": 0
+                    },
+                    "Depth": 1.0,
+                    "IDrawable": {
+                        "hash": 12046072236507568353
+                    },
+                    "Origin": "Center",
+                    "Rect": {
+                        "max": [
+                            53.900001525878906,
+                            36.95000076293945
+                        ],
+                        "min": [
+                            -53.900001525878906,
+                            -36.95000076293945
+                        ]
+                    },
+                    "Scripts": [
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 16,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "MousePressedOver",
+                                        "type_hash": 18219744806835818765,
+                                        "value": {
+                                            "button": "Button0"
+                                        }
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "AddComponentsScript",
+                                        "type_hash": 16581733869019746010,
+                                        "value": {
+                                            "components": [
+                                                {
+                                                    "type": "Depth",
+                                                    "type_hash": 13780846363784450245,
+                                                    "value": 4.0
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "EmitSignalScript",
+                                        "type_hash": 11448630891714376396,
+                                        "value": {
+                                            "signal": "action.completed"
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "AnimationActionScript",
+                                        "type_hash": 12666062028396431375,
+                                        "value": {
+                                            "action": 0,
+                                            "animation_key": "",
+                                            "force": true,
+                                            "frame": 0,
+                                            "reset_on_stop": false
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SetSceneInteractablesEnabledScript",
+                                        "type_hash": 17900196821975614776,
+                                        "value": {
+                                            "enabled": false
+                                        }
+                                    },
+                                    {
+                                        "completion": "Duration",
+                                        "enabled": true,
+                                        "name": "WaitScript",
+                                        "timing": {
+                                            "additional_repeats": 0,
+                                            "duration_ms": 5000.0,
+                                            "ease": "Linear",
+                                            "infinite_repeats": false,
+                                            "reversed": false,
+                                            "yoyo": false
+                                        },
+                                        "type_hash": 14913473955662755852,
+                                        "value": "WaitScript"
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SetSceneInteractablesEnabledScript",
+                                        "type_hash": 17900196821975614776,
+                                        "value": {
+                                            "enabled": true
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 14,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        },
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 31893,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "AnimationFinalFrame",
+                                        "type_hash": 5942062835637060259,
+                                        "value": {}
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "RemoveComponentsScript",
+                                        "type_hash": 2109423643212945885,
+                                        "value": {
+                                            "components": [
+                                                "Interactive"
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 31891,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        },
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 16555,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "Signal",
+                                        "type_hash": 12046072236508525814,
+                                        "value": {
+                                            "signal": "nyan.time"
+                                        }
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "AddComponentsScript",
+                                        "type_hash": 16581733869019746010,
+                                        "value": {
+                                            "components": [
+                                                {
+                                                    "type": "Interactive",
+                                                    "type_hash": 5632410278723947672,
+                                                    "value": true
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 16553,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        }
+                    ],
+                    "TextureCrop": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "size": [
+                            117.0,
+                            78.0
+                        ]
+                    },
+                    "TextureKey": "nyan",
+                    "Transform": {
+                        "position": [
+                            -4.622093200683594,
+                            -79.23892974853516
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Nyan",
+                "uuid": 984041210
+            },
+            {
+                "components": {
+                    "Depth": 0.0,
+                    "Scripts": [
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 120,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "Signal",
+                                        "type_hash": 12046072236508525814,
+                                        "value": {
+                                            "signal": "win"
+                                        }
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "SceneChangeScript",
+                                        "type_hash": 8456253724118082335,
+                                        "value": {
+                                            "action": 2,
+                                            "delay_ms": 0.0,
+                                            "direction": [
+                                                1.0,
+                                                0.0
+                                            ],
+                                            "duration_ms": 500.0,
+                                            "ease": "Linear",
+                                            "priority": 0,
+                                            "scene_key": "Main",
+                                            "transition": 1
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 118,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        }
+                    ],
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Win",
+                "uuid": 1828696955
+            },
+            {
+                "components": {
+                    "AnimationData": {
+                        "config": {
+                            "duration": "2000ms",
+                            "frame_count": 5,
+                            "frame_size": [
+                                346,
+                                221
+                            ],
+                            "play_count": 1,
+                            "reset_on_complete": false,
+                            "start_pixel": [
+                                0,
+                                0
+                            ]
+                        },
+                        "current_frame": 0
+                    },
+                    "Depth": 10.0,
+                    "IDrawable": {
+                        "hash": 12046072236507568353
+                    },
+                    "Origin": "Center",
+                    "Scripts": [
+                        {
+                            "sequence": {
+                                "destroy_owner_on_complete": false,
+                                "enabled": true,
+                                "id": 124,
+                                "lifecycle_actions": [],
+                                "name": "New Script Sequence",
+                                "reentry": "IgnoreWhileRunning",
+                                "remove_binding_on_complete": false,
+                                "shared_reference": false,
+                                "shared_sequence_id": 0,
+                                "start_events": [
+                                    {
+                                        "consume": false,
+                                        "enabled": true,
+                                        "name": "Signal",
+                                        "type_hash": 12046072236508525814,
+                                        "value": {
+                                            "signal": "lose"
+                                        }
+                                    }
+                                ],
+                                "steps": [
+                                    {
+                                        "enabled": true,
+                                        "name": "SetVisibleScript",
+                                        "type_hash": 17439684944428900683,
+                                        "value": {
+                                            "visible": true
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "AnimationActionScript",
+                                        "type_hash": 12666062028396431375,
+                                        "value": {
+                                            "action": 0,
+                                            "animation_key": "",
+                                            "force": true,
+                                            "frame": 0,
+                                            "reset_on_stop": false
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SetSceneInteractablesEnabledScript",
+                                        "type_hash": 17900196821975614776,
+                                        "value": {
+                                            "enabled": false
+                                        }
+                                    },
+                                    {
+                                        "completion": "Duration",
+                                        "enabled": true,
+                                        "name": "WaitScript",
+                                        "timing": {
+                                            "additional_repeats": 0,
+                                            "duration_ms": 4000.0,
+                                            "ease": "Linear",
+                                            "infinite_repeats": false,
+                                            "reversed": false,
+                                            "yoyo": false
+                                        },
+                                        "type_hash": 14913473955662755852,
+                                        "value": "WaitScript"
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "name": "SceneChangeScript",
+                                        "type_hash": 8456253724118082335,
+                                        "value": {
+                                            "action": 2,
+                                            "delay_ms": 0.0,
+                                            "direction": [
+                                                1.0,
+                                                0.0
+                                            ],
+                                            "duration_ms": 500.0,
+                                            "ease": "Linear",
+                                            "priority": 0,
+                                            "scene_key": "Main",
+                                            "transition": 1
+                                        }
+                                    }
+                                ],
+                                "stop_events": [],
+                                "transient": false
+                            },
+                            "type": "Script",
+                            "value": {
+                                "sequence": {
+                                    "destroy_owner_on_complete": false,
+                                    "enabled": true,
+                                    "id": 122,
+                                    "lifecycle_actions": [],
+                                    "name": "New Script Sequence",
+                                    "reentry": "IgnoreWhileRunning",
+                                    "remove_binding_on_complete": false,
+                                    "shared_reference": false,
+                                    "shared_sequence_id": 0,
+                                    "start_events": [],
+                                    "steps": [],
+                                    "stop_events": [],
+                                    "transient": false
+                                }
+                            }
+                        }
+                    ],
+                    "TextureCrop": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "size": [
+                            346.0,
+                            221.0
+                        ]
+                    },
+                    "TextureKey": "lose_bubble",
+                    "Transform": {
+                        "position": [
+                            138.4186248779297,
+                            -55.785118103027344
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": false
+                },
+                "tag": "Lose",
+                "uuid": 477219396
             }
         ],
         "primary_entities": {

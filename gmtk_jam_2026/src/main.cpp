@@ -3,6 +3,8 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <algorithm>
+#include <string>
 
 #include "app/application.h"
 #include "core/editor.h"
@@ -17,6 +19,9 @@
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
+#include "core/math/angle.h"
+#include "core/util/timer.h"
+#include "runtime/graphics/shape.h"
 
 using namespace ptgn;
 
