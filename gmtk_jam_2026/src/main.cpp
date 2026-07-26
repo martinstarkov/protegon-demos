@@ -1,76 +1,39 @@
 #include "runtime/ui/button.h"
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <algorithm>
-#include <string>
 
 #include "app/application.h"
 #include "core/editor.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "runtime/interaction/interactive.h"
-#include "runtime/scripting/script_registration.h"
+#include "core/util/timer.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/interaction/interactive.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
-#include "core/math/angle.h"
-#include "core/util/timer.h"
-#include "runtime/graphics/shape.h"
+#include "runtime/scripting/script_registration.h"
 
 using namespace ptgn;
 
-struct SetSceneInteractablesEnabledScript : public Script {
-	bool enabled{ true };
+namespace ptgn::event {
 
-	SetSceneInteractablesEnabledScript() = default;
+/// @brief Emitted after every interactive entity in a scene has been disabled.
+struct SceneInteractablesDisabled {};
+struct SceneInteractablesEnabled {};
 
-	explicit SetSceneInteractablesEnabledScript(
-		bool enabled
-	) :
-		enabled{ enabled } {}
-
-	void OnStart() override {
-		auto& scene{
-			GetScene()
-		};
-
-		for (auto [entity, interactive] :
-			 scene.EntitiesWith<
-				 impl::Interactive
-			 >()) {
-			SetInteractive(
-				entity,
-				enabled
-			);
-		}
-	}
-
-	PTGN_REFLECT(
-		SetSceneInteractablesEnabledScript,
-		enabled
-	)
-};
-
-PTGN_REGISTER_SCRIPT(
-	SetSceneInteractablesEnabledScript,
-	{
-		.completion = ScriptCompletion::Instant,
-		.label =
-			"Set Scene Interactables",
-		.group =
-			"Interaction",
-		.description =
-			"Enable or disable every interactive entity in the current scene.",
-		.type =
-			editor::ScriptType::Sequence,
-	}
-);
+} // namespace ptgn::event
 
 namespace {
 
@@ -82,6 +45,130 @@ constexpr V2_float kButtonSize{
 constexpr float kTitleButtonOffset{
 	170.0f
 };
+
+constexpr V2_float kClockPosition{
+	0.0f,
+	0.0f
+};
+
+constexpr V2_float kFirstHandEnd{
+	0.0f,
+	-100.0f
+};
+
+constexpr V2_float kSecondHandEnd{
+	0.0f,
+	-140.0f
+};
+
+constexpr V2_float kThirdHandEnd{
+	0.0f,
+	-180.0f
+};
+
+constexpr int kRequiredRotations{
+	12
+};
+
+constexpr float kLoseDelaySeconds{
+	10.0f
+};
+
+const SignalKey kActionCompletedSignal{
+	"action.completed"
+};
+
+const SignalKey kWinSignal{
+	"win"
+};
+
+const SignalKey kLoseSignal{
+	"lose"
+};
+
+void EmitGlobalSignal(
+	Scene& scene,
+	const SignalKey& signal
+) {
+	(void)script_runtime::DispatchGlobal<Signal>(
+		scene,
+		Signal{
+			signal
+		}
+	);
+}
+
+void SetAllSceneInteractablesEnabled(
+	Scene& scene,
+	bool enabled
+) {
+	for (auto [entity, interactive] :
+		 scene.EntitiesWith<
+			 impl::Interactive
+		 >()) {
+		SetInteractive(
+			entity,
+			enabled
+		);
+	}
+
+	if (!enabled) {
+		(void)script_runtime::DispatchGlobal<
+			event::SceneInteractablesDisabled
+		>(scene);
+	} else {
+		(void)script_runtime::DispatchGlobal<
+			event::SceneInteractablesEnabled
+		>(scene);
+	}
+}
+
+struct ClockHand {
+	Entity parent;
+	Entity line;
+};
+
+ClockHand CreateClockHand(
+	Scene& scene,
+	V2_float clock_position,
+	V2_float end,
+	float line_width,
+	Color color
+) {
+	Entity parent{
+		scene.CreateEntity()
+	};
+
+	parent.Add<Transform>(
+		Transform{
+			clock_position
+		}
+	);
+
+	Entity line{
+		CreateLine(
+			scene,
+			Transform{},
+			V2_float{
+				0.0f,
+				0.0f
+			},
+			end,
+			color,
+			line_width
+		)
+	};
+
+	SetParent(
+		line,
+		parent
+	);
+
+	return {
+		parent,
+		line
+	};
+}
 
 Button CreateMenuButton(
 	Scene& scene,
@@ -172,9 +259,137 @@ void AttachSequence(
 
 } // namespace
 
+struct SetSceneInteractablesEnabledScript : public Script {
+	bool enabled{ true };
+
+	SetSceneInteractablesEnabledScript() = default;
+
+	explicit SetSceneInteractablesEnabledScript(
+		bool enabled
+	) :
+		enabled{ enabled } {}
+
+	void OnStart() override {
+		SetAllSceneInteractablesEnabled(
+			GetScene(),
+			enabled
+		);
+	}
+
+	PTGN_REFLECT(
+		SetSceneInteractablesEnabledScript,
+		enabled
+	)
+};
+
+PTGN_REGISTER_SCRIPT(
+	SetSceneInteractablesEnabledScript,
+	{
+		.completion = ScriptCompletion::Instant,
+		.label =
+			"Set Scene Interactables",
+		.group =
+			"Interaction",
+		.description =
+			"Enable or disable every interactive entity in the current scene.",
+		.type =
+			editor::ScriptType::Sequence,
+	}
+);
+
+struct IncrementClockHandScript : public Script {
+	int rotations{
+		kRequiredRotations
+	};
+
+	SignalKey increment_signal{
+		kActionCompletedSignal
+	};
+
+	SignalKey win_signal{
+		kWinSignal
+	};
+
+	IncrementClockHandScript() = default;
+
+	void OnStart() override {
+		current_rotation_ = 0;
+		won_ = false;
+
+		SetRotation(Owner(), Degrees{ 0.0f });
+	}
+
+	void OnEvent(Event event) override {
+
+		event.Dispatch<Signal>(
+			[this](
+				const Signal& signal
+			) {
+				if (won_ ||
+					signal.key !=
+						increment_signal) {
+					return;
+				}
+
+				const int rotation_count{
+					std::max(
+						1,
+						rotations
+					)
+				};
+
+				if (current_rotation_ >=
+					rotation_count) {
+					return;
+				}
+
+				++current_rotation_;
+
+				const float angle{
+					360.0f *
+					static_cast<float>(
+						current_rotation_
+					) /
+					static_cast<float>(
+						rotation_count
+					)
+				};
+
+				SetRotation(Owner(), Degrees{
+							angle
+						});
+				
+
+				if (current_rotation_ !=
+					rotation_count) {
+					return;
+				}
+
+				won_ = true;
+
+				EmitGlobalSignal(
+					GetScene(),
+					win_signal
+				);
+			}
+		);
+	}
+
+	PTGN_REFLECT(
+		IncrementClockHandScript,
+		rotations,
+		increment_signal,
+		win_signal
+	)
+
+private:
+	int current_rotation_{ 0 };
+	bool won_{ false };
+};
+
 class TitleScene : public Scene {
 public:
-	void OnLoad() {
+	void OnLoad() override {
 		ctx().asset.LoadDirectory("assets");
 	}
 
@@ -253,6 +468,34 @@ public:
 class GameScene : public Scene {
 public:
 	void OnNew() override {
+
+		ClockHand first_hand{
+			CreateClockHand(
+				*this,
+				kClockPosition,
+				kFirstHandEnd,
+				2.0f,
+				color::White
+			)
+		};
+
+		(void)CreateClockHand(
+			*this,
+			kClockPosition,
+			kSecondHandEnd,
+			3.0f,
+			color::White
+		);
+
+		(void)CreateClockHand(
+			*this,
+			kClockPosition,
+			kThirdHandEnd,
+			4.0f,
+			color::White
+		);
+
+
 		SetBackgroundColor(
 			Color{
 				25,
@@ -262,6 +505,98 @@ public:
 			}
 		);
 	}
+
+	void OnEnter() override {
+		lose_timer_.Start(true);
+		game_finished_ = false;
+
+		EmitGlobalSignal(
+			*this,
+			"start"
+		);
+
+		auto first_hand{ GetEntity("HandParent") };
+
+		auto& increment_script{ AddScript<IncrementClockHandScript>(first_hand) };
+
+		increment_script.rotations =
+			kRequiredRotations;
+	}
+
+	void OnUpdate() override {
+		
+		if (game_finished_ ||
+			!lose_timer_.IsRunning() || resetting) {
+			lose_timer_.Reset();
+			return;
+		}
+
+		lose_timer_.Update(ctx().dt());
+
+		if (!lose_timer_.Completed(
+				secondsf{
+					kLoseDelaySeconds
+				}
+			)) {
+			return;
+		}
+
+		game_finished_ = true;
+		lose_timer_.Reset();
+		lose_timer_.Stop();
+
+		// EmitGlobalSignal(
+		// 	*this,
+		// 	kLoseSignal
+		// );
+	}
+
+	bool resetting = false;
+
+	void OnEvent(Event event) override {
+		event.Dispatch<
+			event::SceneInteractablesDisabled
+		>(
+			[this] {
+				if (game_finished_) {
+					return;
+				}
+
+				resetting = true;
+				lose_timer_.Reset();
+			}
+		);
+		event.Dispatch<
+			event::SceneInteractablesEnabled
+		>(
+			[this] {
+				if (game_finished_) {
+					return;
+				}
+
+				resetting = false;
+				lose_timer_.Start(true);
+			}
+		);
+
+		event.Dispatch<Signal>(
+			[this](
+				const Signal& signal
+			) {
+				if (signal.key == kActionCompletedSignal) {
+					lose_timer_.Start(true);
+				} else if (signal.key == kWinSignal) {
+					game_finished_ = true;
+					lose_timer_.Reset();
+					lose_timer_.Stop();
+				}
+			}
+		);
+	}
+
+private:
+	ManualTimer lose_timer_;
+	bool game_finished_{ false };
 };
 
 class InstructionsScene : public Scene {
@@ -384,4 +719,3 @@ int main(int, char**) {
 		"../project/GMTKJam2026.ptgnproj"
 	);
 }
-

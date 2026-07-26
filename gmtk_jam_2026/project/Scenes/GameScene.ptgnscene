@@ -13,8 +13,8 @@
                     "RenderTargetSize": {
                         "follow_display_size": true,
                         "size": [
-                            860,
-                            483
+                            950,
+                            534
                         ]
                     },
                     "Transform": {
@@ -3111,6 +3111,14 @@
                                     },
                                     {
                                         "enabled": true,
+                                        "name": "SetSceneInteractablesEnabledScript",
+                                        "type_hash": 17900196821975614776,
+                                        "value": {
+                                            "enabled": false
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
                                         "name": "AnimationActionScript",
                                         "type_hash": 12666062028396431375,
                                         "value": {
@@ -3119,14 +3127,6 @@
                                             "force": true,
                                             "frame": 0,
                                             "reset_on_stop": false
-                                        }
-                                    },
-                                    {
-                                        "enabled": true,
-                                        "name": "SetSceneInteractablesEnabledScript",
-                                        "type_hash": 17900196821975614776,
-                                        "value": {
-                                            "enabled": false
                                         }
                                     },
                                     {
