@@ -2,9 +2,9 @@
     "asset_directory": "assets",
     "assets": [
         {
-            "key": "main",
+            "key": "scene",
             "kind": "Scene",
-            "source_path": "assets/scenes/main.ptgnscene"
+            "source_path": "assets/scenes/Scene.ptgnscene"
         },
         {
             "key": "animation",
@@ -16,9 +16,9 @@
     "preload_assets": [],
     "scenes": [
         {
-            "display_name": "TestScene",
-            "key": "main",
-            "scene_path": "assets/scenes/main.ptgnscene"
+            "display_name": "Scene",
+            "key": "Scene",
+            "scene_path": "assets/scenes/Scene.ptgnscene"
         }
     ],
     "screen_effects": {
@@ -127,5 +127,5 @@
             "title": "Brackeys 2026_2"
         }
     },
-    "startup_scene_key": "main"
+    "startup_scene_key": "Scene"
 }

@@ -1,7 +1,5 @@
 {
-    "assets": [
-        "animation"
-    ],
+    "assets": [],
     "content": {
         "entities": [
             {
@@ -37,7 +35,7 @@
                 },
                 "tag": "Scene Target",
                 "tags": [],
-                "uuid": 533028067
+                "uuid": 254558599
             },
             {
                 "children": [],
@@ -60,7 +58,7 @@
                 },
                 "tag": "Main Camera",
                 "tags": [],
-                "uuid": 558661363
+                "uuid": 1158233708
             },
             {
                 "children": [],
@@ -90,68 +88,16 @@
                 "tags": [
                     "UILayer"
                 ],
-                "uuid": 757552312
-            },
-            {
-                "children": [],
-                "components": {
-                    "AnimationData": {
-                        "config": {
-                            "duration": "500ms",
-                            "frame_count": 4,
-                            "frame_size": [
-                                16,
-                                32
-                            ],
-                            "play_count": 1,
-                            "reset_on_complete": false,
-                            "start_pixel": [
-                                0,
-                                32
-                            ]
-                        },
-                        "current_frame": 0
-                    },
-                    "IDrawable": {
-                        "hash": 12046072236507568353
-                    },
-                    "Origin": "Center",
-                    "TextureCrop": {
-                        "position": [
-                            0.0,
-                            32.0
-                        ],
-                        "size": [
-                            16.0,
-                            32.0
-                        ]
-                    },
-                    "TextureKey": "animation",
-                    "Transform": {
-                        "position": [
-                            0.0,
-                            0.0
-                        ],
-                        "rotation": 0.0,
-                        "scale": [
-                            4.0,
-                            4.0
-                        ]
-                    },
-                    "Visible": true
-                },
-                "tag": "Animation",
-                "tags": [],
-                "uuid": 746915150
+                "uuid": 1379733205
             }
         ],
         "primary_entities": {
-            "camera": 558661363,
-            "fixed_camera": 757552312,
-            "render_target": 533028067
+            "camera": 1158233708,
+            "fixed_camera": 1379733205,
+            "render_target": 254558599
         }
     },
     "parameters": {},
     "preload_assets": [],
-    "type": "TestScene"
+    "type": "$Scene"
 }
