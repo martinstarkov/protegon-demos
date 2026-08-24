@@ -22,30 +22,11 @@
 
 using namespace ptgn;
 
-namespace {
-
-void LoadAssets(Scene& scene) {
-	//scene.ctx().asset.Load("animation", "assets/textures/animation_frames4.png");
-}
-
-} // namespace
-
 class TestScene : public Scene {
 public:
-	void OnNew() override {
-		LoadAssets(*this);
+	void OnNew() override {}
 
-		Animation animation{ CreateAnimation(
-			*this, {}, "animation", { 1, 500ms, V2_int{ 16, 32 }, 1, { 0, 32 } },
-			Origin::Center
-		) };
-
-		SetScale(animation, 4.0f);
-	}
-
-	void OnLoad() override {
-		LoadAssets(*this);
-	}
+	void OnLoad() override {}
 };
 
 PTGN_REGISTER_SCENE(TestScene);
