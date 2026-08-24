@@ -1,5 +1,7 @@
 {
-    "assets": [],
+    "assets": [
+        "animation"
+    ],
     "content": {
         "entities": [
             {
@@ -35,7 +37,7 @@
                 },
                 "tag": "Scene Target",
                 "tags": [],
-                "uuid": 746172418
+                "uuid": 533028067
             },
             {
                 "children": [],
@@ -58,7 +60,7 @@
                 },
                 "tag": "Main Camera",
                 "tags": [],
-                "uuid": 296548899
+                "uuid": 558661363
             },
             {
                 "children": [],
@@ -88,7 +90,7 @@
                 "tags": [
                     "UILayer"
                 ],
-                "uuid": 1881134347
+                "uuid": 757552312
             },
             {
                 "children": [],
@@ -96,7 +98,7 @@
                     "AnimationData": {
                         "config": {
                             "duration": "500ms",
-                            "frame_count": 1,
+                            "frame_count": 4,
                             "frame_size": [
                                 16,
                                 32
@@ -140,13 +142,13 @@
                 },
                 "tag": "Animation",
                 "tags": [],
-                "uuid": 333591071
+                "uuid": 746915150
             }
         ],
         "primary_entities": {
-            "camera": 296548899,
-            "fixed_camera": 1881134347,
-            "render_target": 746172418
+            "camera": 558661363,
+            "fixed_camera": 757552312,
+            "render_target": 533028067
         }
     },
     "parameters": {},

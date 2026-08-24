@@ -55,5 +55,5 @@ int main(int, char**) {
 
 	PTGN_WITH_EDITOR(app, true);
 
-	app.StartProject<TestScene>("brackeys_2026_2.ptgnproj");
+	app.StartProject<TestScene>();
 }
