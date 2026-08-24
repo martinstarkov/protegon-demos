@@ -1,0 +1,157 @@
+{
+    "assets": [
+        "animation"
+    ],
+    "content": {
+        "entities": [
+            {
+                "children": [],
+                "components": {
+                    "BlendMode": 1,
+                    "ClearColor": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "RenderTargetDesc": {
+                        "follow_display_size": true,
+                        "format": 34836,
+                        "size": [
+                            800,
+                            800
+                        ]
+                    },
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Scene Target",
+                "tags": [],
+                "uuid": 674301780
+            },
+            {
+                "children": [],
+                "components": {
+                    "CameraData": {
+                        "pixel_rounding": false,
+                        "viewport_space": 0
+                    },
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Main Camera",
+                "tags": [],
+                "uuid": 947117668
+            },
+            {
+                "children": [],
+                "components": {
+                    "CameraData": {
+                        "pixel_rounding": false,
+                        "viewport_space": 0
+                    },
+                    "CameraMask": {
+                        "exclude": 18446744073709551615,
+                        "include": 0
+                    },
+                    "RenderMask": 0,
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                "tag": "Fixed Camera",
+                "tags": [
+                    "UILayer"
+                ],
+                "uuid": 941510187
+            },
+            {
+                "children": [],
+                "components": {
+                    "AnimationData": {
+                        "config": {
+                            "duration": "500ms",
+                            "frame_count": 4,
+                            "frame_size": [
+                                16,
+                                32
+                            ],
+                            "play_count": 1,
+                            "reset_on_complete": false,
+                            "start_pixel": [
+                                0,
+                                32
+                            ]
+                        },
+                        "current_frame": 0
+                    },
+                    "IDrawable": {
+                        "hash": 12046072236507568353
+                    },
+                    "Origin": "Center",
+                    "TextureCrop": {
+                        "position": [
+                            0.0,
+                            32.0
+                        ],
+                        "size": [
+                            16.0,
+                            32.0
+                        ]
+                    },
+                    "TextureKey": "animation",
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            4.0,
+                            4.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Animation",
+                "tags": [],
+                "uuid": 1028298115
+            }
+        ],
+        "primary_entities": {
+            "camera": 947117668,
+            "fixed_camera": 941510187,
+            "render_target": 674301780
+        }
+    },
+    "parameters": {},
+    "preload_assets": [],
+    "type": "TestScene"
+}

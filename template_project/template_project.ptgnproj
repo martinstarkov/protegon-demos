@@ -1,0 +1,131 @@
+{
+    "asset_directory": "assets",
+    "assets": [
+        {
+            "key": "main",
+            "kind": "Scene",
+            "source_path": "assets/scenes/main.ptgnscene"
+        },
+        {
+            "key": "animation",
+            "kind": "Texture",
+            "source_path": "assets/textures/animation_frames4.png"
+        }
+    ],
+    "name": "template_project",
+    "preload_assets": [],
+    "scenes": [
+        {
+            "display_name": "TestScene",
+            "key": "main",
+            "scene_path": "assets/scenes/main.ptgnscene"
+        }
+    ],
+    "screen_effects": {
+        "effects": []
+    },
+    "settings": {
+        "debug": {
+            "collision": {
+                "draw_ccd": false,
+                "draw_color": [
+                    255,
+                    0,
+                    255,
+                    255
+                ],
+                "draw_enabled": false,
+                "draw_fill_style": {
+                    "line_width": 1.0,
+                    "type": "Hollow"
+                }
+            },
+            "interaction": {
+                "draw_color": [
+                    255,
+                    0,
+                    255,
+                    255
+                ],
+                "draw_enabled": false,
+                "draw_line_width": 2.0
+            },
+            "light": {
+                "does_not_mask_inside_color": [
+                    0,
+                    255,
+                    0,
+                    255
+                ],
+                "draw_enabled": true,
+                "draw_fill_style": {
+                    "line_width": 2.0,
+                    "type": "Hollow"
+                },
+                "draw_interiors": true,
+                "masks_inside_color": [
+                    255,
+                    0,
+                    0,
+                    255
+                ],
+                "polygon_color": [
+                    255,
+                    255,
+                    0,
+                    255
+                ]
+            },
+            "text": {
+                "clip_draw_color": [
+                    0,
+                    0,
+                    255,
+                    255
+                ],
+                "draw_color": [
+                    255,
+                    0,
+                    255,
+                    255
+                ],
+                "draw_enabled": false,
+                "draw_line_width": 2.0
+            }
+        },
+        "renderer": {
+            "background_color": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "gamma": 2.200000047683716,
+            "logical_size": [
+                800,
+                800
+            ],
+            "scaling_mode": "Letterbox",
+            "tone_mapping": {
+                "exposure": 1.0,
+                "op": "None"
+            }
+        },
+        "window": {
+            "background_color": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "maximized": false,
+            "resizable": true,
+            "size": [
+                800,
+                800
+            ],
+            "title": "Template Project"
+        }
+    },
+    "startup_scene_key": "main"
+}
