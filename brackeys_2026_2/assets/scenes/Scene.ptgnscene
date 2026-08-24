@@ -89,6 +89,49 @@
                     "UILayer"
                 ],
                 "uuid": 1379733205
+            },
+            {
+                "children": [],
+                "components": {
+                    "BlendMode": 9,
+                    "IDrawable": {
+                        "hash": 13780846363775379926
+                    },
+                    "LightData": {
+                        "ambient_color": [
+                            0,
+                            0,
+                            0,
+                            0
+                        ],
+                        "ambient_intensity": 0.0,
+                        "color": [
+                            255,
+                            0,
+                            0,
+                            255
+                        ],
+                        "direction_angle": 0.0,
+                        "falloff": 2.0,
+                        "intensity": 0.5,
+                        "radius": 100.0
+                    },
+                    "Transform": {
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "Visible": true
+                },
+                "tag": "Light",
+                "tags": [],
+                "uuid": 927592020
             }
         ],
         "primary_entities": {
