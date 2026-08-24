@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.28)
+
+project(brackeys_2026_2 LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(ASSETS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+set(PROJECT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.ptgnproj")
+set(PROTEGON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../protegon")
+
+file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false
+  "${SRC_DIR}/*.h" "${SRC_DIR}/*.cpp")
+
+add_executable(${PROJECT_NAME} ${SRC_FILES})
+
+target_include_directories(${PROJECT_NAME} PRIVATE "${SRC_DIR}")
+
+set(PTGN_EXAMPLES "" CACHE STRING "" FORCE)
+
+add_subdirectory("${PROTEGON_DIR}" binary_dir)
+
+add_protegon_to(${PROJECT_NAME} ASSETS_DIR "${ASSETS_DIR}")
+
+if(EMSCRIPTEN)
+  target_link_options(${PROJECT_NAME} PRIVATE
+    "--preload-file=${PROJECT_FILE}@/${PROJECT_NAME}.ptgnproj")
+endif()
