@@ -5,7 +5,6 @@
             {
                 "children": [],
                 "components": {
-                    "BlendMode": 1,
                     "ClearColor": [
                         0,
                         0,
@@ -35,7 +34,7 @@
                 },
                 "tag": "Scene Target",
                 "tags": [],
-                "uuid": 254558599
+                "uuid": 1729155942
             },
             {
                 "children": [],
@@ -58,7 +57,7 @@
                 },
                 "tag": "Main Camera",
                 "tags": [],
-                "uuid": 1158233708
+                "uuid": 770376121
             },
             {
                 "children": [],
@@ -88,7 +87,7 @@
                 "tags": [
                     "UILayer"
                 ],
-                "uuid": 1379733205
+                "uuid": 2070344468
             },
             {
                 "children": [],
@@ -131,13 +130,25 @@
                 },
                 "tag": "Light",
                 "tags": [],
-                "uuid": 927592020
+                "uuid": 1730856837
             }
         ],
         "primary_entities": {
-            "camera": 1158233708,
-            "fixed_camera": 1379733205,
-            "render_target": 254558599
+            "camera": 770376121,
+            "fixed_camera": 2070344468,
+            "render_target": 1729155942
+        },
+        "settings": {
+            "interaction": {
+                "top_only": false
+            },
+            "physics": {
+                "enabled": true,
+                "gravity": [
+                    0.0,
+                    0.0
+                ]
+            }
         }
     },
     "parameters": {},
