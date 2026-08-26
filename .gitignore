@@ -25,12 +25,13 @@ mono_crash.*
 
 # Build results
 [Bb]uild-wasm/
-[Bb]uild-web/
+[Bb]uild-[Ww]eb/
 [Bb]uild/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+[Rr]elease-[Ww]eb/
 [Ww][Ii][Nn]32/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
